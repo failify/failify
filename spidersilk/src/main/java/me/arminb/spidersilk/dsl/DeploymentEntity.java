@@ -23,17 +23,16 @@
  *
  */
 
-package me.arminb.spidersilk.deployment;
+package me.arminb.spidersilk.dsl;
 
-import me.arminb.spidersilk.deployment.Deployment.DeploymentBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DeploymentBase {
-    public static final Logger logger = LoggerFactory.getLogger(DeploymentBase.class);
+public class DeploymentEntity {
+    public static final Logger logger = LoggerFactory.getLogger(DeploymentEntity.class);
     protected final String name;
 
-    public DeploymentBase(String name) {
+    public DeploymentEntity(String name) {
         this.name = name;
     }
 
@@ -46,7 +45,7 @@ public class DeploymentBase {
      * @param <T> The class that is going to be build
      * @param <S> The parent builder class
      */
-    public abstract static class DeploymentBuilderBase<T extends DeploymentBase, S extends DeploymentBuilderBase> {
+    public abstract static class DeploymentBuilderBase<T extends DeploymentEntity, S extends DeploymentBuilderBase> {
         protected String name;
         protected S parentBuilder;
 

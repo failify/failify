@@ -23,11 +23,11 @@
  *
  */
 
-package me.arminb.spidersilk.deployment;
+package me.arminb.spidersilk.dsl;
 
 import java.util.*;
 
-public class Deployment extends DeploymentBase {
+public class Deployment extends DeploymentEntity {
     private final Map<String, Node> nodes;
     private final Map<String, Service> services;
     private final Map<String, Workload> workloads;
@@ -58,7 +58,7 @@ public class Deployment extends DeploymentBase {
         return runSequence;
     }
 
-    public static class DeploymentBuilder extends DeploymentBase.DeploymentBuilderBase<Deployment, DeploymentBase.DeploymentBuilderBase> {
+    public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
         private Map<String, Node> nodes;
         private List<String> runSequence;
         private Map<String, Service> services;

@@ -23,9 +23,9 @@
  *
  */
 
-package me.arminb.spidersilk.deployment;
+package me.arminb.spidersilk.dsl;
 
-public class Workload extends DeploymentBase {
+public class Workload extends DeploymentEntity {
     private final String runCommand;
 
     public Workload(WorkloadBuilder builder) {

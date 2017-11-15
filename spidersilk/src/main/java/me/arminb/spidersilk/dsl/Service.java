@@ -23,12 +23,12 @@
  *
  */
 
-package me.arminb.spidersilk.deployment;
+package me.arminb.spidersilk.dsl;
 
 import java.util.HashMap;
 import java.util.Map;
 
-public class Service extends DeploymentBase {
+public class Service extends DeploymentEntity {
     private final String jarFile;
     private final String runCommand;
     private final Map<String, Event> events;
@@ -52,7 +52,7 @@ public class Service extends DeploymentBase {
         return events.get(name);
     }
 
-    public static class Event extends DeploymentBase {
+    public static class Event extends DeploymentEntity {
         private final String event;
 
         private Event(String name, String event) {

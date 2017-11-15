@@ -23,38 +23,40 @@
  *
  */
 
-package me.arminb.spidersilk;
+package me.arminb.spidersilk.dsl;
 
-import me.arminb.spidersilk.deployment.Deployment;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+public class Node extends DeploymentEntity {
+    private final String serviceName;
 
-public class DefinitionTest {
-    public static final Logger logger = LoggerFactory.getLogger(DefinitionTest.class);
+    public Node(NodeBuilder builder) {
+        super(builder.name);
+        serviceName = builder.serviceName;
+    }
 
-    @Test
-    public void simpleDefinition() {
-        Deployment deployment = new Deployment.DeploymentBuilder()
-                .withService("s1")
-                    .jarFile("jar1")
-                    .runCommand("cmd1")
-                    .withEvent("e1", "me.arminb.Main")
-                    .withEvent("e2", "me.arminb.Main2")
-                .and()
-                .withService("s2")
-                    .jarFile("jar2")
-                    .runCommand("cmd2")
-                    .withEvent("e1", "me.arminb.Main3")
-                .and()
-                .withNode("n1")
-                    .serviceName("s1")
-                .and()
-                .withWorkload("w1")
-                    .runCommand("cmd3")
-                .and()
-                .runSequence("am bm cm dm")
-                .build();
-        logger.info("deployment created.");
+    public String getServiceName() {
+        return serviceName;
+    }
+
+    public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
+        private String serviceName;
+
+        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
+            super(parentBuilder, name);
+        }
+
+        public NodeBuilder serviceName(String serviceName) {
+            this.serviceName = serviceName;
+            return this;
+        }
+
+        @Override
+        public Node build() {
+            return new Node(this);
+        }
+
+        @Override
+        protected void returnToParent(Node builtObj) {
+            parentBuilder.node(builtObj);
+        }
     }
 }

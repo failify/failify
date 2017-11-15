@@ -23,40 +23,38 @@
  *
  */
 
-package me.arminb.spidersilk.deployment;
+package me.arminb.spidersilk;
 
-public class Node extends DeploymentBase {
-    private final String serviceName;
+import me.arminb.spidersilk.dsl.Deployment;
+import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-    public Node(NodeBuilder builder) {
-        super(builder.name);
-        serviceName = builder.serviceName;
-    }
+public class DefinitionTest {
+    public static final Logger logger = LoggerFactory.getLogger(DefinitionTest.class);
 
-    public String getServiceName() {
-        return serviceName;
-    }
-
-    public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
-        private String serviceName;
-
-        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
-            super(parentBuilder, name);
-        }
-
-        public NodeBuilder serviceName(String serviceName) {
-            this.serviceName = serviceName;
-            return this;
-        }
-
-        @Override
-        public Node build() {
-            return new Node(this);
-        }
-
-        @Override
-        protected void returnToParent(Node builtObj) {
-            parentBuilder.node(builtObj);
-        }
+    @Test
+    public void simpleDefinition() {
+        Deployment deployment = new Deployment.DeploymentBuilder()
+                .withService("s1")
+                    .jarFile("jar1")
+                    .runCommand("cmd1")
+                    .withEvent("e1", "me.arminb.Main")
+                    .withEvent("e2", "me.arminb.Main2")
+                .and()
+                .withService("s2")
+                    .jarFile("jar2")
+                    .runCommand("cmd2")
+                    .withEvent("e1", "me.arminb.Main3")
+                .and()
+                .withNode("n1")
+                    .serviceName("s1")
+                .and()
+                .withWorkload("w1")
+                    .runCommand("cmd3")
+                .and()
+                .runSequence("am bm cm dm")
+                .build();
+        logger.info("deployment created.");
     }
 }
