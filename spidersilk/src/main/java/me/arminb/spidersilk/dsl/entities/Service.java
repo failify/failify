@@ -23,75 +23,82 @@
  *
  */
 
-package me.arminb.spidersilk.dsl;
+package me.arminb.spidersilk.dsl.entities;
 
-import java.util.HashMap;
-import java.util.Map;
+import me.arminb.spidersilk.dsl.DeploymentEntity;
 
+/**
+ * An abstraction for a service or application inside a distributed system.
+ */
 public class Service extends DeploymentEntity {
-    private final String jarFile;
+    private final String applicationAddress;
     private final String runCommand;
-    private final Map<String, Event> events;
+    private final String libDir;
+    private final ServiceType serviceType;
 
     private Service(ServiceBuilder builder) {
-        super(builder.name);
-        jarFile = builder.jarFile;
+        super(builder.getName());
+        applicationAddress = builder.applicationAddress;
         runCommand = builder.runCommand;
-        events = builder.events;
+        libDir = builder.libDir;
+        serviceType = builder.serviceType;
     }
 
-    public String getJarFile() {
-        return jarFile;
+    public String getApplicationAddress() {
+        return applicationAddress;
     }
 
     public String getRunCommand() {
         return runCommand;
     }
 
-    public Event getEvent(String name) {
-        return events.get(name);
+    public String getLibDir() {
+        return libDir;
     }
 
-    public static class Event extends DeploymentEntity {
-        private final String event;
-
-        private Event(String name, String event) {
-            super(name);
-            this.event = event;
-        }
-
-        public String getEvent() {
-            return event;
-        }
+    public ServiceType getServiceType() {
+        return serviceType;
     }
-
+    
     public static class ServiceBuilder extends DeploymentBuilderBase<Service, Deployment.DeploymentBuilder> {
-        private String jarFile;
+        private String applicationAddress;
         private String runCommand;
-        private Map<String, Event> events;
+        private String libDir;
+        private ServiceType serviceType;
 
         public ServiceBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
             super(parentBuilder, name);
-            events = new HashMap<>();
         }
 
-        public ServiceBuilder withEvent(String name, String event) {
-            events.put(name, new Event(name, event));
-            return this;
+        public ServiceBuilder(String name) {
+            super(name);
         }
 
-        public ServiceBuilder event(Event event) {
-            events.put(event.getName(), event);
-            return this;
+        public ServiceBuilder(Service instance) {
+            super(instance);
+            applicationAddress = instance.applicationAddress;
+            runCommand = instance.runCommand;
+            libDir = instance.runCommand;
+            serviceType = instance.serviceType;
         }
 
-        public ServiceBuilder jarFile(String jarFile) {
-            this.jarFile = jarFile;
+        public ServiceBuilder applicationAddress(String applicationAddress) {
+            this.applicationAddress = applicationAddress;
             return this;
         }
 
         public ServiceBuilder runCommand(String runCommand) {
             this.runCommand = runCommand;
+            return this;
+        }
+
+        public ServiceBuilder libDir(String libDir) {
+            this.libDir = libDir;
+            return this;
+        }
+
+        public ServiceBuilder serviceType(ServiceType serviceType) {
+            this.serviceType = serviceType;
             return this;
         }
 

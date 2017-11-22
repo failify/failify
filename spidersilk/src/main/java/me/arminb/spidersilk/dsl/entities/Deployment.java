@@ -23,23 +23,31 @@
  *
  */
 
-package me.arminb.spidersilk.dsl;
+package me.arminb.spidersilk.dsl.entities;
+
+import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.dsl.events.ExternalEvent;
+import me.arminb.spidersilk.dsl.events.external.NodeOperationEvent;
+import me.arminb.spidersilk.dsl.events.external.Workload;
 
 import java.util.*;
 
+/**
+ * The container class for the whole distributed system deployment definition. The builder class is the entry point for building
+ * the deployment definition
+ */
 public class Deployment extends DeploymentEntity {
     private final Map<String, Node> nodes;
     private final Map<String, Service> services;
-    private final Map<String, Workload> workloads;
+    private final Map<String, ExternalEvent> executableEntities;
     private final List<String> runSequence;
 
     private Deployment(DeploymentBuilder builder) {
         super("deployment");
-        nodes = builder.nodes;
-        services = builder.services;
-        workloads = builder.workloads;
-        runSequence = builder.runSequence;
-
+        nodes = Collections.unmodifiableMap(builder.nodes);
+        services = Collections.unmodifiableMap(builder.services);
+        executableEntities = Collections.unmodifiableMap(builder.executableEntities);
+        runSequence = Collections.unmodifiableList(builder.runSequence);
     }
 
     public Node getNode(String name) {
@@ -50,8 +58,8 @@ public class Deployment extends DeploymentEntity {
         return services.get(name);
     }
 
-    public Workload getWorkload(String name) {
-        return workloads.get(name);
+    public ExternalEvent getExecutableEntity(String name) {
+        return executableEntities.get(name);
     }
 
     public List<String> getRunSequence() {
@@ -62,14 +70,22 @@ public class Deployment extends DeploymentEntity {
         private Map<String, Node> nodes;
         private List<String> runSequence;
         private Map<String, Service> services;
-        private Map<String, Workload> workloads;
+        private Map<String, ExternalEvent> executableEntities;
 
         public DeploymentBuilder() {
-            super(null, "");
+            super("root");
             nodes = new HashMap<>();
             services = new HashMap<>();
-            workloads = new HashMap<>();
+            executableEntities = new HashMap<>();
             runSequence = new ArrayList<>();
+        }
+
+        public DeploymentBuilder(Deployment instance) {
+            super(instance);
+            nodes = new HashMap<>(instance.nodes);
+            services = new HashMap<>(instance.services);
+            executableEntities = new HashMap<>(instance.executableEntities);
+            runSequence = new ArrayList<>(instance.runSequence);
         }
 
         public DeploymentBuilder node(Node node) {
@@ -91,12 +107,21 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder workload(Workload workload) {
-            workloads.put(workload.getName(), workload);
+            executableEntities.put(workload.getName(), workload);
             return this;
         }
 
         public Workload.WorkloadBuilder withWorkload(String name) {
             return new Workload.WorkloadBuilder(this, name);
+        }
+
+        public NodeOperationEvent.NodeOperationEventBuilder withNodeOperationEvent(String name) {
+            return new NodeOperationEvent.NodeOperationEventBuilder(this, name);
+        }
+
+        public DeploymentBuilder nodeOperationEvent(NodeOperationEvent nodeOperationEvent) {
+            executableEntities.put(nodeOperationEvent.getName(), nodeOperationEvent);
+            return this;
         }
 
         public DeploymentBuilder runSequence(String sequence) {

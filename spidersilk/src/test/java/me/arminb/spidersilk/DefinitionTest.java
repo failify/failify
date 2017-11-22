@@ -25,7 +25,10 @@
 
 package me.arminb.spidersilk;
 
-import me.arminb.spidersilk.dsl.Deployment;
+import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.dsl.entities.ServiceType;
+import me.arminb.spidersilk.dsl.events.external.NodeOperation;
+import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,24 +39,35 @@ public class DefinitionTest {
     @Test
     public void simpleDefinition() {
         Deployment deployment = new Deployment.DeploymentBuilder()
+                // Service Definitions
                 .withService("s1")
-                    .jarFile("jar1")
+                    .applicationAddress("jar1")
                     .runCommand("cmd1")
-                    .withEvent("e1", "me.arminb.Main")
-                    .withEvent("e2", "me.arminb.Main2")
-                .and()
-                .withService("s2")
-                    .jarFile("jar2")
-                    .runCommand("cmd2")
-                    .withEvent("e1", "me.arminb.Main3")
-                .and()
+                    .libDir("libDir1")
+                    .serviceType(ServiceType.JAVA).and()
+                // Node Definitions
                 .withNode("n1")
-                    .serviceName("s1")
-                .and()
+                    .withStackTraceEvent("e1")
+                        .trace("me.armib.Main1.method1")
+                        .trace("me.arminb.Main2.method2")
+                        .trace("me.arminb.Main3.method3").and()
+                    .withSchedulingEvent("b1")
+                        .operation(SchedulingOperation.BLOCK)
+                        .after("e1").and()
+                    .withSchedulingEvent("ub1")
+                        .operation(SchedulingOperation.UNBLOCK)
+                        .after("e1").and()
+                    .withGarbageCollectionEvent("g1").and()
+                    .serviceName("s1").and()
+                // Workload Definitions
                 .withWorkload("w1")
-                    .runCommand("cmd3")
-                .and()
-                .runSequence("am bm cm dm")
+                    .runCommand("cmd3").and()
+                // External Events Definitions
+                .withNodeOperationEvent("x1")
+                    .nodeName("n1")
+                    .nodeOperation(NodeOperation.DOWN).and()
+                // Run Sequence Definition
+                .runSequence("w1 * e1 * b1 * ( x1 | g1 ) * ub1")
                 .build();
         logger.info("deployment created.");
     }

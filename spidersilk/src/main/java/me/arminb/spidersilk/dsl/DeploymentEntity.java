@@ -28,11 +28,15 @@ package me.arminb.spidersilk.dsl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DeploymentEntity {
-    public static final Logger logger = LoggerFactory.getLogger(DeploymentEntity.class);
+import java.util.List;
+
+/**
+ * All of the entities in the deployment definition should extend this class
+ */
+public abstract class DeploymentEntity {
     protected final String name;
 
-    public DeploymentEntity(String name) {
+    protected DeploymentEntity(String name) {
         this.name = name;
     }
 
@@ -41,22 +45,40 @@ public class DeploymentEntity {
     }
 
     /**
-     *
+     * This is the base builder class for all of the entities inside the deployment definition which helps to implement
+     * a hierarchical builder system
      * @param <T> The class that is going to be build
      * @param <S> The parent builder class
      */
     public abstract static class DeploymentBuilderBase<T extends DeploymentEntity, S extends DeploymentBuilderBase> {
-        protected String name;
+        protected final String name;
         protected S parentBuilder;
+
+        public DeploymentBuilderBase(String name) {
+            this.name = name;
+            parentBuilder = null;
+        }
 
         public DeploymentBuilderBase(S parentBuilder, String name) {
             this.name = name;
             this.parentBuilder = parentBuilder;
         }
 
+        public DeploymentBuilderBase(DeploymentEntity instance) {
+            this.name = instance.getName();
+        }
+
+        public String getName() {
+            return name;
+        }
+
         public S and() {
+            if (parentBuilder == null) {
+                throw new RuntimeException("and() cannot be called on a builder without parent!");
+            }
             returnToParent(build());
             return parentBuilder;
+
         }
 
         public abstract T build();

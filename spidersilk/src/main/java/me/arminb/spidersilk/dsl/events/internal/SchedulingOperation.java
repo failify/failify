@@ -23,40 +23,9 @@
  *
  */
 
-package me.arminb.spidersilk.dsl;
+package me.arminb.spidersilk.dsl.events.internal;
 
-public class Node extends DeploymentEntity {
-    private final String serviceName;
-
-    public Node(NodeBuilder builder) {
-        super(builder.name);
-        serviceName = builder.serviceName;
-    }
-
-    public String getServiceName() {
-        return serviceName;
-    }
-
-    public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
-        private String serviceName;
-
-        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
-            super(parentBuilder, name);
-        }
-
-        public NodeBuilder serviceName(String serviceName) {
-            this.serviceName = serviceName;
-            return this;
-        }
-
-        @Override
-        public Node build() {
-            return new Node(this);
-        }
-
-        @Override
-        protected void returnToParent(Node builtObj) {
-            parentBuilder.node(builtObj);
-        }
-    }
+public enum SchedulingOperation {
+    BLOCK,
+    UNBLOCK
 }

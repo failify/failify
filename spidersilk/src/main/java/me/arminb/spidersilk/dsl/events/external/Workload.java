@@ -23,13 +23,20 @@
  *
  */
 
-package me.arminb.spidersilk.dsl;
+package me.arminb.spidersilk.dsl.events.external;
 
-public class Workload extends DeploymentEntity {
+import me.arminb.spidersilk.dsl.events.ExternalEvent;
+import me.arminb.spidersilk.dsl.entities.Deployment;
+
+/**
+ * An abstraction for input workloads that should be fed into a distributed system. For the sake of being general, this is a
+ * run command. This can be either a shell command or an sh file.
+ */
+public class Workload extends ExternalEvent {
     private final String runCommand;
 
-    public Workload(WorkloadBuilder builder) {
-        super(builder.name);
+    private Workload(WorkloadBuilder builder) {
+        super(builder.getName());
         runCommand = builder.runCommand;
     }
 
@@ -37,11 +44,25 @@ public class Workload extends DeploymentEntity {
         return runCommand;
     }
 
+    @Override
+    protected void execute() {
+        // TODO
+    }
+
     public static class WorkloadBuilder extends DeploymentBuilderBase<Workload, Deployment.DeploymentBuilder> {
         private String runCommand;
 
         public WorkloadBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
             super(parentBuilder, name);
+        }
+
+        public WorkloadBuilder(String name) {
+            super(name);
+        }
+
+        public WorkloadBuilder(Workload instance) {
+            super(instance);
+            runCommand = instance.runCommand;
         }
 
         public WorkloadBuilder runCommand(String runCommand) {
