@@ -38,7 +38,7 @@ public class SpiderSilk {
     private final Integer port;
     private final StackMatcher stackMatcher;
 
-    private static SpiderSilk getInstance() {
+    public static SpiderSilk getInstance() {
         return instance;
     }
 
@@ -81,7 +81,7 @@ public class SpiderSilk {
         }
     }
 
-    private void sendEvent(String eventName) {
+    public void sendEvent(String eventName) {
         try {
             URL url = new URL("http://" + hostname + ":" + port + "/events");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
