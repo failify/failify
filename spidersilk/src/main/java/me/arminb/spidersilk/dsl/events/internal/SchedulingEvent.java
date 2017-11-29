@@ -27,8 +27,10 @@ package me.arminb.spidersilk.dsl.events.internal;
 
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
+import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * This is an internal event to block or unblock intentionally after or before a stack trace event
@@ -45,11 +47,6 @@ public class SchedulingEvent extends InternalEvent {
         targetEventName = builder.targetEventName;
     }
 
-    @Override
-    public HashMap<String, String> generateAspects() {
-        return null;
-    }
-
     public SchedulingOperation getOperation() {
         return operation;
     }
@@ -60,6 +57,11 @@ public class SchedulingEvent extends InternalEvent {
 
     public String getTargetEventName() {
         return targetEventName;
+    }
+
+    @Override
+    public List<InstrumentationDefinition> generateInstrumentationDefinitions() {
+        return null;
     }
 
     public static class SchedulingEventBuilder extends InternalEventBuilder<SchedulingEvent> {

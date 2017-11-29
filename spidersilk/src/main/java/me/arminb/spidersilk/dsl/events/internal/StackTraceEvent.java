@@ -28,8 +28,10 @@ package me.arminb.spidersilk.dsl.events.internal;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
+import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 
 import java.util.HashMap;
+import java.util.List;
 
 /**
  * This is an internal event to match a specific stack trace in runtime
@@ -47,7 +49,7 @@ public class StackTraceEvent extends InternalEvent {
     }
 
     @Override
-    public HashMap<String, String> generateAspects() {
+    public List<InstrumentationDefinition> generateInstrumentationDefinitions() {
         return null;
     }
 

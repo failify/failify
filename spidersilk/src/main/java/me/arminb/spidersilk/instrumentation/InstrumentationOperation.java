@@ -23,16 +23,10 @@
  *
  */
 
-package me.arminb.spidersilk.dsl;
+package me.arminb.spidersilk.instrumentation;
 
-import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
-
-import java.util.HashMap;
-import java.util.List;
-
-/**
- * Any referable deployment entity that have instrumentation as part of its realization in the scenario needs to implement this interface
- */
-public interface Instrumentable {
-    public List<InstrumentationDefinition> generateInstrumentationDefinitions();
+public enum InstrumentationOperation {
+    BLOCK_AND_POLL,
+    SEND_EVENT,
+    ENFORCE_ORDER
 }

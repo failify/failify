@@ -47,7 +47,7 @@ public abstract class ReferableDeploymentEntity extends DeploymentEntity {
         this.dependsOn = this.dependsOn == null ? dependsOn : throwDependsOnIsSet_();
     }
 
-    public String throwDependsOnIsSet_() {
+    private String throwDependsOnIsSet_() {
         throw new RuntimeException("dependsOn is already set");
     }
 }
