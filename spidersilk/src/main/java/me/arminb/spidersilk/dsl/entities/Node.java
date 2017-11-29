@@ -52,6 +52,10 @@ public class Node extends ReferableDeploymentEntity {
         return serviceName;
     }
 
+    public Map<String, InternalEvent> getInternalEvents() {
+        return internalEvents;
+    }
+
     public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
         private String serviceName;
         private Map<String, InternalEvent> internalEvents;

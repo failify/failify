@@ -26,7 +26,9 @@
 package me.arminb.spidersilk.dsl.entities;
 
 import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
+import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.dsl.events.external.NodeOperationEvent;
 import me.arminb.spidersilk.dsl.events.external.Workload;
 
@@ -40,14 +42,45 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, Node> nodes;
     private final Map<String, Service> services;
     private final Map<String, ExternalEvent> executableEntities;
-    private final List<String> runSequence;
+    private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities;
+    private final Map<String, DeploymentEntity> deploymentEntities;
+    private final String runSequence;
 
     private Deployment(DeploymentBuilder builder) {
         super("deployment");
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
         executableEntities = Collections.unmodifiableMap(builder.executableEntities);
-        runSequence = Collections.unmodifiableList(builder.runSequence);
+        referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
+        deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
+        runSequence = builder.runSequence;
+    }
+
+    private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
+        Map<String, ReferableDeploymentEntity> returnMap = new HashMap<>();
+
+        for (Node node: nodes.values()) {
+            returnMap.put(node.getName(), node);
+            for (InternalEvent internalEvent: node.getInternalEvents().values()) {
+                returnMap.put(internalEvent.getName(), internalEvent);
+            }
+        }
+
+        for (ExternalEvent externalEvent: executableEntities.values()) {
+            returnMap.put(externalEvent.getName(), externalEvent);
+        }
+
+        return returnMap;
+    }
+
+    private Map<String, DeploymentEntity> generateDeploymentEntitiesMap() {
+        Map<String, DeploymentEntity> returnMap = new HashMap<>(generateReferableEntitiesMap());
+
+        for (Service service: services.values()) {
+            returnMap.put(service.getName(), service);
+        }
+
+        return returnMap;
     }
 
     public Node getNode(String name) {
@@ -62,13 +95,41 @@ public class Deployment extends DeploymentEntity {
         return executableEntities.get(name);
     }
 
-    public List<String> getRunSequence() {
+    public String getRunSequence() {
         return runSequence;
+    }
+
+    public ReferableDeploymentEntity getReferableDeploymentEntity(String name) {
+        return referableDeploymentEntities.get(name);
+    }
+
+    public DeploymentEntity getDeploymentEntity(String name) {
+        return deploymentEntities.get(name);
+    }
+
+    public Map<String, Node> getNodes() {
+        return nodes;
+    }
+
+    public Map<String, Service> getServices() {
+        return services;
+    }
+
+    public Map<String, ExternalEvent> getExecutableEntities() {
+        return executableEntities;
+    }
+
+    public Map<String, ReferableDeploymentEntity> getReferableDeploymentEntities() {
+        return referableDeploymentEntities;
+    }
+
+    public Map<String, DeploymentEntity> getDeploymentEntities() {
+        return deploymentEntities;
     }
 
     public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
         private Map<String, Node> nodes;
-        private List<String> runSequence;
+        private String runSequence;
         private Map<String, Service> services;
         private Map<String, ExternalEvent> executableEntities;
 
@@ -77,7 +138,7 @@ public class Deployment extends DeploymentEntity {
             nodes = new HashMap<>();
             services = new HashMap<>();
             executableEntities = new HashMap<>();
-            runSequence = new ArrayList<>();
+            runSequence = "";
         }
 
         public DeploymentBuilder(Deployment instance) {
@@ -85,7 +146,7 @@ public class Deployment extends DeploymentEntity {
             nodes = new HashMap<>(instance.nodes);
             services = new HashMap<>(instance.services);
             executableEntities = new HashMap<>(instance.executableEntities);
-            runSequence = new ArrayList<>(instance.runSequence);
+            runSequence =  new String(instance.runSequence);
         }
 
         public DeploymentBuilder node(Node node) {
@@ -125,7 +186,7 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder runSequence(String sequence) {
-            runSequence = Arrays.asList(sequence.split("\\s+"));
+            runSequence = sequence;
             return this;
         }
 
