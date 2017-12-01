@@ -41,6 +41,10 @@ public abstract class InternalEvent extends ReferableDeploymentEntity implements
         this.nodeName = nodeName;
     }
 
+    public String getNodeName() {
+        return nodeName;
+    }
+
     public static abstract class InternalEventBuilder<S extends InternalEvent> extends DeploymentBuilderBase<S, Node.NodeBuilder> {
         protected final String nodeName;
 

@@ -25,10 +25,13 @@
 
 package me.arminb.spidersilk.dsl.events.internal;
 
+import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
+import me.arminb.spidersilk.instrumentation.InstrumentationOperation;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -60,8 +63,23 @@ public class SchedulingEvent extends InternalEvent {
     }
 
     @Override
-    public List<InstrumentationDefinition> generateInstrumentationDefinitions() {
-        return null;
+    public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
+        List<InstrumentationDefinition> retList = new ArrayList<>();
+
+        if (operation == SchedulingOperation.BLOCK) {
+            return retList;
+        }
+
+        String stack = ((StackTraceEvent)deployment.getNode(getNodeName()).getInternalEvent(targetEventName)).getStack();
+
+        retList.add(InstrumentationDefinition.builder()
+                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length])
+                .instrumentationOperation(InstrumentationOperation.BLOCK_AND_POLL)
+                .addOperationParameter(targetEventName)
+                .build()
+        );
+
+        return retList;
     }
 
     public static class SchedulingEventBuilder extends InternalEventBuilder<SchedulingEvent> {

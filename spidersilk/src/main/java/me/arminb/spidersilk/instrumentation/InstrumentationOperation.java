@@ -28,5 +28,6 @@ package me.arminb.spidersilk.instrumentation;
 public enum InstrumentationOperation {
     BLOCK_AND_POLL,
     SEND_EVENT,
-    ENFORCE_ORDER
+    ENFORCE_ORDER,
+    GARBAGE_COLLECTION
 }

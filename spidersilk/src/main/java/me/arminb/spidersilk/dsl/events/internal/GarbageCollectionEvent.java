@@ -26,11 +26,15 @@
 package me.arminb.spidersilk.dsl.events.internal;
 
 import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
+import me.arminb.spidersilk.instrumentation.InstrumentationOperation;
+import me.arminb.spidersilk.instrumentation.SpecialInstrumentationPoint;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
@@ -43,8 +47,15 @@ public class GarbageCollectionEvent extends InternalEvent {
     }
 
     @Override
-    public List<InstrumentationDefinition> generateInstrumentationDefinitions() {
-        return null;
+    public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
+        List<InstrumentationDefinition> retList = new ArrayList<>();
+        retList.add(InstrumentationDefinition.builder()
+                .instrumentationPoint(SpecialInstrumentationPoint.MAIN)
+                .instrumentationOperation(InstrumentationOperation.GARBAGE_COLLECTION)
+                .addOperationParameter(getName())
+                .build()
+        );
+        return retList;
     }
 
     public static class GarbageCollectionEventBuilder extends InternalEventBuilder<GarbageCollectionEvent> {

@@ -23,17 +23,8 @@
  *
  */
 
-package me.arminb.spidersilk.dsl;
+package me.arminb.spidersilk.instrumentation;
 
-import me.arminb.spidersilk.dsl.entities.Deployment;
-import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
-
-import java.util.HashMap;
-import java.util.List;
-
-/**
- * Any referable deployment entity that have instrumentation as part of its realization in the scenario needs to implement this interface
- */
-public interface Instrumentable {
-    public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment);
+public class SpecialInstrumentationPoint {
+    public static final String MAIN = "main";
 }

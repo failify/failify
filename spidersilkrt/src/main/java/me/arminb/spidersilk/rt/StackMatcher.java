@@ -25,10 +25,18 @@
 
 package me.arminb.spidersilk.rt;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 public class StackMatcher {
     public boolean match(String stack) {
         StackTraceElement[] elements = Thread.currentThread().getStackTrace();
         String[] inputTraces = stack.trim().split(",");
+        List<String> inputList = Arrays.asList(inputTraces);
+        Collections.reverse(inputList);
+        inputTraces = inputList.toArray(new String[inputList.size()]);
         for (int i=0; i<inputTraces.length; i++) {
             if (!getFullTraceString(elements[i+2]).equals(inputTraces[i].trim())) {
                 return false;

@@ -61,6 +61,16 @@ public class SpiderSilk {
         }
     }
 
+    public void garbageCollection(String eventName) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                blockAndPoll(eventName);
+                System.gc();
+            }
+        });
+    }
+
     public void blockAndPoll(String eventName) {
         while (true) {
             try {
