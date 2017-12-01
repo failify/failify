@@ -30,6 +30,7 @@ import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.dsl.events.internal.GarbageCollectionEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.StackTraceEvent;
+import me.arminb.spidersilk.exceptions.DeploymentEntityNameConflictException;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,6 +51,10 @@ public class Node extends ReferableDeploymentEntity {
 
     public String getServiceName() {
         return serviceName;
+    }
+
+    public InternalEvent getInternalEvent(String name) {
+        return internalEvents.get(name);
     }
 
     public Map<String, InternalEvent> getInternalEvents() {
@@ -80,7 +85,7 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         public NodeBuilder stackTraceEvent(StackTraceEvent stackTraceEvent) {
-            internalEvents.put(stackTraceEvent.getName(), stackTraceEvent);
+            addInternalEvent(stackTraceEvent);
             return this;
         }
 
@@ -89,7 +94,7 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         public NodeBuilder schedulingEvent(SchedulingEvent schedulingEvent) {
-            internalEvents.put(schedulingEvent.getName(), schedulingEvent);
+            addInternalEvent(schedulingEvent);
             return this;
         }
 
@@ -98,8 +103,15 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         public NodeBuilder garbageCollectionEvent(GarbageCollectionEvent garbageCollectionEvent) {
-            internalEvents.put(garbageCollectionEvent.getName(), garbageCollectionEvent);
+            addInternalEvent(garbageCollectionEvent);
             return this;
+        }
+
+        private void addInternalEvent(InternalEvent event) {
+            if (internalEvents.containsKey(event.getName())) {
+                throw new DeploymentEntityNameConflictException(event.getName());
+            }
+            internalEvents.put(event.getName(), event);
         }
 
         public NodeBuilder serviceName(String serviceName) {

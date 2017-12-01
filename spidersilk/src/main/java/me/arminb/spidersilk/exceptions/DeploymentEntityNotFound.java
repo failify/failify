@@ -23,16 +23,16 @@
  *
  */
 
-package me.arminb.spidersilk.verification;
+package me.arminb.spidersilk.exceptions;
 
-import me.arminb.spidersilk.dsl.entities.Deployment;
-
-public abstract class DeploymentVerifier {
-    protected final Deployment deployment;
-
-    public DeploymentVerifier(Deployment deployment) {
-        this.deployment = deployment;
+public class DeploymentEntityNotFound extends RuntimeException {
+    private String entityName;
+    public DeploymentEntityNotFound(String entityName) {
+        this.entityName = entityName;
     }
 
-    public abstract void verify();
+    @Override
+    public String getMessage() {
+        return "entity " + entityName + "not found! ";
+    }
 }

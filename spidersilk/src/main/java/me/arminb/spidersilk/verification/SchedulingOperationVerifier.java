@@ -28,6 +28,7 @@ package me.arminb.spidersilk.verification;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
+import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
 
 import java.util.HashMap;
 
@@ -40,7 +41,7 @@ public class SchedulingOperationVerifier extends DeploymentVerifier {
     }
 
     @Override
-    public void verify() throws DeploymentVerificationException {
+    public void verify() {
         HashMap<String, Boolean> blockOccurrenceMap = new HashMap<>();
         HashMap<String, Boolean> eventsMap = new HashMap<>();
 

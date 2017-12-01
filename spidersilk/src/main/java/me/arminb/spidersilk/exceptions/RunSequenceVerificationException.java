@@ -23,10 +23,18 @@
  *
  */
 
-package me.arminb.spidersilk.verification;
+package me.arminb.spidersilk.exceptions;
 
-public class DeploymentVerificationException extends Exception {
-    public DeploymentVerificationException(String msg) {
+public class RunSequenceVerificationException extends DeploymentVerificationException {
+    int position;
+
+    public RunSequenceVerificationException(int position, String msg) {
         super(msg);
+        this.position = position;
+    }
+
+    @Override
+    public String getMessage() {
+        return "Parse error at " + position + ". ";
     }
 }

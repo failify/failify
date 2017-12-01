@@ -26,6 +26,7 @@
 package me.arminb.spidersilk.dsl.entities;
 
 import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.exceptions.DeploymentEntityNameConflictException;
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
@@ -51,8 +52,8 @@ public class Deployment extends DeploymentEntity {
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
         executableEntities = Collections.unmodifiableMap(builder.executableEntities);
-        referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
         deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
+        referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
         runSequence = builder.runSequence;
     }
 
@@ -60,13 +61,22 @@ public class Deployment extends DeploymentEntity {
         Map<String, ReferableDeploymentEntity> returnMap = new HashMap<>();
 
         for (Node node: nodes.values()) {
+            if (returnMap.containsKey(node.getName())) {
+                throw new DeploymentEntityNameConflictException(node.getName());
+            }
             returnMap.put(node.getName(), node);
             for (InternalEvent internalEvent: node.getInternalEvents().values()) {
+                if (returnMap.containsKey(internalEvent.getName())) {
+                    throw new DeploymentEntityNameConflictException(internalEvent.getName());
+                }
                 returnMap.put(internalEvent.getName(), internalEvent);
             }
         }
 
         for (ExternalEvent externalEvent: executableEntities.values()) {
+            if (returnMap.containsKey(externalEvent.getName())) {
+                throw new DeploymentEntityNameConflictException(externalEvent.getName());
+            }
             returnMap.put(externalEvent.getName(), externalEvent);
         }
 
@@ -77,6 +87,9 @@ public class Deployment extends DeploymentEntity {
         Map<String, DeploymentEntity> returnMap = new HashMap<>(generateReferableEntitiesMap());
 
         for (Service service: services.values()) {
+            if (returnMap.containsKey(service.getName())) {
+                throw new DeploymentEntityNameConflictException(service.getName());
+            }
             returnMap.put(service.getName(), service);
         }
 
@@ -150,6 +163,9 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder node(Node node) {
+            if (nodes.containsKey(node.getName())) {
+                throw new DeploymentEntityNameConflictException(node.getName());
+            }
             nodes.put(node.getName(), node);
             return this;
         }
@@ -159,6 +175,9 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder service(Service service) {
+            if (services.containsKey(service.getName())) {
+                throw new DeploymentEntityNameConflictException(service.getName());
+            }
             services.put(service.getName(), service);
             return this;
         }
@@ -168,6 +187,9 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder workload(Workload workload) {
+            if (executableEntities.containsKey(workload.getName())) {
+                throw new DeploymentEntityNameConflictException(workload.getName());
+            }
             executableEntities.put(workload.getName(), workload);
             return this;
         }
@@ -181,6 +203,9 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder nodeOperationEvent(NodeOperationEvent nodeOperationEvent) {
+            if (executableEntities.containsKey(nodeOperationEvent.getName())) {
+                throw new DeploymentEntityNameConflictException(nodeOperationEvent.getName());
+            }
             executableEntities.put(nodeOperationEvent.getName(), nodeOperationEvent);
             return this;
         }

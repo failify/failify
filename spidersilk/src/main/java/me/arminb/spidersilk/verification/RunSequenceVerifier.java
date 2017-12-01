@@ -26,6 +26,8 @@
 package me.arminb.spidersilk.verification;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
+import me.arminb.spidersilk.exceptions.RunSequenceVerificationException;
 
 import java.util.ArrayList;
 import java.util.EmptyStackException;
@@ -48,7 +50,7 @@ public class RunSequenceVerifier extends DeploymentVerifier {
     }
 
 
-    public void verify() throws RunSequenceVerificationException {
+    public void verify() {
         String runSequence = deployment.getRunSequence().replaceAll("\\s+", "");
         levelStack = new ArrayList<>();
         levelHistory= new ArrayList<>();
@@ -130,7 +132,7 @@ public class RunSequenceVerifier extends DeploymentVerifier {
         levelHistory.add(parenthesisDepth, new ArrayList<>());
     }
 
-    private void prepareCloseParenthesis() throws RunSequenceVerificationException {
+    private void prepareCloseParenthesis() {
         if (parenthesisDepth>0) {
             String commaSeparatedLevelIds = levelHistory.get(parenthesisDepth).toString().replaceAll("[\\s\\[\\]]", "");
             levelStack.remove(parenthesisDepth);
@@ -152,6 +154,11 @@ public class RunSequenceVerifier extends DeploymentVerifier {
         String operator = null;
         String prevOperand = null;
         int currentDepth;
+
+        // check if event name exists
+        if (deployment.getReferableDeploymentEntity(eventName) == null) {
+            throw new DeploymentEntityNotFound(eventName);
+        }
 
         // go down in levelStack to find the last operator and operand
         for (currentDepth = parenthesisDepth; currentDepth>=0; currentDepth--) {

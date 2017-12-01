@@ -23,18 +23,17 @@
  *
  */
 
-package me.arminb.spidersilk.verification;
+package me.arminb.spidersilk.exceptions;
 
-public class RunSequenceVerificationException extends DeploymentVerificationException {
-    int position;
+public class DeploymentEntityNameConflictException extends RuntimeException {
+    private String entityName;
 
-    public RunSequenceVerificationException(int position, String msg) {
-        super(msg);
-        this.position = position;
+    public DeploymentEntityNameConflictException(String entityName) {
+        this.entityName = entityName;
     }
 
     @Override
     public String getMessage() {
-        return "Parse error at " + position + ". " + super.getMessage();
+        return "entity " + entityName + " already exist! ";
     }
 }
