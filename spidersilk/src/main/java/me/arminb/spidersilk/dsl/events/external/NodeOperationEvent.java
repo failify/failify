@@ -48,6 +48,14 @@ public class NodeOperationEvent extends ExternalEvent {
         // TODO
     }
 
+    public NodeOperation getNodeOperation() {
+        return nodeOperation;
+    }
+
+    public String getNodeName() {
+        return nodeName;
+    }
+
     public static class NodeOperationEventBuilder extends DeploymentBuilderBase<NodeOperationEvent, Deployment.DeploymentBuilder> {
         private NodeOperation nodeOperation;
         private String nodeName;
