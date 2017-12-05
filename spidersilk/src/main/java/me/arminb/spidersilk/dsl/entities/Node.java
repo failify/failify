@@ -41,16 +41,22 @@ import java.util.Map;
  */
 public class Node extends ReferableDeploymentEntity {
     private final String serviceName;
+    private final String runCommand;
     private final Map<String, InternalEvent> internalEvents;
 
     private Node(NodeBuilder builder) {
         super(builder.getName());
         serviceName = builder.serviceName;
+        runCommand = builder.runCommand;
         internalEvents = Collections.unmodifiableMap(builder.internalEvents);
     }
 
     public String getServiceName() {
         return serviceName;
+    }
+
+    public String getRunCommand() {
+        return runCommand;
     }
 
     public InternalEvent getInternalEvent(String name) {
@@ -63,6 +69,7 @@ public class Node extends ReferableDeploymentEntity {
 
     public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
         private String serviceName;
+        private String runCommand;
         private Map<String, InternalEvent> internalEvents;
 
         public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
@@ -116,6 +123,11 @@ public class Node extends ReferableDeploymentEntity {
 
         public NodeBuilder serviceName(String serviceName) {
             this.serviceName = serviceName;
+            return this;
+        }
+
+        public NodeBuilder runCommand(String runCommand) {
+            this.runCommand = runCommand;
             return this;
         }
 
