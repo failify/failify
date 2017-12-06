@@ -30,9 +30,8 @@ import java.util.Collections;
 import java.util.List;
 
 public class InstrumentationDefinition {
-    private final String instrumentationPoint;
-    private final InstrumentationOperation instrumentationOperation;
-    private final List<String> operationParameters;
+    private final InstrumentationPoint instrumentationPoint;
+    private final List<InstrumentationOperation> instrumentationOperations;
 
     public static InstrumentationDefinitionBuilder builder() {
         return new InstrumentationDefinitionBuilder();
@@ -40,44 +39,37 @@ public class InstrumentationDefinition {
 
     private InstrumentationDefinition(InstrumentationDefinitionBuilder builder) {
         this.instrumentationPoint = builder.instrumentationPoint;
-        this.instrumentationOperation = builder.instrumentationOperation;
-        this.operationParameters = Collections.unmodifiableList(builder.operationParameters);
+        this.instrumentationOperations = Collections.unmodifiableList(builder.instrumentationOperations);
     }
 
-    public String getInstrumentationPoint() {
+    public InstrumentationPoint getInstrumentationPoint() {
         return instrumentationPoint;
     }
 
-    public InstrumentationOperation getInstrumentationOperation() {
-        return instrumentationOperation;
-    }
-
-    public List<String> getOperationParameters() {
-        return operationParameters;
+    public List<InstrumentationOperation> getInstrumentationOperations() {
+        return instrumentationOperations;
     }
 
     public static class InstrumentationDefinitionBuilder {
-        private String instrumentationPoint;
-        private InstrumentationOperation instrumentationOperation;
-        private List<String> operationParameters;
+        private InstrumentationPoint instrumentationPoint;
+        private List<InstrumentationOperation> instrumentationOperations;
 
         public InstrumentationDefinitionBuilder() {
-            this.operationParameters = new ArrayList<>();
+            this.instrumentationOperations = new ArrayList<>();
         }
 
-        public InstrumentationDefinitionBuilder instrumentationPoint(String point) {
-            this.instrumentationPoint = point;
+        public InstrumentationDefinitionBuilder instrumentationPoint(String methodName, InstrumentationPoint.Position position) {
+            this.instrumentationPoint = new InstrumentationPoint(methodName, position);
             return this;
         }
 
-        public InstrumentationDefinitionBuilder instrumentationOperation(InstrumentationOperation operation) {
-            this.instrumentationOperation = operation;
+        public InstrumentationDefinitionBuilder instrumentationOperation(InstrumentationOperation instrumentationOperation) {
+            this.instrumentationOperations.add(instrumentationOperation);
             return this;
         }
 
-        public InstrumentationDefinitionBuilder addOperationParameter(String parameter) {
-            operationParameters.add(parameter);
-            return this;
+        public InstrumentationOperation.InstrumentationOperationBuilder withInstrumentationOperation(SpiderSilkRuntimeOperation operation) {
+            return new InstrumentationOperation.InstrumentationOperationBuilder(operation, this);
         }
 
         public InstrumentationDefinition build() {

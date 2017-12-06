@@ -29,10 +29,10 @@ import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
-import me.arminb.spidersilk.instrumentation.InstrumentationOperation;
+import me.arminb.spidersilk.instrumentation.InstrumentationPoint;
+import me.arminb.spidersilk.instrumentation.SpiderSilkRuntimeOperation;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -73,9 +73,9 @@ public class SchedulingEvent extends InternalEvent {
         String stack = ((StackTraceEvent)deployment.getNode(getNodeName()).getInternalEvent(targetEventName)).getStack();
 
         retList.add(InstrumentationDefinition.builder()
-                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length])
-                .instrumentationOperation(InstrumentationOperation.BLOCK_AND_POLL)
-                .addOperationParameter(targetEventName)
+                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length], InstrumentationPoint.Position.AFTER)
+                .withInstrumentationOperation(SpiderSilkRuntimeOperation.BLOCK_AND_POLL)
+                    .parameter(targetEventName).and()
                 .build()
         );
 
@@ -105,11 +105,11 @@ public class SchedulingEvent extends InternalEvent {
             return this;
         }
 
-        public SchedulingEventBuilder before(String targetEventName) {
-            this.targetEventName = targetEventName;
-            this.schedulingPoint = SchedulingPoint.BEFORE;
-            return this;
-        }
+//        public SchedulingEventBuilder before(String targetEventName) {
+//            this.targetEventName = targetEventName;
+//            this.schedulingPoint = SchedulingPoint.BEFORE;
+//            return this;
+//        }
 
         public SchedulingEventBuilder after(String targetEventName) {
             this.targetEventName = targetEventName;

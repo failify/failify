@@ -25,15 +25,14 @@
 
 package me.arminb.spidersilk.dsl.events.internal;
 
-import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
-import me.arminb.spidersilk.instrumentation.InstrumentationOperation;
+import me.arminb.spidersilk.instrumentation.InstrumentationPoint;
+import me.arminb.spidersilk.instrumentation.SpiderSilkRuntimeOperation;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -55,10 +54,10 @@ public class StackTraceEvent extends InternalEvent {
     public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
         List<InstrumentationDefinition> retList = new ArrayList<>();
         retList.add(InstrumentationDefinition.builder()
-                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length])
-                .instrumentationOperation(InstrumentationOperation.ENFORCE_ORDER)
-                .addOperationParameter(getName())
-                .addOperationParameter(stack)
+                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length], InstrumentationPoint.Position.BEFORE)
+                .withInstrumentationOperation(SpiderSilkRuntimeOperation.ENFORCE_ORDER)
+                    .parameter(getName())
+                    .parameter(stack).and()
                 .build()
         );
         return retList;

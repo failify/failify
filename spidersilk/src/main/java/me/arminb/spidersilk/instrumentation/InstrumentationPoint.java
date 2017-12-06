@@ -23,9 +23,29 @@
  *
  */
 
-package me.arminb.spidersilk.dsl.events.internal;
+package me.arminb.spidersilk.instrumentation;
 
-public enum SchedulingPoint {
-//    BEFORE,
-    AFTER
+public class InstrumentationPoint {
+    private final String methodName;
+    private final Position position;
+
+    public InstrumentationPoint(String methodName, Position position) {
+        this.methodName = methodName;
+        this.position = position;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
+    public Position getPosition() {
+        return position;
+    }
+
+
+    public enum Position {
+        AFTER,
+        BEFORE
+    }
+
 }

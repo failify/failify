@@ -25,9 +25,51 @@
 
 package me.arminb.spidersilk.instrumentation;
 
-public enum InstrumentationOperation {
-    BLOCK_AND_POLL,
-    SEND_EVENT,
-    ENFORCE_ORDER,
-    GARBAGE_COLLECTION
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class InstrumentationOperation {
+    private final SpiderSilkRuntimeOperation operation;
+    private final List<String> parameters;
+
+    private InstrumentationOperation(InstrumentationOperationBuilder builder) {
+        this.operation = builder.operation;
+        this.parameters = Collections.unmodifiableList(builder.parameters);
+    }
+
+    public SpiderSilkRuntimeOperation getOperation() {
+        return operation;
+    }
+
+    public List<String> getParameters() {
+        return parameters;
+    }
+
+    public static class InstrumentationOperationBuilder {
+        private InstrumentationDefinition.InstrumentationDefinitionBuilder parentBuilder;
+        private final SpiderSilkRuntimeOperation operation;
+        private List<String> parameters;
+
+
+        public InstrumentationOperationBuilder(SpiderSilkRuntimeOperation operation, InstrumentationDefinition.InstrumentationDefinitionBuilder parentBuilder) {
+            this.operation = operation;
+            this.parentBuilder = parentBuilder;
+            parameters = new ArrayList<>();
+        }
+
+        public InstrumentationOperationBuilder parameter(String parameter) {
+            parameters.add(parameter);
+            return this;
+        }
+
+        public InstrumentationOperation build() {
+            return new InstrumentationOperation(this);
+        }
+
+        public InstrumentationDefinition.InstrumentationDefinitionBuilder and() {
+            parentBuilder.instrumentationOperation(build());
+            return parentBuilder;
+        }
+    }
 }
