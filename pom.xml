@@ -79,7 +79,8 @@
     </dependencies>
 
     <modules>
-        <module>spidersilk</module>
         <module>spidersilkrt</module>
+        <module>sample-multithread</module>
+        <module>spidersilk</module>
     </modules>
 </project>
