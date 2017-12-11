@@ -170,8 +170,8 @@ public class Deployment extends DeploymentEntity {
             return this;
         }
 
-        public Node.NodeBuilder withNode(String name) {
-            return new Node.NodeBuilder(this, name);
+        public Node.NodeBuilder withNode(String name, String serviceName) {
+            return new Node.NodeBuilder(this, name, serviceName);
         }
 
         public DeploymentBuilder service(Service service) {

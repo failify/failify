@@ -68,17 +68,19 @@ public class Node extends ReferableDeploymentEntity {
     }
 
     public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
-        private String serviceName;
+        private final String serviceName;
         private String runCommand;
         private Map<String, InternalEvent> internalEvents;
 
-        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
+        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name, String serviceName) {
             super(parentBuilder, name);
+            this.serviceName = serviceName;
             internalEvents = new HashMap<>();
         }
 
-        public NodeBuilder(String name) {
+        public NodeBuilder(String name, String serviceName) {
             super(name);
+            this.serviceName = serviceName;
         }
 
         public NodeBuilder(Node instance) {
@@ -119,11 +121,6 @@ public class Node extends ReferableDeploymentEntity {
                 throw new DeploymentEntityNameConflictException(event.getName());
             }
             internalEvents.put(event.getName(), event);
-        }
-
-        public NodeBuilder serviceName(String serviceName) {
-            this.serviceName = serviceName;
-            return this;
         }
 
         public NodeBuilder runCommand(String runCommand) {

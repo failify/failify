@@ -25,10 +25,13 @@
 
 package me.arminb.spidersilk;
 
+import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.ServiceType;
 import me.arminb.spidersilk.dsl.events.external.NodeOperation;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
+import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
+import me.arminb.spidersilk.execution.RunMode;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,16 +40,16 @@ public class DefinitionTest {
     public static final Logger logger = LoggerFactory.getLogger(DefinitionTest.class);
 
     @Test
-    public void simpleDefinition() {
+    public void simpleDefinition() throws DeploymentVerificationException {
         Deployment deployment = new Deployment.DeploymentBuilder()
                 // Service Definitions
                 .withService("s1")
-                    .applicationAddress("jar1")
+                    .applicationAddress("pom.xml")
                     .runCommand("cmd1")
                     .libDir("libDir1")
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
-                .withNode("n1")
+                .withNode("n1", "s1")
                     .withStackTraceEvent("e1")
                         .trace("me.armib.Main1.method1")
                         .trace("me.arminb.Main2.method2")
@@ -58,7 +61,8 @@ public class DefinitionTest {
                         .operation(SchedulingOperation.UNBLOCK)
                         .after("e1").and()
                     .withGarbageCollectionEvent("g1").and()
-                    .serviceName("s1").and()
+                    .runCommand("cmd1-1").and()
+                .withNode("n2", "s1").and()
                 // Workload Definitions
                 .withWorkload("w1")
                     .runCommand("cmd3").and()
@@ -67,8 +71,14 @@ public class DefinitionTest {
                     .nodeName("n1")
                     .nodeOperation(NodeOperation.DOWN).and()
                 // Run Sequence Definition
-                .runSequence("w1 * e1 * b1 * ( x1 | g1 ) * ub1")
+                .runSequence("(w1 | e1) * (b1 | ( x1 * g1 )) * ub1")
                 .build();
         logger.info("deployment created.");
+
+        SpiderSilkRunner.run(deployment, RunMode.SINGLE_NODE);
+
+        for (ReferableDeploymentEntity entity: deployment.getReferableDeploymentEntities().values()) {
+            System.out.println(entity.getName() + " -> " + entity.getDependsOn());
+        }
     }
 }
