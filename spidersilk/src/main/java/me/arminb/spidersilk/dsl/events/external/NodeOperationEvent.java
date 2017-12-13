@@ -28,6 +28,7 @@ package me.arminb.spidersilk.dsl.events.external;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.execution.RuntimeEngine;
 
 /**
  * An abstraction for defining an operation on top of a node. The operation can a choice be between making a node down, making a node up
@@ -44,8 +45,8 @@ public class NodeOperationEvent extends ExternalEvent {
     }
 
     @Override
-    protected void execute() {
-        // TODO
+    protected void execute(RuntimeEngine runtimeEngine) {
+        runtimeEngine.stopNode(nodeName, true);
     }
 
     public NodeOperation getNodeOperation() {

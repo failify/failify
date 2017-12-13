@@ -27,6 +27,7 @@ package me.arminb.spidersilk.dsl.events.external;
 
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.execution.RuntimeEngine;
 
 /**
  * An abstraction for input workloads that should be fed into a distributed system. For the sake of being general, this is a
@@ -45,7 +46,7 @@ public class Workload extends ExternalEvent {
     }
 
     @Override
-    protected void execute() {
+    protected void execute(RuntimeEngine runtimeEngine) {
         // TODO
     }
 
