@@ -73,7 +73,7 @@ public class SchedulingEvent extends InternalEvent {
         String stack = ((StackTraceEvent)deployment.getNode(getNodeName()).getInternalEvent(targetEventName)).getStack();
 
         retList.add(InstrumentationDefinition.builder()
-                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length], InstrumentationPoint.Position.AFTER)
+                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.AFTER)
                 .withInstrumentationOperation(SpiderSilkRuntimeOperation.BLOCK_AND_POLL)
                     .parameter(targetEventName).and()
                 .build()

@@ -25,7 +25,6 @@
 
 package me.arminb.spidersilk.rt;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;

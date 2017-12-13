@@ -54,7 +54,7 @@ public class StackTraceEvent extends InternalEvent {
     public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
         List<InstrumentationDefinition> retList = new ArrayList<>();
         retList.add(InstrumentationDefinition.builder()
-                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length], InstrumentationPoint.Position.BEFORE)
+                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.BEFORE)
                 .withInstrumentationOperation(SpiderSilkRuntimeOperation.ENFORCE_ORDER)
                     .parameter(getName())
                     .parameter(stack).and()
@@ -88,7 +88,7 @@ public class StackTraceEvent extends InternalEvent {
         @Override
         public StackTraceEvent build() {
             if (!stack.isEmpty()) {
-                stack = stack.substring(stack.length() - 1);
+                stack = stack.substring(0,stack.length() - 1);
             }
             return new StackTraceEvent(this);
         }

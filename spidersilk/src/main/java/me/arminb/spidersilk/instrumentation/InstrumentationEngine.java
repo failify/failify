@@ -32,20 +32,21 @@ import me.arminb.spidersilk.dsl.entities.ServiceType;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.instrumentation.java.JavaInstrumentor;
+import me.arminb.spidersilk.util.HostUtil;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class InstrumentationEngine {
     private final static Logger logger = LoggerFactory.getLogger(InstrumentationEngine.class);
@@ -67,11 +68,19 @@ public class InstrumentationEngine {
 
     public Map<String, String> instrumentNodes() throws InstrumentationException {
         Map<String, String> retMap = new HashMap<>();
-        prepareWorkspaceForNodes();
-        String[] eventNames = deployment.getRunSequence().split("\\S+");
+
+        for (Node node: deployment.getNodes().values()) {
+            retMap.put(
+                    node.getName(),
+                    FilenameUtils.normalize(Paths.get(deployment.getService(node.getServiceName())
+                            .getApplicationAddress()).toFile().getAbsolutePath().toString())
+            );
+        }
+
+        String[] eventNames = deployment.getRunSequence().split("\\W+");
         Map<Node, List<InternalEvent>> nodeMap = new HashMap<>();
 
-        // Categorize internal events that are referred in run sequence based on their corresponding node
+        // Categorizes internal events that are referred in run sequence based on their corresponding node
         for (String eventName: eventNames) {
             if (deployment.getReferableDeploymentEntity(eventName) instanceof InternalEvent) {
                 InternalEvent event = (InternalEvent) deployment.getReferableDeploymentEntity(eventName);
@@ -86,41 +95,85 @@ public class InstrumentationEngine {
             }
         }
 
-        // Instrument each node's binaries based on its service type
+        prepareWorkspaceForNodes(nodeMap.keySet());
+
+        // Instruments each node's binaries based on its service type
         for (Node node: nodeMap.keySet()) {
             Service service = deployment.getService(node.getServiceName());
+            String newApplicationAddress = service.getApplicationAddress();
             List<InstrumentationDefinition> instrumentationDefinitions = new ArrayList<>();
+
             for (InternalEvent event: nodeMap.get(node)) {
                 instrumentationDefinitions.addAll(event.generateInstrumentationDefinitions(deployment));
             }
 
-            Instrumentor instrumentor = getInstrumentor(service.getServiceType());
-            String newApplicationAddress = instrumentor.instrument(new NodeWorkspace(
-                    workingDirectory.resolve(node.getName()).resolve(new File(service.getApplicationAddress()).getName()).toFile().getAbsolutePath(),
-                    service.getLibDir(),
-                    instrumentationDefinitions
-            ));
+            // Only does instrumentation when there is an instrumentation definition
+            if (!instrumentationDefinitions.isEmpty()) {
+                // Preprocesses and orders instrumentation definitions list
+                preProcessInstrumentationDefinitions(instrumentationDefinitions);
+
+                // Performs the actual instrumentation and receives the new instrumented file name
+                Instrumentor instrumentor = getInstrumentor(service.getServiceType());
+                newApplicationAddress = instrumentor.instrument(new NodeWorkspace(
+                        FilenameUtils.normalize(workingDirectory.resolve(node.getName()).resolve(new File(service.getApplicationAddress()).getName()).toFile().getAbsolutePath()),
+                        service.getLibDir(),
+                        instrumentationDefinitions
+                ));
+            }
             retMap.put(node.getName(), newApplicationAddress);
         }
 
         return retMap;
     }
 
-    public void cleanUp() {
+    private void preProcessInstrumentationDefinitions(List<InstrumentationDefinition> definitions) throws InstrumentationException {
+        InstrumentationDefinition.InstrumentationDefinitionBuilder mainInstrumentation;
 
+        // Adds configure operation to the main instrumentation definition
+        try {
+            mainInstrumentation = InstrumentationDefinition.builder()
+                .instrumentationPoint(SpecialInstrumentationPoint.MAIN, InstrumentationPoint.Position.BEFORE)
+                .withInstrumentationOperation(SpiderSilkRuntimeOperation.CONFIGURE)
+                    .parameter(HostUtil.getLocalIpAddress())
+                    .parameter(deployment.getEventServerPortNumber()).and();
+        } catch (UnknownHostException e) {
+            throw new InstrumentationException("The IP address of the system cannot be determined!");
+        }
+
+        // Unifies instrumentation definitions for MAIN with configure operation at first
+        Iterator<InstrumentationDefinition> definitionIterator = definitions.iterator();
+        while (definitionIterator.hasNext()){
+            InstrumentationDefinition definition = definitionIterator.next();
+            if (definition.getInstrumentationPoint().getMethodName().equals(SpecialInstrumentationPoint.MAIN)) {
+                for (InstrumentationOperation operation: definition.getInstrumentationOperations()) {
+                    mainInstrumentation.instrumentationOperation(operation);
+                }
+                definitionIterator.remove();
+            }
+        }
+
+        definitions.add(mainInstrumentation.build());
     }
 
-    private void prepareWorkspaceForNodes() throws InstrumentationException {
+    public void cleanUp() {
+        try {
+            FileUtils.deleteDirectory(workingDirectory.toFile());
+        } catch (IOException e) {
+            logger.warn("Error in cleaning up SpiderSilk working directory!", e);
+        }
+    }
+
+    private void prepareWorkspaceForNodes(Set<Node> nodes) throws InstrumentationException {
         // Create workspace directory
         try {
-            Files.deleteIfExists(workingDirectory);
+            cleanUp();
             Files.createDirectory(workingDirectory);
         } catch (IOException e) {
             throw new InstrumentationException("Error in creating SpiderSilk working directory!");
         }
 
         // Create node directories
-        for (Node node: deployment.getNodes().values()) {
+        for (Node node: nodes) {
             Path nodePath = workingDirectory.resolve(node.getName());
             try {
                 Files.createDirectory(nodePath);
@@ -130,7 +183,7 @@ public class InstrumentationEngine {
         }
 
         // Copy over contents in the application address of the nodes to the corresponding folder
-        for (Node node: deployment.getNodes().values()) {
+        for (Node node: nodes) {
             Path nodePath = workingDirectory.resolve(node.getName());
             try {
                 File applicationAddress = Paths.get(deployment.getService(node.getServiceName()).getApplicationAddress()).toFile();

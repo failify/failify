@@ -45,7 +45,7 @@ public class SchedulingOperationVerifier extends DeploymentVerifier {
         HashMap<String, Boolean> blockOccurrenceMap = new HashMap<>();
         HashMap<String, Boolean> eventsMap = new HashMap<>();
 
-        for (String id: deployment.getRunSequence().split("\\W")) {
+        for (String id: deployment.getRunSequence().split("\\W+")) {
             eventsMap.put(id, true);
             if (deployment.getReferableDeploymentEntity(id) instanceof SchedulingEvent) {
                 SchedulingEvent event = (SchedulingEvent) deployment.getReferableDeploymentEntity(id);

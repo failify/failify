@@ -33,6 +33,6 @@ public class DeploymentEntityNotFound extends RuntimeException {
 
     @Override
     public String getMessage() {
-        return "entity " + entityName + "not found! ";
+        return "entity " + entityName + " not found! ";
     }
 }

@@ -45,6 +45,7 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, ExternalEvent> executableEntities;
     private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities;
     private final Map<String, DeploymentEntity> deploymentEntities;
+    private final Integer eventServerPortNumber;
     private final String runSequence;
 
     private Deployment(DeploymentBuilder builder) {
@@ -55,6 +56,7 @@ public class Deployment extends DeploymentEntity {
         deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
         runSequence = builder.runSequence;
+        eventServerPortNumber = new Integer(builder.eventServerPortNumber);
     }
 
     private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
@@ -140,11 +142,17 @@ public class Deployment extends DeploymentEntity {
         return deploymentEntities;
     }
 
+    public String getEventServerPortNumber() {
+        return eventServerPortNumber.toString();
+    }
+
     public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
         private Map<String, Node> nodes;
         private String runSequence;
         private Map<String, Service> services;
         private Map<String, ExternalEvent> executableEntities;
+        private Integer eventServerPortNumber;
+
 
         public DeploymentBuilder() {
             super("root");
@@ -152,6 +160,7 @@ public class Deployment extends DeploymentEntity {
             services = new HashMap<>();
             executableEntities = new HashMap<>();
             runSequence = "";
+            eventServerPortNumber = 8765; // Default port number for the event server
         }
 
         public DeploymentBuilder(Deployment instance) {
@@ -160,6 +169,7 @@ public class Deployment extends DeploymentEntity {
             services = new HashMap<>(instance.services);
             executableEntities = new HashMap<>(instance.executableEntities);
             runSequence =  new String(instance.runSequence);
+            eventServerPortNumber = new Integer(instance.eventServerPortNumber);
         }
 
         public DeploymentBuilder node(Node node) {
@@ -207,6 +217,11 @@ public class Deployment extends DeploymentEntity {
                 throw new DeploymentEntityNameConflictException(nodeOperationEvent.getName());
             }
             executableEntities.put(nodeOperationEvent.getName(), nodeOperationEvent);
+            return this;
+        }
+
+        public DeploymentBuilder eventServerPortNumber(Integer eventServerPortNumber) {
+            this.eventServerPortNumber = eventServerPortNumber;
             return this;
         }
 
