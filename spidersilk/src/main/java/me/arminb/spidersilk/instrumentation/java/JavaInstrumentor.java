@@ -30,6 +30,7 @@ import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 import me.arminb.spidersilk.instrumentation.InstrumentationOperation;
 import me.arminb.spidersilk.instrumentation.Instrumentor;
 import me.arminb.spidersilk.instrumentation.NodeWorkspace;
+import me.arminb.spidersilk.util.ShellUtil;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
@@ -64,9 +65,14 @@ public class JavaInstrumentor implements Instrumentor {
         }
 
         try {
-            Process ajcProcess = new ProcessBuilder().command("ajc", "-inpath", nodeWorkspace.getApplicationAddress(),
-                    "@" + Paths.get(nodeWorkspace.getWorkingDirectory(), "argfile").toString(),
-                    "-outjar", Paths.get(nodeWorkspace.getWorkingDirectory(), "woven.jar").toString())
+            String currentShell = ShellUtil.getCurrentShellAddress();
+            if (currentShell == null) {
+                throw new InstrumentationException("Cannot find the current system shell to run the instrumentor!");
+            }
+            // TODO add lib dir to the ajc command
+            Process ajcProcess = new ProcessBuilder().command(currentShell, "-c" ,"ajc -inpath " + nodeWorkspace.getApplicationAddress() +
+                    " @" + Paths.get(nodeWorkspace.getWorkingDirectory(), "argfile").toString() +
+                    " -outjar " + Paths.get(nodeWorkspace.getWorkingDirectory(), "woven.jar").toString())
                     .redirectError(Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toFile())
                     .redirectOutput(Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toFile())
                     .start();

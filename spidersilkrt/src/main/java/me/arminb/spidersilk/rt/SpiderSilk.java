@@ -77,6 +77,7 @@ public class SpiderSilk {
                 URL url = new URL("http://" + hostname + ":" + port + "/dependencies/" + eventName);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
+                connection.connect();
                 if (connection.getResponseCode() == 200) {
                     break;
                 }
@@ -95,6 +96,7 @@ public class SpiderSilk {
         try {
             URL url = new URL("http://" + hostname + ":" + port + "/events");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/json");
 
@@ -102,7 +104,8 @@ public class SpiderSilk {
 
             OutputStream os = connection.getOutputStream();
             os.write(input.getBytes());
-            os.flush();
+
+            connection.getResponseCode();
         } catch (MalformedURLException e) {
             e.printStackTrace();
         } catch (IOException e) {

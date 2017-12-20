@@ -48,4 +48,26 @@ public class InstrumentationPoint {
         BEFORE
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (!InstrumentationPoint.class.isAssignableFrom(obj.getClass())) {
+            return false;
+        }
+        final InstrumentationPoint other = (InstrumentationPoint) obj;
+        if ((this.methodName == null) ? (other.methodName != null) : !this.methodName.equals(other.methodName)) {
+            return false;
+        }
+        if (this.position != other.position) {
+            return false;
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return methodName.hashCode() * position.hashCode();
+    }
 }

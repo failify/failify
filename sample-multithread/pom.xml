@@ -48,6 +48,14 @@
             <artifactId>spidersilkrt</artifactId>
             <version>0.1.0-SNAPSHOT</version>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.aspectj/aspectjrt -->
+        <dependency>
+            <groupId>org.aspectj</groupId>
+            <artifactId>aspectjrt</artifactId>
+            <version>1.8.12</version>
+        </dependency>
+
     </dependencies>
 
     <build>

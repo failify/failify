@@ -27,12 +27,10 @@ package me.arminb.spidersilk.verification;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
+import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
 import me.arminb.spidersilk.exceptions.RunSequenceVerificationException;
 
-import java.util.ArrayList;
-import java.util.EmptyStackException;
-import java.util.List;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * verifies the syntax of the run sequence and will set the dependency of each event in it.
@@ -51,6 +49,8 @@ public class RunSequenceVerifier extends DeploymentVerifier {
 
 
     public void verify() {
+        checkUniquenessOfEventNames();
+
         String runSequence = deployment.getRunSequence().replaceAll("\\s+", "");
         levelStack = new ArrayList<>();
         levelHistory= new ArrayList<>();
@@ -117,6 +117,17 @@ public class RunSequenceVerifier extends DeploymentVerifier {
 
         if (parenthesisDepth != 0) {
             throw new RunSequenceVerificationException(currentIndex, "Unequal number of opened and closed parenthesis!");
+        }
+    }
+
+    private void checkUniquenessOfEventNames() {
+        HashMap<String, Boolean> occurrenceMap = new HashMap<>();
+
+        for (String id: deployment.getRunSequence().split("\\W+")) {
+            if (occurrenceMap.containsKey(id)) {
+                throw new DeploymentVerificationException("Run sequence cannot contain multiple uses of the same event (" + id + ")!");
+            }
+            occurrenceMap.put(id, true);
         }
     }
 

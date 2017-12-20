@@ -25,6 +25,7 @@
 
 package me.arminb.spidersilk.instrumentation.java;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.instrumentation.*;
 import me.arminb.spidersilk.util.HashingUtil;
 import org.apache.commons.io.IOUtils;
@@ -63,7 +64,7 @@ public class AspectGenerator {
     private static String getAspectName(InstrumentationDefinition instrumentationDefinition) {
         return "ASPECT_" + HashingUtil.md5(instrumentationDefinition.getInstrumentationPoint().getMethodName() +
                 instrumentationDefinition.getInstrumentationPoint().getPosition().toString() +
-                new Date()
+                new Date().getTime()
         );
     }
 
@@ -87,7 +88,7 @@ public class AspectGenerator {
         String afterInstructions = "";
         String methodName;
 
-        if (instrumentationDefinition.getInstrumentationPoint().getMethodName().equals(SpecialInstrumentationPoint.MAIN)) {
+        if (instrumentationDefinition.getInstrumentationPoint().getMethodName().equals(Constants.INSTRUMENTATION_POINT_MAIN)) {
             methodName = "public static void main(String[])";
         } else {
             methodName = "* " + instrumentationDefinition.getInstrumentationPoint().getMethodName() + "(..)";

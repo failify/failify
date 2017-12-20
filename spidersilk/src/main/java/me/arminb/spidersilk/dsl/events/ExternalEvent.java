@@ -26,7 +26,10 @@
 package me.arminb.spidersilk.dsl.events;
 
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
+import me.arminb.spidersilk.execution.RuntimeEngine;
 import me.arminb.spidersilk.rt.SpiderSilk;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is the base class for external events which implements Template Method pattern. The child classes should implement
@@ -34,15 +37,30 @@ import me.arminb.spidersilk.rt.SpiderSilk;
  * event server know about the completion of the corresponding event of the child class
  */
 public abstract class ExternalEvent extends ReferableDeploymentEntity {
+    private static Logger logger = LoggerFactory.getLogger(ExternalEvent.class);
+    private Thread executionThread;
+
     protected ExternalEvent(String name) {
         super(name);
     }
 
-    protected abstract void execute();
 
-    public void start() {
-        SpiderSilk.getInstance().blockAndPoll(name);
-        execute();
-        SpiderSilk.getInstance().sendEvent(name);
+    protected abstract void execute(RuntimeEngine runtimeEngine);
+
+    public void start(RuntimeEngine runtimeEngine) {
+        executionThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                SpiderSilk.getInstance().blockAndPoll(name);
+                execute(runtimeEngine);
+                SpiderSilk.getInstance().sendEvent(name);
+            }
+        });
+
+        executionThread.start();
+    }
+
+    public void stop() {
+        executionThread.interrupt();
     }
 }

@@ -37,7 +37,7 @@ public class StackMatcher {
         Collections.reverse(inputList);
         inputTraces = inputList.toArray(new String[inputList.size()]);
         for (int i=0; i<inputTraces.length; i++) {
-            if (!getFullTraceString(elements[i+2]).equals(inputTraces[i].trim())) {
+            if (!getFullTraceString(elements[i+4]).equals(inputTraces[i].trim())) {
                 return false;
             }
         }

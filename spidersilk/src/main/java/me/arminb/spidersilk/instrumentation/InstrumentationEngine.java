@@ -25,6 +25,7 @@
 
 package me.arminb.spidersilk.instrumentation;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.entities.Service;
@@ -53,9 +54,9 @@ public class InstrumentationEngine {
     private final Deployment deployment;
     private final Path workingDirectory;
 
-    public InstrumentationEngine(Deployment deployment) {
+    public InstrumentationEngine(Deployment deployment, Path workingDirectory) {
         this.deployment = deployment;
-        this.workingDirectory = Paths.get("./.SpiderSilkWorkingDirectory");
+        this.workingDirectory = workingDirectory;
     }
 
     private Instrumentor getInstrumentor(ServiceType serviceType) {
@@ -110,7 +111,7 @@ public class InstrumentationEngine {
             // Only does instrumentation when there is an instrumentation definition
             if (!instrumentationDefinitions.isEmpty()) {
                 // Preprocesses and orders instrumentation definitions list
-                preProcessInstrumentationDefinitions(instrumentationDefinitions);
+                instrumentationDefinitions = preProcessInstrumentationDefinitions(instrumentationDefinitions);
 
                 // Performs the actual instrumentation and receives the new instrumented file name
                 Instrumentor instrumentor = getInstrumentor(service.getServiceType());
@@ -126,16 +127,16 @@ public class InstrumentationEngine {
         return retMap;
     }
 
-    private void preProcessInstrumentationDefinitions(List<InstrumentationDefinition> definitions) throws InstrumentationException {
+    private List<InstrumentationDefinition> preProcessInstrumentationDefinitions(List<InstrumentationDefinition> definitions) throws InstrumentationException {
         InstrumentationDefinition.InstrumentationDefinitionBuilder mainInstrumentation;
 
         // Adds configure operation to the main instrumentation definition
         try {
             mainInstrumentation = InstrumentationDefinition.builder()
-                .instrumentationPoint(SpecialInstrumentationPoint.MAIN, InstrumentationPoint.Position.BEFORE)
+                .instrumentationPoint(Constants.INSTRUMENTATION_POINT_MAIN, InstrumentationPoint.Position.BEFORE)
                 .withInstrumentationOperation(SpiderSilkRuntimeOperation.CONFIGURE)
                     .parameter(HostUtil.getLocalIpAddress())
-                    .parameter(deployment.getEventServerPortNumber()).and();
+                    .parameter(deployment.getEventServerPortNumber().toString()).and();
         } catch (UnknownHostException e) {
             throw new InstrumentationException("The IP address of the system cannot be determined!");
         }
@@ -144,34 +145,41 @@ public class InstrumentationEngine {
         Iterator<InstrumentationDefinition> definitionIterator = definitions.iterator();
         while (definitionIterator.hasNext()){
             InstrumentationDefinition definition = definitionIterator.next();
-            if (definition.getInstrumentationPoint().getMethodName().equals(SpecialInstrumentationPoint.MAIN)) {
+            if (definition.getInstrumentationPoint().getMethodName().equals(Constants.INSTRUMENTATION_POINT_MAIN)) {
                 for (InstrumentationOperation operation: definition.getInstrumentationOperations()) {
                     mainInstrumentation.instrumentationOperation(operation);
                 }
                 definitionIterator.remove();
             }
         }
-
         definitions.add(mainInstrumentation.build());
-    }
 
-    public void cleanUp() {
-        try {
-            FileUtils.deleteDirectory(workingDirectory.toFile());
-        } catch (IOException e) {
-            logger.warn("Error in cleaning up SpiderSilk working directory!", e);
+        // Unifies instrumentation definitions for each instrumentation point
+        Map<InstrumentationPoint, List<InstrumentationOperation>> instrumentationPointMap = new HashMap<>();
+        for (InstrumentationDefinition definition: definitions) {
+            if (!instrumentationPointMap.containsKey(definition.getInstrumentationPoint())) {
+                instrumentationPointMap.put(definition.getInstrumentationPoint(), new ArrayList<>());
+            }
+            for (InstrumentationOperation operation: definition.getInstrumentationOperations()) {
+                instrumentationPointMap.get(definition.getInstrumentationPoint()).add(operation);
+            }
         }
+
+        List<InstrumentationDefinition> retList = new ArrayList<>();
+
+        for (InstrumentationPoint instrumentationPoint: instrumentationPointMap.keySet()) {
+            InstrumentationDefinition.InstrumentationDefinitionBuilder builder = InstrumentationDefinition.builder();
+            builder.instrumentationPoint(instrumentationPoint.getMethodName(), instrumentationPoint.getPosition());
+            for (InstrumentationOperation operation: instrumentationPointMap.get(instrumentationPoint)) {
+                builder.instrumentationOperation(operation);
+            }
+            retList.add(builder.build());
+        }
+
+        return retList;
     }
 
     private void prepareWorkspaceForNodes(Set<Node> nodes) throws InstrumentationException {
-        // Create workspace directory
-        try {
-            cleanUp();
-            Files.createDirectory(workingDirectory);
-        } catch (IOException e) {
-            throw new InstrumentationException("Error in creating SpiderSilk working directory!");
-        }
-
         // Create node directories
         for (Node node: nodes) {
             Path nodePath = workingDirectory.resolve(node.getName());

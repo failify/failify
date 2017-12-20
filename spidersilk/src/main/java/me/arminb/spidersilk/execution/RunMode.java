@@ -23,8 +23,12 @@
  *
  */
 
-package me.arminb.spidersilk.instrumentation;
+package me.arminb.spidersilk.execution;
 
-public class SpecialInstrumentationPoint {
-    public static final String MAIN = "main";
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+
+public enum RunMode {
+    SINGLE_NODE
 }

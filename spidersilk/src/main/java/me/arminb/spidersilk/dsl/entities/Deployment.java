@@ -46,6 +46,7 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities;
     private final Map<String, DeploymentEntity> deploymentEntities;
     private final Integer eventServerPortNumber;
+    private final Integer secondsToWaitForCompletion;
     private final String runSequence;
 
     private Deployment(DeploymentBuilder builder) {
@@ -57,6 +58,7 @@ public class Deployment extends DeploymentEntity {
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
         runSequence = builder.runSequence;
         eventServerPortNumber = new Integer(builder.eventServerPortNumber);
+        secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
     }
 
     private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
@@ -142,8 +144,12 @@ public class Deployment extends DeploymentEntity {
         return deploymentEntities;
     }
 
-    public String getEventServerPortNumber() {
-        return eventServerPortNumber.toString();
+    public Integer getEventServerPortNumber() {
+        return eventServerPortNumber;
+    }
+
+    public Integer getSecondsToWaitForCompletion() {
+        return secondsToWaitForCompletion;
     }
 
     public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
@@ -152,6 +158,7 @@ public class Deployment extends DeploymentEntity {
         private Map<String, Service> services;
         private Map<String, ExternalEvent> executableEntities;
         private Integer eventServerPortNumber;
+        private Integer secondsToWaitForCompletion;
 
 
         public DeploymentBuilder() {
@@ -161,6 +168,7 @@ public class Deployment extends DeploymentEntity {
             executableEntities = new HashMap<>();
             runSequence = "";
             eventServerPortNumber = 8765; // Default port number for the event server
+            secondsToWaitForCompletion = 5;
         }
 
         public DeploymentBuilder(Deployment instance) {
@@ -230,11 +238,12 @@ public class Deployment extends DeploymentEntity {
             return this;
         }
 
+        public DeploymentBuilder secondsToWaitForCompletion(Integer secondsToWaitForCompletion) {
+            this.secondsToWaitForCompletion = secondsToWaitForCompletion;
+            return this;
+        }
+
         public Deployment build() {
-            /**
-             * TODO deployment definition verification
-             * including required fields,correct service references in nodes definition and run sequence correctness
-             */
             return new Deployment(this);
         }
 

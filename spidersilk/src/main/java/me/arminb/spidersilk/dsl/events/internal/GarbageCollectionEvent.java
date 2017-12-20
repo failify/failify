@@ -25,13 +25,13 @@
 
 package me.arminb.spidersilk.dsl.events.internal;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 import me.arminb.spidersilk.instrumentation.InstrumentationPoint;
 import me.arminb.spidersilk.instrumentation.SpiderSilkRuntimeOperation;
-import me.arminb.spidersilk.instrumentation.SpecialInstrumentationPoint;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -48,9 +48,11 @@ public class GarbageCollectionEvent extends InternalEvent {
     public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
         List<InstrumentationDefinition> retList = new ArrayList<>();
         retList.add(InstrumentationDefinition.builder()
-                .instrumentationPoint(SpecialInstrumentationPoint.MAIN, InstrumentationPoint.Position.BEFORE)
+                .instrumentationPoint(Constants.INSTRUMENTATION_POINT_MAIN, InstrumentationPoint.Position.BEFORE)
                 .withInstrumentationOperation(SpiderSilkRuntimeOperation.GARBAGE_COLLECTION)
                     .parameter(getName()).and()
+                .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
+                    .parameter(name).and()
                 .build()
         );
         return retList;
