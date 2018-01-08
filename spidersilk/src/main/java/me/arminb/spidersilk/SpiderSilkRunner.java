@@ -94,6 +94,8 @@ public class SpiderSilkRunner {
     }
 
     private void start() {
+        // Register the shutdown hook
+        Runtime.getRuntime().addShutdownHook(new SpiderSilkShutdownHook(this));
         // Verify the deployment definition
         logger.info("Verifying the deployment definition ...");
         for (DeploymentVerifier verifier: verifiers) {
@@ -139,10 +141,32 @@ public class SpiderSilkRunner {
         }
     }
 
-    private void stop() {
+    protected void stop() {
         logger.info("Stopping the runtime engine ...");
-        runtimeEngine.stop();
+        if (runtimeEngine != null) {
+            runtimeEngine.stop();
+        }
     }
 
-    // TODO shutdown handler to stop the runner
+    protected boolean isStopped() {
+        return runtimeEngine.isStopped();
+    }
+}
+
+class SpiderSilkShutdownHook extends Thread {
+    private static Logger logger = LoggerFactory.getLogger(SpiderSilkShutdownHook.class);
+
+    SpiderSilkRunner runner;
+
+    public SpiderSilkShutdownHook(SpiderSilkRunner runner) {
+        this.runner = runner;
+    }
+
+    @Override
+    public void run() {
+        if (!runner.isStopped()) {
+            logger.info("Shutdown signal received!");
+            runner.stop();
+        }
+    }
 }

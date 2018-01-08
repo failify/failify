@@ -42,6 +42,6 @@
     <description>The runtime library for SpiderSilk testing library</description>
     <url>https://github.com/arminbalalaie/SpiderSilk</url>
 
-
+    <!-- TODO Consider changing the java version for runtime lib to 1.6 -->
 
 </project>

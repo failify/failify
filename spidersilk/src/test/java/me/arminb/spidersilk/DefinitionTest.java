@@ -73,7 +73,6 @@ public class DefinitionTest {
                 .runSequence("e1 * b1 * e2 * ub1 * e3")
                 .secondsToWaitForCompletion(5)
                 .build();
-        logger.info("deployment definition created.");
 
         SpiderSilkRunner.run(deployment, RunMode.SINGLE_NODE);
     }

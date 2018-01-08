@@ -38,6 +38,7 @@ public abstract class RuntimeEngine {
     protected final Deployment deployment;
     protected final Map<String, String> instrumentedApplicationAddressMap;
     protected Path workingDirectory;
+    protected boolean stopped;
 
     private static Map<RunMode, Class<? extends RuntimeEngine>> runModeMap = new HashMap<>();
 
@@ -55,8 +56,12 @@ public abstract class RuntimeEngine {
         EventService.initialize(deployment);
         eventServer = new EventServer(deployment);
         this.workingDirectory = workingDirectory;
+        this.stopped = false;
     }
 
+    public boolean isStopped() {
+        return stopped;
+    }
 
     public void start() throws RuntimeEngineException {
         startEventServer();
@@ -68,6 +73,8 @@ public abstract class RuntimeEngine {
             stop();
             throw e;
         }
+
+        stopped = false;
     }
 
     protected void startExternalEvents() {
@@ -87,6 +94,7 @@ public abstract class RuntimeEngine {
         stopExternalEvents();
         stopNodes();
         stopEventServer();
+        stopped = true;
     }
 
     protected void stopExternalEvents() {
