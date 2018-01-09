@@ -56,8 +56,13 @@ public abstract class ExternalEvent extends ReferableDeploymentEntity {
                 SpiderSilk.getInstance().sendEvent(name);
             }
         });
-
+        logger.info("Starting external event {}", name);
         executionThread.start();
+        try {
+            executionThread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException("The external event " + name + " process has been interrupted!");
+        }
     }
 
     public void stop() {

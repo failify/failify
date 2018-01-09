@@ -56,6 +56,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 runCommand = node.getRunCommand();
             }
             environment.put(Constants.APPLICATION_ADDRESS_ENVVAR_NAME, instrumentedApplicationAddressMap.get(node.getName()));
+            // TODO this should change to storing in file
             processBuilder.inheritIO();
             String currentShell = ShellUtil.getCurrentShellAddress();
             if (currentShell == null) {

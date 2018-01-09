@@ -61,7 +61,7 @@ public class DefinitionTest {
                         .operation(SchedulingOperation.UNBLOCK)
                         .after("e1").and()
                     .withGarbageCollectionEvent("g1").and()
-                    .runCommand("java -jar ${" + Constants.APPLICATION_ADDRESS_ENVVAR_NAME + "}").and()
+                    .runCommand("java -jar ${SPIDERSILK_APPLICATION_ADDRESS}").and()
                 // Workload Definitions
 //                .withWorkload("w1")
 //                    .runCommand("cmd3").and()

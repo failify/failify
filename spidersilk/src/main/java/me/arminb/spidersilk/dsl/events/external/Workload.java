@@ -27,13 +27,20 @@ package me.arminb.spidersilk.dsl.events.external;
 
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.exceptions.ExternalEventExecutionException;
 import me.arminb.spidersilk.execution.RuntimeEngine;
+import me.arminb.spidersilk.util.ShellUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
 
 /**
  * An abstraction for input workloads that should be fed into a distributed system. For the sake of being general, this is a
  * run command. This can be either a shell command or an sh file.
  */
 public class Workload extends ExternalEvent {
+    private final static Logger logger = LoggerFactory.getLogger(Workload.class);
     private final String runCommand;
 
     private Workload(WorkloadBuilder builder) {
@@ -46,8 +53,27 @@ public class Workload extends ExternalEvent {
     }
 
     @Override
-    protected void execute(RuntimeEngine runtimeEngine) {
-        // TODO
+    protected void execute(RuntimeEngine runtimeEngine) throws ExternalEventExecutionException {
+        ProcessBuilder processBuilder = new ProcessBuilder();
+        processBuilder.inheritIO();
+        String currentShell = ShellUtil.getCurrentShellAddress();
+        if (currentShell == null) {
+            throw new ExternalEventExecutionException("Cannot find the current system shell to start the workload process!");
+        }
+        processBuilder.command(currentShell, "-c", runCommand);
+        Process runningProcess;
+        try {
+            logger.info("Starting workload {} ...", name);
+            runningProcess = processBuilder.start();
+        } catch (IOException e) {
+            throw new ExternalEventExecutionException(e.getMessage());
+        }
+        try {
+            runningProcess.waitFor();
+            logger.info("Workload {} is completed!", name);
+        } catch (InterruptedException e) {
+            throw new ExternalEventExecutionException("The workload " + name + " process has been interrupted!");
+        }
     }
 
     public static class WorkloadBuilder extends DeploymentBuilderBase<Workload, Deployment.DeploymentBuilder> {

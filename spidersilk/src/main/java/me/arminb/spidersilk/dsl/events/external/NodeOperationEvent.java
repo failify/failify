@@ -46,6 +46,7 @@ public class NodeOperationEvent extends ExternalEvent {
 
     @Override
     protected void execute(RuntimeEngine runtimeEngine) {
+        // TODO this should support node up and reset
         runtimeEngine.stopNode(nodeName, true);
     }
 

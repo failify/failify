@@ -149,6 +149,9 @@ public class SpiderSilkRunner {
     }
 
     protected boolean isStopped() {
+        if (runtimeEngine == null) {
+            return false;
+        }
         return runtimeEngine.isStopped();
     }
 }

@@ -28,7 +28,10 @@ package me.arminb.spidersilk.execution;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
+import me.arminb.spidersilk.rt.SpiderSilk;
+import me.arminb.spidersilk.util.HostUtil;
 
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
@@ -64,6 +67,13 @@ public abstract class RuntimeEngine {
     }
 
     public void start() throws RuntimeEngineException {
+        // Configure local SpiderSilk runtime
+        try {
+            SpiderSilk.configure(HostUtil.getLocalIpAddress(), deployment.getEventServerPortNumber().toString());
+        } catch (UnknownHostException e) {
+            throw new RuntimeEngineException("Cannot get the local IP address to configure the local SpiderSilk runtime!");
+        }
+
         startEventServer();
         startExternalEvents();
 
@@ -116,4 +126,7 @@ public abstract class RuntimeEngine {
     protected abstract void stopNodes();
     public abstract void stopNode(String nodeName, boolean kill);
 
+    public Path getWorkingDirectory() {
+        return workingDirectory;
+    }
 }
