@@ -62,13 +62,16 @@ public class SpiderSilk {
     }
 
     public void garbageCollection(String eventName) {
-        new Thread(new Runnable() {
+        Thread gcThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 blockAndPoll(eventName);
                 System.gc();
+                sendEvent(eventName);
             }
         });
+
+        gcThread.start();
     }
 
     public void blockAndPoll(String eventName) {

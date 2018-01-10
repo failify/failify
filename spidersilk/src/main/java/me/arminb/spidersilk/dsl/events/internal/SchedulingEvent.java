@@ -68,22 +68,42 @@ public class SchedulingEvent extends InternalEvent {
 
         String stack = ((StackTraceEvent) deployment.getNode(getNodeName()).getInternalEvent(targetEventName)).getStack();
 
-        if (operation == SchedulingOperation.BLOCK) {
-            retList.add(InstrumentationDefinition.builder()
-                    .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.AFTER)
-                    .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
+        if (schedulingPoint == SchedulingPoint.BEFORE) {
+            if (operation == SchedulingOperation.BLOCK) {
+                retList.add(InstrumentationDefinition.builder()
+                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.BEFORE)
+                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
                         .parameter(name).and()
-                    .build()
-            );
+                        .build()
+                );
+            } else {
+                retList.add(InstrumentationDefinition.builder()
+                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.BEFORE)
+                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.BLOCK_AND_POLL)
+                        .parameter(name).and()
+                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
+                        .parameter(name).and()
+                        .build()
+                );
+            }
         } else {
-            retList.add(InstrumentationDefinition.builder()
-                    .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.AFTER)
-                    .withInstrumentationOperation(SpiderSilkRuntimeOperation.BLOCK_AND_POLL)
+            if (operation == SchedulingOperation.BLOCK) {
+                retList.add(InstrumentationDefinition.builder()
+                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.AFTER)
+                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
                         .parameter(name).and()
-                    .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
+                        .build()
+                );
+            } else {
+                retList.add(InstrumentationDefinition.builder()
+                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.AFTER)
+                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.BLOCK_AND_POLL)
                         .parameter(name).and()
-                    .build()
-            );
+                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
+                        .parameter(name).and()
+                        .build()
+                );
+            }
         }
 
         return retList;
@@ -112,11 +132,11 @@ public class SchedulingEvent extends InternalEvent {
             return this;
         }
 
-//        public SchedulingEventBuilder before(String targetEventName) {
-//            this.targetEventName = targetEventName;
-//            this.schedulingPoint = SchedulingPoint.BEFORE;
-//            return this;
-//        }
+        public SchedulingEventBuilder before(String targetEventName) {
+            this.targetEventName = targetEventName;
+            this.schedulingPoint = SchedulingPoint.BEFORE;
+            return this;
+        }
 
         public SchedulingEventBuilder after(String targetEventName) {
             this.targetEventName = targetEventName;

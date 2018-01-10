@@ -54,12 +54,18 @@ public class DefinitionTest {
                         .trace("me.arminb.spidersilk.samples.Main.helloWorld2").and()
                     .withStackTraceEvent("e3")
                         .trace("me.arminb.spidersilk.samples.Main.helloWorld3").and()
-                    .withSchedulingEvent("b1")
+                    .withSchedulingEvent("ba2")
                         .operation(SchedulingOperation.BLOCK)
-                        .after("e1").and()
-                    .withSchedulingEvent("ub1")
+                        .after("e2").and()
+                    .withSchedulingEvent("uba2")
                         .operation(SchedulingOperation.UNBLOCK)
-                        .after("e1").and()
+                        .after("e2").and()
+                    .withSchedulingEvent("bb2")
+                        .operation(SchedulingOperation.BLOCK)
+                        .before("e2").and()
+                    .withSchedulingEvent("ubb2")
+                        .operation(SchedulingOperation.UNBLOCK)
+                        .before("e2").and()
                     .withGarbageCollectionEvent("g1").and()
                     .runCommand("java -jar ${SPIDERSILK_APPLICATION_ADDRESS}").and()
                 // Workload Definitions
@@ -70,7 +76,7 @@ public class DefinitionTest {
 //                    .nodeName("n1")
 //                    .nodeOperation(NodeOperation.DOWN).and()
                 // Run Sequence Definition
-                .runSequence("e1 * b1 * e2 * ub1 * e3")
+                .runSequence("bb2 * e1 * ubb2 * e2 * ba2 * e3 * uba2 * g1")
                 .secondsToWaitForCompletion(5)
                 .build();
 

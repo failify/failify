@@ -50,8 +50,6 @@ public class GarbageCollectionEvent extends InternalEvent {
         retList.add(InstrumentationDefinition.builder()
                 .instrumentationPoint(Constants.INSTRUMENTATION_POINT_MAIN, InstrumentationPoint.Position.BEFORE)
                 .withInstrumentationOperation(SpiderSilkRuntimeOperation.GARBAGE_COLLECTION)
-                    .parameter(getName()).and()
-                .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
                     .parameter(name).and()
                 .build()
         );

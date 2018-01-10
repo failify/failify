@@ -26,6 +26,6 @@
 package me.arminb.spidersilk.dsl.events.internal;
 
 public enum SchedulingPoint {
-//    BEFORE,
+    BEFORE,
     AFTER
 }
