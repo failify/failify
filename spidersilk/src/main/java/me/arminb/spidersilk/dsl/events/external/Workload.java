@@ -62,18 +62,25 @@ public class Workload extends ExternalEvent {
         }
         processBuilder.command(currentShell, "-c", runCommand);
         Process runningProcess;
+
+        logger.info("Starting workload {} ...", name);
         try {
-            logger.info("Starting workload {} ...", name);
             runningProcess = processBuilder.start();
         } catch (IOException e) {
             throw new ExternalEventExecutionException(e.getMessage());
         }
         try {
             runningProcess.waitFor();
-            logger.info("Workload {} is completed!", name);
         } catch (InterruptedException e) {
             throw new ExternalEventExecutionException("The workload " + name + " process has been interrupted!");
         }
+        // Wait a little bit for the process output to appear in the logs
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        logger.info("Workload {} is completed!", name);
     }
 
     public static class WorkloadBuilder extends DeploymentBuilderBase<Workload, Deployment.DeploymentBuilder> {

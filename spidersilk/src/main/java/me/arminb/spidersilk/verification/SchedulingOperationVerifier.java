@@ -35,11 +35,12 @@ import java.util.HashMap;
 /**
  * verifies the deployment object to include only matched block and unblock events
  */
+
+// TODO this verifier is not doing very well right now. It should verify for all of the possible situations
 public class SchedulingOperationVerifier extends DeploymentVerifier {
     public SchedulingOperationVerifier(Deployment deployment) {
         super(deployment);
     }
-
     @Override
     public void verify() {
         HashMap<String, Boolean> blockOccurrenceMap = new HashMap<>();

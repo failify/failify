@@ -33,7 +33,9 @@ import me.arminb.spidersilk.util.HostUtil;
 
 import java.net.UnknownHostException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public abstract class RuntimeEngine {
@@ -88,8 +90,15 @@ public abstract class RuntimeEngine {
     }
 
     protected void startExternalEvents() {
-        // TODO only start those events that are present in the run sequence
-        for (ExternalEvent externalEvent: deployment.getExecutableEntities().values()) {
+        // Find those external events that are present in the run sequence
+        List<ExternalEvent> externalEvents = new ArrayList<>();
+        for (String id: deployment.getRunSequence().split("\\W+")) {
+            if (deployment.getExecutableEntity(id) != null) {
+                externalEvents.add(deployment.getExecutableEntity(id));
+            }
+        }
+
+        for (ExternalEvent externalEvent: externalEvents) {
             externalEvent.start(this);
         }
     }

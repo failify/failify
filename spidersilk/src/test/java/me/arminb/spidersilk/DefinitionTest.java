@@ -69,14 +69,14 @@ public class DefinitionTest {
                     .withGarbageCollectionEvent("g1").and()
                     .runCommand("java -jar ${SPIDERSILK_APPLICATION_ADDRESS}").and()
                 // Workload Definitions
-//                .withWorkload("w1")
-//                    .runCommand("cmd3").and()
+                .withWorkload("w1")
+                    .runCommand("cmd3").and()
                 // External Events Definitions
 //                .withNodeOperationEvent("x1")
 //                    .nodeName("n1")
 //                    .nodeOperation(NodeOperation.DOWN).and()
                 // Run Sequence Definition
-                .runSequence("bb2 * e1 * ubb2 * e2 * ba2 * e3 * uba2 * g1")
+                .runSequence("w1 * bb2 * e1 * ubb2 * e2 * ba2 * e3 * uba2 * g1")
                 .secondsToWaitForCompletion(5)
                 .build();
 

@@ -73,6 +73,7 @@ public class SpiderSilkRunner {
         SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment, runMode);
         spiderSilkRunner.start();
         while (true) {
+            // TODO there should be a way to stop the runner due to a timeout in receiving an event
             if (EventService.getInstance().isTheRunSequenceCompleted()) {
                 break;
             }

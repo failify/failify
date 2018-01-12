@@ -49,6 +49,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
+/**
+ * Only non-lib binary instrumentation is possible
+ */
 public class InstrumentationEngine {
     private final static Logger logger = LoggerFactory.getLogger(InstrumentationEngine.class);
     private final Deployment deployment;
