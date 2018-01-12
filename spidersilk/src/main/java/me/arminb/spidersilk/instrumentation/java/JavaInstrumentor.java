@@ -69,9 +69,16 @@ public class JavaInstrumentor implements Instrumentor {
             if (currentShell == null) {
                 throw new InstrumentationException("Cannot find the current system shell to run the instrumentor!");
             }
-            // TODO add lib dir to the ajc command
-            Process ajcProcess = new ProcessBuilder().command(currentShell, "-c" ,"ajc -inpath " + nodeWorkspace.getApplicationAddress() +
+
+            String classPathString = "";
+            if (nodeWorkspace.getLibDir() != null) {
+                classPathString = " -cp " + Paths.get(nodeWorkspace.getLibDir()).toString();
+            }
+
+            Process ajcProcess = new ProcessBuilder().command(
+                    currentShell, "-c" ,"ajc -inpath " + nodeWorkspace.getApplicationAddress() +
                     " @" + Paths.get(nodeWorkspace.getWorkingDirectory(), "argfile").toString() +
+                    classPathString +
                     " -outjar " + Paths.get(nodeWorkspace.getWorkingDirectory(), "woven.jar").toString())
                     .redirectError(Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toFile())
                     .redirectOutput(Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toFile())

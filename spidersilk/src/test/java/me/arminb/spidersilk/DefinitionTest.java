@@ -44,7 +44,7 @@ public class DefinitionTest {
                 .withService("s1")
                     .applicationAddress("../sample-multithread/target/multithread-helloworld.jar")
                     .runCommand("java -jar ${SPIDERSILK_APPLICATION_ADDRESS}")
-                    .libDir("libDir1")
+//                    .libDir("libDir1")
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
                 .withNode("n1", "s1")
