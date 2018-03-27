@@ -49,7 +49,7 @@ public class DefinitionTest {
                 // Node Definitions
                 .withNode("n1", "s1")
                     .withStackTraceEvent("e1")
-                        .trace("me.arminb.spidersilk.samples.Main.helloWorld1").and()
+                        .trace("me.arminb.spidersilk.samples.Main.helloWorld1").blockAfter().and()
                     .withStackTraceEvent("e2")
                         .trace("me.arminb.spidersilk.samples.Main.helloWorld2").and()
                     .withStackTraceEvent("e3")
@@ -76,7 +76,7 @@ public class DefinitionTest {
 //                    .nodeName("n1")
 //                    .nodeOperation(NodeOperation.DOWN).and()
                 // Run Sequence Definition
-                .runSequence("w1 * bb2 * e1 * ubb2 * e2 * ba2 * e3 * uba2 * g1")
+                .runSequence("bb2 * w1 * e1 * ubb2 * e2 * e3 * g1")
                 .secondsToWaitForCompletion(5)
                 .build();
 

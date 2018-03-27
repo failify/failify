@@ -26,8 +26,6 @@
 package me.arminb.spidersilk;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
-import me.arminb.spidersilk.dsl.entities.Node;
-import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.EventService;
@@ -61,10 +59,9 @@ public class SpiderSilkRunner {
 
         // Verifiers
         verifiers = Collections.unmodifiableList(Arrays.asList(
-                new RunSequenceVerifier(deployment),
-                new SchedulingOperationVerifier(deployment),
                 new InternalReferencesVerifier(deployment),
-                new StackTraceVerifier(deployment)
+                new RunSequenceVerifier(deployment),
+                new SchedulingOperationVerifier(deployment)
         ));
     }
 

@@ -26,6 +26,8 @@
 package me.arminb.spidersilk.verification;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
+import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
 import me.arminb.spidersilk.exceptions.RunSequenceVerificationException;
@@ -38,6 +40,7 @@ import java.util.*;
 public class RunSequenceVerifier extends DeploymentVerifier {
     private List<Stack<String>> levelStack = new ArrayList<>();
     private List<List<String>> levelHistory= new ArrayList<>();
+    private Map<String, String> stackTraceToLastBlockingEvent = new HashMap<>();
     private String readMode; // b: before expression, e: reading identifier, ap: after closing parenthesis, ao: after operators
     private int parenthesisDepth;
     private char currentChar;
@@ -133,6 +136,7 @@ public class RunSequenceVerifier extends DeploymentVerifier {
 
     private void createNewIdAndSetDependency(String id) {
         resolveDependency(id);
+        resolveBlockingCondition(id);
         levelHistory.get(parenthesisDepth).add(id);
         levelStack.get(parenthesisDepth).push(id);
     }
@@ -207,6 +211,20 @@ public class RunSequenceVerifier extends DeploymentVerifier {
         if (currentDepth!=parenthesisDepth && operator!=null && prevOperand!=null) {
             levelStack.get(currentDepth).push(prevOperand);
             levelStack.get(currentDepth).push(operator);
+        }
+    }
+
+    private void resolveBlockingCondition(String eventName) {
+        BlockingEvent blockingEvent = deployment.getBlockingEvent(eventName);
+
+        // check if event is a blocking event
+        if (blockingEvent != null) {
+            // set blocking condition to the last seen blocking event for the event stack trace
+            String stackTraceMapKey = blockingEvent.getSchedulingPoint() + "-" + blockingEvent.getStack(deployment);
+            blockingEvent.setBlockingCondition(stackTraceToLastBlockingEvent.get(stackTraceMapKey));
+            // update the the last seen blocking event for the event stack trace
+            // TODO a stack trace can be a subset of another stack trace
+            stackTraceToLastBlockingEvent.put(stackTraceMapKey, eventName);
         }
     }
 }

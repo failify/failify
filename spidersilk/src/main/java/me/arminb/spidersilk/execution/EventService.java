@@ -2,10 +2,14 @@ package me.arminb.spidersilk.execution;
 
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.dsl.events.InternalEvent;
+import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
+import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class EventService {
@@ -29,11 +33,29 @@ public class EventService {
     private EventService(Deployment deployment) {
         this.deployment = deployment;
         eventCheckList = new ConcurrentHashMap<>();
+        markEligibleBlockingEventsAsReceived();
+    }
+
+    public boolean hasEventReceived(String eventName) {
+        return eventCheckList.containsKey(eventName) ? true : false;
     }
 
     public void receiveEvent(String eventName) {
-        eventCheckList.put(eventName, true);
-        logger.info("Event " + eventName + " received!");
+        if (!eventCheckList.containsKey(eventName)) {
+            eventCheckList.put(eventName, true);
+            logger.info("Event " + eventName + " received!");
+            // if the dependencies of any block scheduling event is met, then mark it as received
+            markEligibleBlockingEventsAsReceived();
+        }
+    }
+
+    private void markEligibleBlockingEventsAsReceived() {
+        for (SchedulingEvent schedulingEvent: deployment.getBlockingSchedulingEvents().values()) {
+            if (!eventCheckList.containsKey(schedulingEvent.getName()) && areDependenciesMet(schedulingEvent.getName())) {
+                logger.info("Event " + schedulingEvent.getName() + " received!");
+                eventCheckList.put(schedulingEvent.getName(), true);
+            }
+        }
     }
 
     public boolean areDependenciesMet(String eventName) {
@@ -48,10 +70,27 @@ public class EventService {
 
         String[] dependencies = deploymentEntity.getDependsOn().split(",");
         for (String dependency: dependencies) {
-            synchronized (eventCheckList) {
-                if (!eventCheckList.containsKey(dependency)) {
-                    return false;
-                }
+            if (!eventCheckList.containsKey(dependency)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean areBlockDependenciesMet(String eventName) {
+        BlockingEvent blockingEvent = deployment.getBlockingEvent(eventName);
+        if (blockingEvent == null || !blockingEvent.isBlocking()) {
+            return true;
+        }
+
+        if (blockingEvent.getBlockingCondition() == null) {
+            return true;
+        }
+
+        String[] blockDependencies = blockingEvent.getBlockingCondition().split(",");
+        for (String blockDependency: blockDependencies) {
+            if (!eventCheckList.containsKey(blockDependency)) {
+                return false;
             }
         }
         return true;

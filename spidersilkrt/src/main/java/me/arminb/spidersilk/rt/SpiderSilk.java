@@ -37,6 +37,8 @@ public class SpiderSilk {
     private final String hostname;
     private final String port;
     private final StackMatcher stackMatcher;
+    // this is needed because each pass of a method can only be blocked once per thread
+    private ThreadLocal<Boolean> allowBlocking;
 
     public static SpiderSilk getInstance() {
         return instance;
@@ -46,6 +48,8 @@ public class SpiderSilk {
         this.hostname = hostname;
         this.port = port;
         this.stackMatcher = new StackMatcher();
+        this.allowBlocking = new ThreadLocal<>();
+        this.allowBlocking.set(true);
     }
 
     public static void configure(String hostname, String port) {
@@ -54,10 +58,24 @@ public class SpiderSilk {
         }
     }
 
+    public void allowBlocking() {
+        allowBlocking.set(true);
+    }
+
     public void enforceOrder(String eventName, String stack) {
-        if (stackMatcher.match(stack)) {
-            blockAndPoll(eventName);
-            sendEvent(eventName);
+        // check if event is not already sent - useful when resetting a node
+        if (!isEventAlreadySent(eventName)) {
+            if (stackMatcher.match(stack)) {
+                // check if blocking is allowed in the current pass
+                if (allowBlocking.get()) {
+                    // check if blocking condition is satisfied
+                    if (isBlockingConditionSatisfied(eventName)) {
+                        blockAndPoll(eventName);
+                        sendEvent(eventName);
+                        allowBlocking.set(false);
+                    }
+                }
+            }
         }
     }
 
@@ -65,13 +83,57 @@ public class SpiderSilk {
         Thread gcThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                blockAndPoll(eventName);
-                System.gc();
-                sendEvent(eventName);
+                // check if event is not already sent - useful when resetting a node
+                if (!isEventAlreadySent(eventName)) {
+                    // check if blocking condition is satisfied
+                    if (isBlockingConditionSatisfied(eventName)) {
+                        blockAndPoll(eventName);
+                        System.gc();
+                        sendEvent(eventName);
+                    }
+                }
             }
         });
 
         gcThread.start();
+    }
+
+    private boolean isEventAlreadySent(String eventName) {
+        try {
+            URL url = new URL("http://" + hostname + ":" + port + "/events/" + eventName);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.connect();
+            if (connection.getResponseCode() == 200) {
+                return true;
+            }
+            return false;
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    private boolean isBlockingConditionSatisfied(String eventName) {
+        try {
+            URL url = new URL("http://" + hostname + ":" + port + "/blockDependencies/" + eventName);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.connect();
+            if (connection.getResponseCode() == 200) {
+                return true;
+            }
+            return false;
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+            return false;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public void blockAndPoll(String eventName) {
@@ -84,7 +146,7 @@ public class SpiderSilk {
                 if (connection.getResponseCode() == 200) {
                     break;
                 }
-                Thread.sleep(10);
+                Thread.sleep(1);
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             } catch (IOException e) {

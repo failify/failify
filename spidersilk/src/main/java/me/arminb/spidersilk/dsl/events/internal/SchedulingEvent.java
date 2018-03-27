@@ -38,7 +38,7 @@ import java.util.List;
 /**
  * This is an internal event to block or unblock intentionally after or before a stack trace event
  */
-public class SchedulingEvent extends InternalEvent {
+public class SchedulingEvent extends BlockingEvent {
     private final SchedulingOperation operation;
     private final SchedulingPoint schedulingPoint;
     private final String targetEventName;
@@ -63,47 +63,33 @@ public class SchedulingEvent extends InternalEvent {
     }
 
     @Override
+    public boolean isBlocking() {
+        // we only have blocking instrumentation for unblock
+        return operation == SchedulingOperation.UNBLOCK;
+    }
+
+    @Override
+    public String getStack(Deployment deployment) {
+        return ((StackTraceEvent) deployment.getNode(getNodeName()).getInternalEvent(targetEventName)).getStack();
+    }
+
+    @Override
     public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
         List<InstrumentationDefinition> retList = new ArrayList<>();
 
-        String stack = ((StackTraceEvent) deployment.getNode(getNodeName()).getInternalEvent(targetEventName)).getStack();
+        String stack = getStack(deployment);
 
-        if (schedulingPoint == SchedulingPoint.BEFORE) {
-            if (operation == SchedulingOperation.BLOCK) {
-                retList.add(InstrumentationDefinition.builder()
-                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.BEFORE)
-                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
-                        .parameter(name).and()
-                        .build()
-                );
-            } else {
-                retList.add(InstrumentationDefinition.builder()
-                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.BEFORE)
-                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.BLOCK_AND_POLL)
-                        .parameter(name).and()
-                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
-                        .parameter(name).and()
-                        .build()
-                );
-            }
-        } else {
-            if (operation == SchedulingOperation.BLOCK) {
-                retList.add(InstrumentationDefinition.builder()
-                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.AFTER)
-                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
-                        .parameter(name).and()
-                        .build()
-                );
-            } else {
-                retList.add(InstrumentationDefinition.builder()
-                        .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.AFTER)
-                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.BLOCK_AND_POLL)
-                        .parameter(name).and()
-                        .withInstrumentationOperation(SpiderSilkRuntimeOperation.SEND_EVENT)
-                        .parameter(name).and()
-                        .build()
-                );
-            }
+        InstrumentationPoint.Position instrumentationPosition = schedulingPoint == SchedulingPoint.BEFORE ?
+                InstrumentationPoint.Position.BEFORE : InstrumentationPoint.Position.AFTER;
+
+        if (operation == SchedulingOperation.UNBLOCK) {
+            retList.add(InstrumentationDefinition.builder()
+                    .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], instrumentationPosition)
+                    .withInstrumentationOperation(SpiderSilkRuntimeOperation.ENFORCE_ORDER)
+                        .parameter(name)
+                        .parameter(stack).and()
+                    .build()
+            );
         }
 
         return retList;

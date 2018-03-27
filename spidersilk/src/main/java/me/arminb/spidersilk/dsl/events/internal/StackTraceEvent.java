@@ -38,23 +38,31 @@ import java.util.List;
 /**
  * This is an internal event to match a specific stack trace in runtime
  */
-public class StackTraceEvent extends InternalEvent {
+public class StackTraceEvent extends BlockingEvent {
     private final String stack;
+    private final SchedulingPoint schedulingPoint;
 
     private StackTraceEvent(StackTraceEventBuilder builder) {
         super(builder.getName(), builder.getNodeName());
         stack = builder.stack;
+        schedulingPoint = builder.schedulingPoint;
     }
 
     public String getStack() {
         return stack;
     }
 
+    public String getStack(Deployment deployment) {
+        return stack;
+    }
+
     @Override
     public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
         List<InstrumentationDefinition> retList = new ArrayList<>();
+        InstrumentationPoint.Position instrumentationPoint = schedulingPoint == SchedulingPoint.BEFORE ?
+                InstrumentationPoint.Position.BEFORE : InstrumentationPoint.Position.AFTER;
         retList.add(InstrumentationDefinition.builder()
-                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], InstrumentationPoint.Position.BEFORE)
+                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], instrumentationPoint)
                 .withInstrumentationOperation(SpiderSilkRuntimeOperation.ENFORCE_ORDER)
                     .parameter(getName())
                     .parameter(stack).and()
@@ -63,12 +71,19 @@ public class StackTraceEvent extends InternalEvent {
         return retList;
     }
 
+    @Override
+    public SchedulingPoint getSchedulingPoint() {
+        return schedulingPoint;
+    }
+
     public static class StackTraceEventBuilder extends InternalEventBuilder<StackTraceEvent> {
         private String stack;
+        private SchedulingPoint schedulingPoint;
 
         public StackTraceEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name, nodeName);
             stack = "";
+            schedulingPoint = SchedulingPoint.BEFORE;
         }
 
         public StackTraceEventBuilder(String name, String nodeName) {
@@ -82,6 +97,11 @@ public class StackTraceEvent extends InternalEvent {
 
         public StackTraceEventBuilder trace(String trace) {
             stack += trace + ",";
+            return this;
+        }
+
+        public StackTraceEventBuilder blockAfter() {
+            schedulingPoint = SchedulingPoint.AFTER;
             return this;
         }
 

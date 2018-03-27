@@ -49,6 +49,7 @@ public class AspectGenerator {
     static {
         operationToStringMap = new HashMap<>();
         operationToStringMap.put(SpiderSilkRuntimeOperation.CONFIGURE, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().configure");
+        operationToStringMap.put(SpiderSilkRuntimeOperation.ALLOW_BLOCKING, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().allowBlocking");
         operationToStringMap.put(SpiderSilkRuntimeOperation.ENFORCE_ORDER, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().enforceOrder");
         operationToStringMap.put(SpiderSilkRuntimeOperation.BLOCK_AND_POLL, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().blockAndPoll");
         operationToStringMap.put(SpiderSilkRuntimeOperation.GARBAGE_COLLECTION, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().garbageCollection");
@@ -74,7 +75,9 @@ public class AspectGenerator {
             for (String param: operation.getParameters()) {
                 retString += "\"" + param + "\", ";
             }
-            retString = retString.substring(0, retString.length() - 2);
+            if (retString.endsWith(", ")) {
+                retString = retString.substring(0, retString.length() - 2);
+            }
             retString += ");";
             return retString;
         } else {

@@ -21,6 +21,26 @@ public class JerseyEndPoint {
         }
     }
 
+    @GET
+    @Path("/blockDependencies/{name}")
+    public Response checkEventBlockDependencies(@PathParam("name") String eventName) {
+        if (EventService.getInstance().areBlockDependenciesMet(eventName)) {
+            return Response.status(Response.Status.OK).build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+    }
+
+    @GET
+    @Path("/events/{name}")
+    public Response checkEventReceipt(@PathParam("name") String eventName) {
+        if (EventService.getInstance().hasEventReceived(eventName)) {
+            return Response.status(Response.Status.OK).build();
+        } else {
+            return Response.status(Response.Status.NOT_FOUND).build();
+        }
+    }
+
     @POST
     @Path("/events")
     @Consumes(MediaType.APPLICATION_JSON)

@@ -26,6 +26,9 @@
 package me.arminb.spidersilk.dsl.entities;
 
 import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
+import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
+import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNameConflictException;
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
@@ -45,20 +48,24 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, ExternalEvent> executableEntities;
     private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities;
     private final Map<String, DeploymentEntity> deploymentEntities;
+    private final Map<String, BlockingEvent> blockingEvents;
+    private final Map<String, SchedulingEvent> blockingSchedulingEvents;
     private final Integer eventServerPortNumber;
     private final Integer secondsToWaitForCompletion;
     private final String runSequence;
 
     private Deployment(DeploymentBuilder builder) {
         super("deployment");
+        runSequence = builder.runSequence;
+        eventServerPortNumber = new Integer(builder.eventServerPortNumber);
+        secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
         executableEntities = Collections.unmodifiableMap(builder.executableEntities);
         deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
+        blockingEvents = Collections.unmodifiableMap(generateBlockingEventsMap());
+        blockingSchedulingEvents = Collections.unmodifiableMap(generateBlockingSchedulingEventsMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
-        runSequence = builder.runSequence;
-        eventServerPortNumber = new Integer(builder.eventServerPortNumber);
-        secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
     }
 
     private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
@@ -100,6 +107,36 @@ public class Deployment extends DeploymentEntity {
         return returnMap;
     }
 
+    private Map<String, BlockingEvent> generateBlockingEventsMap() {
+        Map<String, BlockingEvent> returnList = new HashMap<>();
+
+        for (Node node: nodes.values()) {
+            for (InternalEvent internalEvent: node.getInternalEvents().values()) {
+                if (internalEvent instanceof BlockingEvent) {
+                    returnList.put(internalEvent.getName(), (BlockingEvent) internalEvent);
+                }
+            }
+        }
+
+        return returnList;
+    }
+
+    private Map<String, SchedulingEvent> generateBlockingSchedulingEventsMap() {
+        Map<String, SchedulingEvent> returnList = new HashMap<>();
+
+        for (Node node: nodes.values()) {
+            for (InternalEvent internalEvent: node.getInternalEvents().values()) {
+                if (internalEvent instanceof SchedulingEvent
+                        && ((SchedulingEvent)internalEvent).getOperation() == SchedulingOperation.BLOCK
+                        && runSequence.contains(internalEvent.getName())) {
+                    returnList.put(internalEvent.getName(), (SchedulingEvent) internalEvent);
+                }
+            }
+        }
+
+        return returnList;
+    }
+
     public Node getNode(String name) {
         return nodes.get(name);
     }
@@ -110,6 +147,18 @@ public class Deployment extends DeploymentEntity {
 
     public ExternalEvent getExecutableEntity(String name) {
         return executableEntities.get(name);
+    }
+
+    public Map<String, BlockingEvent> getBlockingEvents() {
+        return blockingEvents;
+    }
+
+    public BlockingEvent getBlockingEvent(String name) {
+        return blockingEvents.get(name);
+    }
+
+    public Map<String, SchedulingEvent> getBlockingSchedulingEvents() {
+        return blockingSchedulingEvents;
     }
 
     public String getRunSequence() {

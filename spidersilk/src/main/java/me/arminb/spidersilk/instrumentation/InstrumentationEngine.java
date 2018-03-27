@@ -163,6 +163,15 @@ public class InstrumentationEngine {
             if (!instrumentationPointMap.containsKey(definition.getInstrumentationPoint())) {
                 instrumentationPointMap.put(definition.getInstrumentationPoint(), new ArrayList<>());
             }
+
+            // except for the main method, add allow blocking operation at the beginning of every method with instrumentation
+            if (!definition.getInstrumentationPoint().getMethodName().equals(Constants.INSTRUMENTATION_POINT_MAIN)) {
+                instrumentationPointMap.get(definition.getInstrumentationPoint()).add(
+                        new InstrumentationOperation.InstrumentationOperationBuilder(SpiderSilkRuntimeOperation.ALLOW_BLOCKING,
+                                null).build()
+                );
+            }
+
             for (InstrumentationOperation operation: definition.getInstrumentationOperations()) {
                 instrumentationPointMap.get(definition.getInstrumentationPoint()).add(operation);
             }
