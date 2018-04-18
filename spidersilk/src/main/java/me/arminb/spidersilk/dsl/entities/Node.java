@@ -30,25 +30,36 @@ import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.dsl.events.internal.GarbageCollectionEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.StackTraceEvent;
-import me.arminb.spidersilk.exceptions.DeploymentEntityNameConflictException;
+import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
+import me.arminb.spidersilk.exceptions.PathNotFoundException;
+import me.arminb.spidersilk.util.PathUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.File;
+import java.util.*;
 
 /**
  * An abstraction for a node in a distributed system which acts as a container for internal events definition of a node
  */
 public class Node extends ReferableDeploymentEntity {
+    private final Map<String, PathEntry> applicationPaths;
+    private final Map<String, String> environmentVariables;
     private final String serviceName;
     private final String runCommand;
     private final Map<String, InternalEvent> internalEvents;
+    private final Boolean offOnStartup;
+    private final Integer pathOrderCounter;
 
     private Node(NodeBuilder builder) {
         super(builder.getName());
         serviceName = builder.serviceName;
         runCommand = builder.runCommand;
         internalEvents = Collections.unmodifiableMap(builder.internalEvents);
+        offOnStartup = builder.offOnStartup;
+        applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
+        environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
+        pathOrderCounter = builder.pathOrderCounter;
     }
 
     public String getServiceName() {
@@ -63,34 +74,72 @@ public class Node extends ReferableDeploymentEntity {
         return internalEvents.get(name);
     }
 
+    public Boolean getOffOnStartup() {
+        return offOnStartup;
+    }
+
     public Map<String, InternalEvent> getInternalEvents() {
         return internalEvents;
     }
 
+    public Map<String, String> getEnvironmentVariables() {
+        return environmentVariables;
+    }
+
+    public Map<String, PathEntry> getApplicationPaths() {
+        return applicationPaths;
+    }
+
     public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
+        private static Logger logger = LoggerFactory.getLogger(NodeBuilder.class);
+
+        private Map<String, PathEntry> applicationPaths;
+        private Map<String, String> environmentVariables;
         private final String serviceName;
         private String runCommand;
         private Map<String, InternalEvent> internalEvents;
+        private Boolean offOnStartup;
+        private Integer pathOrderCounter;
 
         public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name, String serviceName) {
             super(parentBuilder, name);
             this.serviceName = serviceName;
+            offOnStartup = false;
             internalEvents = new HashMap<>();
+            applicationPaths = new HashMap<>();
+            environmentVariables = new HashMap<>();
+            pathOrderCounter = 0;
         }
 
         public NodeBuilder(String name, String serviceName) {
-            super(name);
-            this.serviceName = serviceName;
+            this(null, name, serviceName);
+        }
+
+        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, Node instance) {
+            super(parentBuilder, instance);
+            serviceName = new String(instance.serviceName);
+            runCommand = new String(instance.runCommand);
+            offOnStartup = new Boolean(instance.offOnStartup);
+            internalEvents = new HashMap<>(instance.internalEvents);
+            applicationPaths = new HashMap<>(instance.applicationPaths);
+            environmentVariables = new HashMap<>(instance.environmentVariables);
+            pathOrderCounter = instance.pathOrderCounter;
         }
 
         public NodeBuilder(Node instance) {
-            super(instance);
-            serviceName = instance.serviceName;
-            internalEvents = new HashMap<>(instance.internalEvents);
+            this(null, instance);
         }
 
         public StackTraceEvent.StackTraceEventBuilder withStackTraceEvent(String name) {
             return new StackTraceEvent.StackTraceEventBuilder(this, name, this.name);
+        }
+
+        public StackTraceEvent.StackTraceEventBuilder stackTraceEvent(String eventName) {
+            if (!internalEvents.containsKey(eventName) || !(internalEvents.get(eventName) instanceof StackTraceEvent)) {
+                throw new DeploymentEntityNotFound(eventName, "StackTraceEvent");
+            }
+            return new StackTraceEvent.StackTraceEventBuilder(this,
+                    (StackTraceEvent) internalEvents.get(eventName));
         }
 
         public NodeBuilder stackTraceEvent(StackTraceEvent stackTraceEvent) {
@@ -100,6 +149,14 @@ public class Node extends ReferableDeploymentEntity {
 
         public SchedulingEvent.SchedulingEventBuilder withSchedulingEvent(String name) {
             return new SchedulingEvent.SchedulingEventBuilder(this, name, this.name);
+        }
+
+        public SchedulingEvent.SchedulingEventBuilder schedulingEvent(String eventName) {
+            if (!internalEvents.containsKey(eventName) || !(internalEvents.get(eventName) instanceof SchedulingEvent)) {
+                throw new DeploymentEntityNotFound(eventName, "SchedulingEvent");
+            }
+            return new SchedulingEvent.SchedulingEventBuilder(this,
+                    (SchedulingEvent) internalEvents.get(eventName));
         }
 
         public NodeBuilder schedulingEvent(SchedulingEvent schedulingEvent) {
@@ -118,13 +175,39 @@ public class Node extends ReferableDeploymentEntity {
 
         private void addInternalEvent(InternalEvent event) {
             if (internalEvents.containsKey(event.getName())) {
-                throw new DeploymentEntityNameConflictException(event.getName());
+                logger.warn("The internal event " + event.getName() + " is being redefined in the node "
+                        + name + " definition!");
             }
             internalEvents.put(event.getName(), event);
         }
 
+        public NodeBuilder offOnStartup() {
+            this.offOnStartup = true;
+            return this;
+        }
+
         public NodeBuilder runCommand(String runCommand) {
             this.runCommand = runCommand;
+            return this;
+        }
+
+        public NodeBuilder applicationPath(String path) {
+            applicationPath(path, PathUtil.getLastFolderOrFileName(path));
+            return this;
+        }
+
+        public NodeBuilder applicationPath(String path, String targetPath) {
+            if (!new File(path).exists()) {
+                throw new PathNotFoundException(path);
+            }
+
+            this.applicationPaths.put(path, new PathEntry(
+                    path, targetPath, false, pathOrderCounter++));
+            return this;
+        }
+
+        public NodeBuilder environmentVariable(String name, String value) {
+            this.environmentVariables.put(name, value);
             return this;
         }
 

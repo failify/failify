@@ -34,6 +34,7 @@ import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.instrumentation.java.JavaInstrumentor;
 import me.arminb.spidersilk.util.HostUtil;
+import me.arminb.spidersilk.workspace.NodeWorkspace;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
@@ -41,9 +42,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -55,11 +54,11 @@ import java.util.*;
 public class InstrumentationEngine {
     private final static Logger logger = LoggerFactory.getLogger(InstrumentationEngine.class);
     private final Deployment deployment;
-    private final Path workingDirectory;
+    private final Map<String, NodeWorkspace> nodeWorkspaceMap;
 
-    public InstrumentationEngine(Deployment deployment, Path workingDirectory) {
+    public InstrumentationEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.deployment = deployment;
-        this.workingDirectory = workingDirectory;
+        this.nodeWorkspaceMap = nodeWorkspaceMap;
     }
 
     private Instrumentor getInstrumentor(ServiceType serviceType) {
@@ -77,7 +76,7 @@ public class InstrumentationEngine {
             retMap.put(
                     node.getName(),
                     FilenameUtils.normalize(Paths.get(deployment.getService(node.getServiceName())
-                            .getApplicationAddress()).toFile().getAbsolutePath().toString())
+                            .getInstrumentableAddress()).toFile().getAbsolutePath().toString())
             );
         }
 
@@ -99,12 +98,11 @@ public class InstrumentationEngine {
             }
         }
 
-        prepareWorkspaceForNodes(nodeMap.keySet());
-
         // Instruments each node's binaries based on its service type
         for (Node node: nodeMap.keySet()) {
+            logger.info("Starting the instrumentation process for node {} ...", node.getName());
             Service service = deployment.getService(node.getServiceName());
-            String newApplicationAddress = service.getApplicationAddress();
+            String newApplicationAddress = service.getInstrumentableAddress();
             List<InstrumentationDefinition> instrumentationDefinitions = new ArrayList<>();
 
             for (InternalEvent event: nodeMap.get(node)) {
@@ -118,11 +116,10 @@ public class InstrumentationEngine {
 
                 // Performs the actual instrumentation and receives the new instrumented file name
                 Instrumentor instrumentor = getInstrumentor(service.getServiceType());
-                newApplicationAddress = instrumentor.instrument(new NodeWorkspace(
-                        FilenameUtils.normalize(workingDirectory.resolve(node.getName()).resolve(new File(service.getApplicationAddress()).getName()).toFile().getAbsolutePath()),
-                        service.getLibDir(),
+                newApplicationAddress = instrumentor.instrument(
+                        nodeWorkspaceMap.get(node.getName()),
                         instrumentationDefinitions
-                ));
+                );
             }
             retMap.put(node.getName(), newApplicationAddress);
         }
@@ -190,33 +187,4 @@ public class InstrumentationEngine {
 
         return retList;
     }
-
-    private void prepareWorkspaceForNodes(Set<Node> nodes) throws InstrumentationException {
-        // Create node directories
-        for (Node node: nodes) {
-            Path nodePath = workingDirectory.resolve(node.getName());
-            try {
-                Files.createDirectory(nodePath);
-            } catch (IOException e) {
-                throw new InstrumentationException("Error in creating SpiderSilk node directory \"" + node.getName() + "\"!");
-            }
-        }
-
-        // Copy over contents in the application address of the nodes to the corresponding folder
-        for (Node node: nodes) {
-            Path nodePath = workingDirectory.resolve(node.getName());
-            try {
-                File applicationAddress = Paths.get(deployment.getService(node.getServiceName()).getApplicationAddress()).toFile();
-                if (applicationAddress.isFile()) {
-                    FileUtils.copyFileToDirectory(applicationAddress, nodePath.toFile());
-                } else {
-                    FileUtils.copyDirectoryToDirectory(applicationAddress, nodePath.toFile());
-                }
-            } catch (IOException e) {
-                throw new InstrumentationException("Error in copying over node " + node.getName() + " binaries to its workspace!");
-            }
-        }
-    }
-
-
 }

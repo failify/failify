@@ -48,19 +48,14 @@ public abstract class InternalEvent extends ReferableDeploymentEntity implements
     public static abstract class InternalEventBuilder<S extends InternalEvent> extends DeploymentBuilderBase<S, Node.NodeBuilder> {
         protected final String nodeName;
 
-        public InternalEventBuilder(String name, String nodeName) {
-            super(name);
-            this.nodeName = nodeName;
-        }
-
         public InternalEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name);
             this.nodeName = nodeName;
         }
 
-        public InternalEventBuilder(InternalEvent instance) {
-            super(instance);
-            nodeName = instance.nodeName;
+        public InternalEventBuilder(Node.NodeBuilder parentBuilder, InternalEvent instance) {
+            super(parentBuilder, instance);
+            nodeName = new String(instance.nodeName);
         }
 
         public String getNodeName() {

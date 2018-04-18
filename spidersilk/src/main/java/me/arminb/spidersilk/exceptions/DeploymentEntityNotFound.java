@@ -27,12 +27,24 @@ package me.arminb.spidersilk.exceptions;
 
 public class DeploymentEntityNotFound extends RuntimeException {
     private String entityName;
+    private String entityType;
+
     public DeploymentEntityNotFound(String entityName) {
         this.entityName = entityName;
+        this.entityType = null;
+    }
+
+    public DeploymentEntityNotFound(String entityName, String entityType) {
+        this.entityName = entityName;
+        this.entityType = entityType;
     }
 
     @Override
     public String getMessage() {
-        return "entity " + entityName + " not found! ";
+        if (entityType == null) {
+            return "entity " + entityName + " not found! ";
+        } else {
+            return entityType + " " + entityName + " not found! ";
+        }
     }
 }

@@ -29,7 +29,7 @@ import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.ServiceType;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
-import me.arminb.spidersilk.execution.RunMode;
+import me.arminb.spidersilk.execution.SingleNodeRuntimeEngine;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,8 +42,9 @@ public class DefinitionTest {
         Deployment deployment = new Deployment.DeploymentBuilder()
                 // Service Definitions
                 .withService("s1")
-                    .applicationAddress("../sample-multithread/target/multithread-helloworld.jar")
-                    .runCommand("java -jar ${SPIDERSILK_APPLICATION_ADDRESS}")
+                    .applicationPath("../sample-multithread/target/multithread-helloworld.jar")
+                    .relativeInstrumentableAddress("multithread-helloworld.jar")
+                    .runCommand("java -jar ${HADOOP_HOME}/multithread-helloworld.jar")
 //                    .libDir("libDir1")
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
@@ -67,7 +68,7 @@ public class DefinitionTest {
                         .operation(SchedulingOperation.UNBLOCK)
                         .before("e2").and()
                     .withGarbageCollectionEvent("g1").and()
-                    .runCommand("java -jar ${SPIDERSILK_APPLICATION_ADDRESS}").and()
+                    .and()
                 // Workload Definitions
                 .withWorkload("w1")
                     .runCommand("cmd3").and()
@@ -78,8 +79,9 @@ public class DefinitionTest {
                 // Run Sequence Definition
                 .runSequence("bb2 * w1 * e1 * ubb2 * e2 * e3 * g1")
                 .secondsToWaitForCompletion(5)
+                .exposeAppHomeDirectoryAs("HADOOP_HOME")
                 .build();
 
-        SpiderSilkRunner.run(deployment, RunMode.SINGLE_NODE);
+        SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
     }
 }

@@ -63,15 +63,21 @@ public class NodeOperationEvent extends ExternalEvent {
         private String nodeName;
 
         public NodeOperationEventBuilder(String name) {
-            super(name);
+            this(null, name);
         }
 
         public NodeOperationEventBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
             super(parentBuilder, name);
         }
 
-        public NodeOperationEventBuilder(DeploymentEntity instance) {
-            super(instance);
+        public NodeOperationEventBuilder(NodeOperationEvent instance) {
+            super(null, instance);
+        }
+
+        public NodeOperationEventBuilder(Deployment.DeploymentBuilder parentBuilder, NodeOperationEvent instance) {
+            super(parentBuilder, instance);
+            nodeName = new String(instance.nodeName);
+            nodeOperation = instance.nodeOperation;
         }
 
         public NodeOperationEventBuilder nodeName(String nodeName) {

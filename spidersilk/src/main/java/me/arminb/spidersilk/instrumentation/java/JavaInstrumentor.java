@@ -27,16 +27,15 @@ package me.arminb.spidersilk.instrumentation.java;
 
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
-import me.arminb.spidersilk.instrumentation.InstrumentationOperation;
 import me.arminb.spidersilk.instrumentation.Instrumentor;
-import me.arminb.spidersilk.instrumentation.NodeWorkspace;
+import me.arminb.spidersilk.workspace.NodeWorkspace;
 import me.arminb.spidersilk.util.ShellUtil;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,24 +43,25 @@ import java.util.List;
 public class JavaInstrumentor implements Instrumentor {
 
     @Override
-    public String instrument(NodeWorkspace nodeWorkspace) throws InstrumentationException {
+    public String instrument(NodeWorkspace nodeWorkspace, List<InstrumentationDefinition> instrumentationDefinitions)
+            throws InstrumentationException {
         List<AspectGenerator.AspectFile> aspectFiles = new ArrayList<>();
         String argFileString = "";
-        for (InstrumentationDefinition instrumentationDefinition: nodeWorkspace.getInstrumentationDefinitions()) {
+        for (InstrumentationDefinition instrumentationDefinition: instrumentationDefinitions) {
             AspectGenerator.AspectFile aspectFile = AspectGenerator.generate(instrumentationDefinition);
             try {
-                aspectFile.save(nodeWorkspace.getWorkingDirectory());
+                aspectFile.save(nodeWorkspace.getRootDirectory());
             } catch (IOException e) {
-                throw new InstrumentationException("Error in creating Java aspect files for \"" + nodeWorkspace.getApplicationAddress() + "\"!");
+                throw new InstrumentationException("Error in creating Java aspect files for \"" + nodeWorkspace.getInstrumentableAddress() + "\"!");
             }
             aspectFiles.add(aspectFile);
             argFileString += aspectFile.getAspectFileName() + "\n";
         }
 
         try {
-            Files.write(Paths.get(nodeWorkspace.getWorkingDirectory(), "argfile"), argFileString.getBytes());
+            Files.write(Paths.get(nodeWorkspace.getRootDirectory(), "argfile"), argFileString.getBytes());
         } catch (IOException e) {
-            throw new InstrumentationException("Error in creating AspectJ argfile for \"" + nodeWorkspace.getApplicationAddress() + "\"!");
+            throw new InstrumentationException("Error in creating AspectJ argfile for \"" + nodeWorkspace.getInstrumentableAddress() + "\"!");
         }
 
         try {
@@ -71,33 +71,38 @@ public class JavaInstrumentor implements Instrumentor {
             }
 
             String classPathString = "";
-            if (nodeWorkspace.getLibDir() != null) {
-                classPathString = " -cp " + Paths.get(nodeWorkspace.getLibDir()).toString();
+            if (nodeWorkspace.getLibraryPaths() != null) {
+                classPathString = " -cp \"" + nodeWorkspace.getLibraryPaths() + "\"";
             }
 
+            // TODO this is not a cross-platform way of doing this and only works on unix and linux based systems
             Process ajcProcess = new ProcessBuilder().command(
-                    currentShell, "-c" ,"ajc -inpath " + nodeWorkspace.getApplicationAddress() +
-                    " @" + Paths.get(nodeWorkspace.getWorkingDirectory(), "argfile").toString() +
+                    currentShell, "-c" ,"ajc -inpath " + nodeWorkspace.getInstrumentableAddress() +
+                    " @" + Paths.get(nodeWorkspace.getRootDirectory(), "argfile").toString() +
                     classPathString +
-                    " -outjar " + Paths.get(nodeWorkspace.getWorkingDirectory(), "woven.jar").toString())
-                    .redirectError(Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toFile())
-                    .redirectOutput(Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toFile())
+                    " -outjar " + Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toString())
+                    .redirectError(Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toFile())
+                    .redirectOutput(Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toFile())
                     .start();
 
             ajcProcess.waitFor();
 
             if (ajcProcess.exitValue() != 0) {
                 throw new InstrumentationException("Error in instrumenting using AspectJ. See log file in " +
-                        Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toString() + "!");
+                        Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toString() + "!");
+            } else {
+                FileUtils.copyFile(Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toFile(),
+                        new File(nodeWorkspace.getInstrumentableAddress()));
+                Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toFile().delete();
             }
         } catch (IOException e) {
             throw new InstrumentationException("Error in instrumenting using AspectJ. See log file in " +
-                    Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toString() + "!");
+                    Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toString() + "!");
         } catch (InterruptedException e) {
             throw new InstrumentationException("Error in instrumenting using AspectJ. See log file in " +
-                    Paths.get(nodeWorkspace.getWorkingDirectory(), "aspectj.log").toString() + "!");
+                    Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toString() + "!");
         }
 
-        return FilenameUtils.normalize(Paths.get(nodeWorkspace.getWorkingDirectory(), "woven.jar").toString());
+        return FilenameUtils.normalize(Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toString());
     }
 }

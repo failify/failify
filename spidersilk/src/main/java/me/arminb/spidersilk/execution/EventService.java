@@ -49,7 +49,7 @@ public class EventService {
         }
     }
 
-    private void markEligibleBlockingEventsAsReceived() {
+    public void markEligibleBlockingEventsAsReceived() {
         for (SchedulingEvent schedulingEvent: deployment.getBlockingSchedulingEvents().values()) {
             if (!eventCheckList.containsKey(schedulingEvent.getName()) && areDependenciesMet(schedulingEvent.getName())) {
                 logger.info("Event " + schedulingEvent.getName() + " received!");

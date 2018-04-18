@@ -29,33 +29,28 @@ import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.EventService;
-import me.arminb.spidersilk.execution.RunMode;
 import me.arminb.spidersilk.execution.RuntimeEngine;
 import me.arminb.spidersilk.instrumentation.InstrumentationEngine;
 import me.arminb.spidersilk.verification.*;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
+import me.arminb.spidersilk.workspace.NodeWorkspace;
+import me.arminb.spidersilk.workspace.WorkspaceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 public class SpiderSilkRunner {
     private static final Logger logger = LoggerFactory.getLogger(SpiderSilkRunner.class);
-    private Path workingDirectory;
+    private WorkspaceManager workspaceManager;
     private final Deployment deployment;
-    private final RunMode runMode;
     private final List<DeploymentVerifier> verifiers;
     private RuntimeEngine runtimeEngine;
     private InstrumentationEngine instrumentationEngine;
 
-    private SpiderSilkRunner(Deployment deployment, RunMode runMode) {
+    private SpiderSilkRunner(Deployment deployment, RuntimeEngine runtimeEngine) {
         this.deployment = deployment;
-        this.runMode = runMode;
+        this.runtimeEngine = runtimeEngine;
+        this.workspaceManager = new WorkspaceManager(deployment);
 
         // Verifiers
         verifiers = Collections.unmodifiableList(Arrays.asList(
@@ -65,9 +60,9 @@ public class SpiderSilkRunner {
         ));
     }
 
-    public static SpiderSilkRunner run(Deployment deployment, RunMode runMode) {
+    public static SpiderSilkRunner run(Deployment deployment, RuntimeEngine runtimeEngine) {
         logger.info("Starting SpiderSilkRunner ...");
-        SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment, runMode);
+        SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment, runtimeEngine);
         spiderSilkRunner.start();
         while (true) {
             // TODO there should be a way to stop the runner due to a timeout in receiving an event
@@ -76,7 +71,8 @@ public class SpiderSilkRunner {
             }
         }
         logger.info("The run sequence is completed!");
-        logger.info("Waiting for {} seconds before stopping the runner ...", deployment.getSecondsToWaitForCompletion());
+        logger.info("Waiting for {} seconds before stopping the runner ...",
+                deployment.getSecondsToWaitForCompletion());
         try {
             Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
         } catch (InterruptedException e) {
@@ -94,58 +90,45 @@ public class SpiderSilkRunner {
     private void start() {
         // Register the shutdown hook
         Runtime.getRuntime().addShutdownHook(new SpiderSilkShutdownHook(this));
+
         // Verify the deployment definition
         logger.info("Verifying the deployment definition ...");
         for (DeploymentVerifier verifier: verifiers) {
             verifier.verify();
         }
 
-        // Create workspace directory
-        try {
-            workingDirectory = Paths.get(FilenameUtils.normalize(Paths.get(".", ".SpiderSilkWorkingDirectory").toAbsolutePath().toString()));
-            cleanUp();
-            Files.createDirectory(workingDirectory);
-        } catch (IOException e) {
-            throw new RuntimeException("Error in creating SpiderSilk working directory!");
-        }
+        // Setup the nodes' workspaces
+        logger.info("Creating the nodes' workspaces ...");
+        Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);
 
         // Instrument the nodes binaries and get the new application addresses map
         logger.info("Starting the instrumentation process ...");
-        instrumentationEngine = new InstrumentationEngine(deployment, workingDirectory);
-        Map<String, String> instrumentedApplicationAddressMap = null;
+        instrumentationEngine = new InstrumentationEngine(deployment, nodeWorkspaceMap);
         try {
-            instrumentedApplicationAddressMap = instrumentationEngine.instrumentNodes();
+            instrumentationEngine.instrumentNodes();
         } catch (InstrumentationException e) {
             throw new RuntimeException(e.getMessage());
         }
         logger.info("Instrumentation process is completed!");
 
-        // Instantiate the proper runtime engine based on the run mode and start it
+        // Starting the runtime engine
         logger.info("Starting the runtime engine ...");
-        runtimeEngine = RuntimeEngine.getInstance(deployment, instrumentedApplicationAddressMap , runMode, workingDirectory);
+
         try {
+            runtimeEngine.setNodeWorkspaceMap(nodeWorkspaceMap);
             runtimeEngine.start();
         } catch (RuntimeEngineException e) {
             throw new RuntimeException(e.getMessage());
         }
     }
 
-    private void cleanUp() {
-        logger.info("Cleaning up the working directory at {}", workingDirectory.toAbsolutePath().toString());
-        try {
-            FileUtils.deleteDirectory(workingDirectory.toFile());
-        } catch (IOException e) {
-            throw new RuntimeException("Error in cleaning up SpiderSilk working directory!", e);
-        }
-    }
-
+    // TODO
     protected void stop() {
         logger.info("Stopping the runtime engine ...");
-        if (runtimeEngine != null) {
-            runtimeEngine.stop();
-        }
+        runtimeEngine.stop();
     }
 
+    // TODO
     protected boolean isStopped() {
         if (runtimeEngine == null) {
             return false;

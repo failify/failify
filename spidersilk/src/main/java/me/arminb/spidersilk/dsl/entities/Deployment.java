@@ -25,6 +25,7 @@
 
 package me.arminb.spidersilk.dsl.entities;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
@@ -35,6 +36,9 @@ import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.dsl.events.external.NodeOperationEvent;
 import me.arminb.spidersilk.dsl.events.external.Workload;
+import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 
@@ -43,9 +47,11 @@ import java.util.*;
  * the deployment definition
  */
 public class Deployment extends DeploymentEntity {
+    private static Logger logger = LoggerFactory.getLogger(Deployment.class);
+
     private final Map<String, Node> nodes;
     private final Map<String, Service> services;
-    private final Map<String, ExternalEvent> executableEntities;
+    private final Map<String, ExternalEvent> externalEvents;
     private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities;
     private final Map<String, DeploymentEntity> deploymentEntities;
     private final Map<String, BlockingEvent> blockingEvents;
@@ -53,17 +59,21 @@ public class Deployment extends DeploymentEntity {
     private final Integer eventServerPortNumber;
     private final Integer secondsToWaitForCompletion;
     private final String runSequence;
+    private final String appHomeEnvVar;
 
     private Deployment(DeploymentBuilder builder) {
         super("deployment");
         runSequence = builder.runSequence;
+        appHomeEnvVar = builder.appHomeEnvVar;
         eventServerPortNumber = new Integer(builder.eventServerPortNumber);
         secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
-        executableEntities = Collections.unmodifiableMap(builder.executableEntities);
+        externalEvents = Collections.unmodifiableMap(builder.externalEvents);
         deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
+        // List of events that potentially can impose a blockage in the run sequence
         blockingEvents = Collections.unmodifiableMap(generateBlockingEventsMap());
+        // List of blocking type scheduling events that are present in the run sequence
         blockingSchedulingEvents = Collections.unmodifiableMap(generateBlockingSchedulingEventsMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
     }
@@ -84,7 +94,7 @@ public class Deployment extends DeploymentEntity {
             }
         }
 
-        for (ExternalEvent externalEvent: executableEntities.values()) {
+        for (ExternalEvent externalEvent: externalEvents.values()) {
             if (returnMap.containsKey(externalEvent.getName())) {
                 throw new DeploymentEntityNameConflictException(externalEvent.getName());
             }
@@ -145,8 +155,8 @@ public class Deployment extends DeploymentEntity {
         return services.get(name);
     }
 
-    public ExternalEvent getExecutableEntity(String name) {
-        return executableEntities.get(name);
+    public ExternalEvent getExternalEvent(String name) {
+        return externalEvents.get(name);
     }
 
     public Map<String, BlockingEvent> getBlockingEvents() {
@@ -181,8 +191,8 @@ public class Deployment extends DeploymentEntity {
         return services;
     }
 
-    public Map<String, ExternalEvent> getExecutableEntities() {
-        return executableEntities;
+    public Map<String, ExternalEvent> getExternalEvents() {
+        return externalEvents;
     }
 
     public Map<String, ReferableDeploymentEntity> getReferableDeploymentEntities() {
@@ -201,40 +211,54 @@ public class Deployment extends DeploymentEntity {
         return secondsToWaitForCompletion;
     }
 
+    public String getAppHomeEnvVar() {
+        return appHomeEnvVar;
+    }
+
     public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
         private Map<String, Node> nodes;
         private String runSequence;
         private Map<String, Service> services;
-        private Map<String, ExternalEvent> executableEntities;
+        private Map<String, ExternalEvent> externalEvents;
         private Integer eventServerPortNumber;
         private Integer secondsToWaitForCompletion;
-
+        private String appHomeEnvVar;
 
         public DeploymentBuilder() {
-            super("root");
+            super(null, "root");
             nodes = new HashMap<>();
             services = new HashMap<>();
-            executableEntities = new HashMap<>();
+            externalEvents = new HashMap<>();
             runSequence = "";
             eventServerPortNumber = 8765; // Default port number for the event server
             secondsToWaitForCompletion = 5;
+            appHomeEnvVar = Constants.DEFAULT_APP_HOME_ENVVAR_NAME;
         }
 
         public DeploymentBuilder(Deployment instance) {
-            super(instance);
+            super(null, instance);
             nodes = new HashMap<>(instance.nodes);
             services = new HashMap<>(instance.services);
-            executableEntities = new HashMap<>(instance.executableEntities);
+            externalEvents = new HashMap<>(instance.externalEvents);
             runSequence =  new String(instance.runSequence);
             eventServerPortNumber = new Integer(instance.eventServerPortNumber);
+            secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
+            appHomeEnvVar = new String(instance.appHomeEnvVar);
         }
 
         public DeploymentBuilder node(Node node) {
             if (nodes.containsKey(node.getName())) {
-                throw new DeploymentEntityNameConflictException(node.getName());
+                logger.warn("The node " + node.getName() + " is being redefined in the deployment definition!");
             }
             nodes.put(node.getName(), node);
             return this;
+        }
+
+        public Node.NodeBuilder node(String nodeName) {
+            if (!nodes.containsKey(nodeName)) {
+                throw new DeploymentEntityNotFound(nodeName, "Node");
+            }
+            return new Node.NodeBuilder(this, nodes.get(nodeName));
         }
 
         public Node.NodeBuilder withNode(String name, String serviceName) {
@@ -243,10 +267,17 @@ public class Deployment extends DeploymentEntity {
 
         public DeploymentBuilder service(Service service) {
             if (services.containsKey(service.getName())) {
-                throw new DeploymentEntityNameConflictException(service.getName());
+                logger.warn("The service " + service.getName() + " is being redefined in the deployment definition!");
             }
             services.put(service.getName(), service);
             return this;
+        }
+
+        public Service.ServiceBuilder service(String serviceName) {
+            if (!services.containsKey(serviceName)) {
+                throw new DeploymentEntityNotFound(serviceName, "Service");
+            }
+            return new Service.ServiceBuilder(this, services.get(serviceName));
         }
 
         public Service.ServiceBuilder withService(String name) {
@@ -254,11 +285,18 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder workload(Workload workload) {
-            if (executableEntities.containsKey(workload.getName())) {
-                throw new DeploymentEntityNameConflictException(workload.getName());
+            if (externalEvents.containsKey(workload.getName())) {
+                logger.warn("The workload " + workload.getName() + " is being redefined in the deployment definition!");
             }
-            executableEntities.put(workload.getName(), workload);
+            externalEvents.put(workload.getName(), workload);
             return this;
+        }
+
+        public Workload.WorkloadBuilder workload(String workloadName) {
+            if (!externalEvents.containsKey(workloadName) || !(externalEvents.get(workloadName) instanceof Workload)) {
+                throw new DeploymentEntityNotFound(workloadName, "Workload");
+            }
+            return new Workload.WorkloadBuilder(this, (Workload) externalEvents.get(workloadName));
         }
 
         public Workload.WorkloadBuilder withWorkload(String name) {
@@ -269,11 +307,19 @@ public class Deployment extends DeploymentEntity {
             return new NodeOperationEvent.NodeOperationEventBuilder(this, name);
         }
 
-        public DeploymentBuilder nodeOperationEvent(NodeOperationEvent nodeOperationEvent) {
-            if (executableEntities.containsKey(nodeOperationEvent.getName())) {
-                throw new DeploymentEntityNameConflictException(nodeOperationEvent.getName());
+        public NodeOperationEvent.NodeOperationEventBuilder nodeOperationEvent(String eventName) {
+            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof NodeOperationEvent)) {
+                throw new DeploymentEntityNotFound(eventName, "NodeOperationEvent");
             }
-            executableEntities.put(nodeOperationEvent.getName(), nodeOperationEvent);
+            return new NodeOperationEvent.NodeOperationEventBuilder(this,
+                    (NodeOperationEvent) externalEvents.get(eventName));
+        }
+
+        public DeploymentBuilder nodeOperationEvent(NodeOperationEvent nodeOperationEvent) {
+            if (externalEvents.containsKey(nodeOperationEvent.getName())) {
+                logger.warn("The node operation event " + nodeOperationEvent.getName() + " is being redefined in the deployment definition!");
+            }
+            externalEvents.put(nodeOperationEvent.getName(), nodeOperationEvent);
             return this;
         }
 
@@ -284,6 +330,11 @@ public class Deployment extends DeploymentEntity {
 
         public DeploymentBuilder runSequence(String sequence) {
             runSequence = sequence;
+            return this;
+        }
+
+        public DeploymentBuilder exposeAppHomeDirectoryAs(String appHomeEnvVar) {
+            this.appHomeEnvVar = appHomeEnvVar;
             return this;
         }
 

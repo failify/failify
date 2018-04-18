@@ -26,42 +26,30 @@
 package me.arminb.spidersilk.execution;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.dsl.entities.Node;
+import me.arminb.spidersilk.dsl.entities.Service;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.rt.SpiderSilk;
 import me.arminb.spidersilk.util.HostUtil;
+import me.arminb.spidersilk.workspace.NodeWorkspace;
 
 import java.net.UnknownHostException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public abstract class RuntimeEngine {
-    private EventServer eventServer;
+    private final EventServer eventServer;
     protected final Deployment deployment;
-    protected final Map<String, String> instrumentedApplicationAddressMap;
-    protected Path workingDirectory;
+    protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
 
-    private static Map<RunMode, Class<? extends RuntimeEngine>> runModeMap = new HashMap<>();
-
-    public static RuntimeEngine getInstance(Deployment deployment, Map<String, String> instrumentedApplicationAddressMap, RunMode runMode, Path workingDirectory) {
-        if (runMode == RunMode.SINGLE_NODE) {
-            return new SingleNodeRuntimeEngine(deployment, instrumentedApplicationAddressMap, workingDirectory);
-        } else {
-            return null;
-        }
-    }
-
-    public RuntimeEngine(Deployment deployment, Map<String, String> instrumentedApplicationAddressMap, Path workingDirectory) {
+    public RuntimeEngine(Deployment deployment) {
+        this.stopped = true;
         this.deployment = deployment;
-        this.instrumentedApplicationAddressMap = instrumentedApplicationAddressMap;
-        EventService.initialize(deployment);
         eventServer = new EventServer(deployment);
-        this.workingDirectory = workingDirectory;
-        this.stopped = false;
     }
 
     public boolean isStopped() {
@@ -86,6 +74,9 @@ public abstract class RuntimeEngine {
             throw e;
         }
 
+        // initialize event service. We do it here because we want the eligible blocking events to be satisfied after the nodes are up
+        EventService.initialize(deployment);
+
         stopped = false;
     }
 
@@ -93,8 +84,8 @@ public abstract class RuntimeEngine {
         // Find those external events that are present in the run sequence
         List<ExternalEvent> externalEvents = new ArrayList<>();
         for (String id: deployment.getRunSequence().split("\\W+")) {
-            if (deployment.getExecutableEntity(id) != null) {
-                externalEvents.add(deployment.getExecutableEntity(id));
+            if (deployment.getExternalEvent(id) != null) {
+                externalEvents.add(deployment.getExternalEvent(id));
             }
         }
 
@@ -107,8 +98,6 @@ public abstract class RuntimeEngine {
         eventServer.start();
     }
 
-
-
     public void stop() {
         stopExternalEvents();
         stopNodes();
@@ -117,13 +106,37 @@ public abstract class RuntimeEngine {
     }
 
     protected void stopExternalEvents() {
-        for (ExternalEvent externalEvent: deployment.getExecutableEntities().values()) {
+        for (ExternalEvent externalEvent: deployment.getExternalEvents().values()) {
             externalEvent.stop();
         }
     }
 
     protected void stopEventServer() {
         eventServer.stop();
+    }
+
+    protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName, Map<String, String> environment) {
+        Node node = deployment.getNode(nodeName);
+        Service nodeService = deployment.getService(node.getServiceName());
+        NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(nodeName);
+
+        for (Map.Entry<String, String> entry: nodeService.getEnvironmentVariables().entrySet()) {
+            environment.put(entry.getKey(), entry.getValue());
+        }
+
+        for (Map.Entry<String, String> entry: node.getEnvironmentVariables().entrySet()) {
+            environment.put(entry.getKey(), entry.getValue());
+        }
+
+        environment.put(deployment.getAppHomeEnvVar(), nodeWorkspace.getRootDirectory());
+
+        return environment;
+    }
+
+    protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName) {
+        Map<String, String> retMap = new HashMap<>();
+        getNodeEnvironmentVariablesMap(nodeName, retMap);
+        return retMap;
     }
 
     /**
@@ -134,8 +147,12 @@ public abstract class RuntimeEngine {
     protected abstract void startNodes() throws RuntimeEngineException;
     protected abstract void stopNodes();
     public abstract void stopNode(String nodeName, boolean kill);
+    public abstract void startNode(String nodeName);
+    public abstract void restartNode(String nodeName);
+    public abstract void clockDrift(String nodeName);
+    public abstract void networkPartition(String nodeNames);
 
-    public Path getWorkingDirectory() {
-        return workingDirectory;
+    public void setNodeWorkspaceMap(Map<String, NodeWorkspace> nodeWorkspaceMap) {
+        this.nodeWorkspaceMap = nodeWorkspaceMap;
     }
 }

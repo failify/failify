@@ -58,15 +58,19 @@ public class GarbageCollectionEvent extends InternalEvent {
 
     public static class GarbageCollectionEventBuilder extends InternalEventBuilder<GarbageCollectionEvent> {
         public GarbageCollectionEventBuilder(String name, String nodeName) {
-            super(name, nodeName);
+            this(null, name, nodeName);
         }
 
         public GarbageCollectionEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name, nodeName);
         }
 
+        public GarbageCollectionEventBuilder(Node.NodeBuilder parentBuilder, GarbageCollectionEvent instance) {
+            super(parentBuilder, instance);
+        }
+
         public GarbageCollectionEventBuilder(GarbageCollectionEvent instance) {
-            super(instance);
+            this(null, instance);
         }
 
         @Override

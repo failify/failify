@@ -26,9 +26,11 @@
 package me.arminb.spidersilk.instrumentation;
 
 import me.arminb.spidersilk.exceptions.InstrumentationException;
+import me.arminb.spidersilk.workspace.NodeWorkspace;
 
 import java.util.List;
 
 public interface Instrumentor {
-    public String instrument(NodeWorkspace nodeWorkspace) throws InstrumentationException;
+    public String instrument(NodeWorkspace nodeWorkspace, List<InstrumentationDefinition> instrumentationDefinitions)
+            throws InstrumentationException;
 }

@@ -33,7 +33,6 @@ import me.arminb.spidersilk.dsl.events.external.NodeOperationEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.StackTraceEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityBadReferenceException;
-import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 
 public class InternalReferencesVerifier extends DeploymentVerifier {
 
@@ -57,7 +56,7 @@ public class InternalReferencesVerifier extends DeploymentVerifier {
     }
 
     private void verifyNodeReferences() {
-        for (ExternalEvent externalEvent: deployment.getExecutableEntities().values()) {
+        for (ExternalEvent externalEvent: deployment.getExternalEvents().values()) {
             if (externalEvent instanceof NodeOperationEvent) {
                 NodeOperationEvent nodeOperationEvent = (NodeOperationEvent) externalEvent;
                 if (deployment.getNode(nodeOperationEvent.getNodeName()) == null) {

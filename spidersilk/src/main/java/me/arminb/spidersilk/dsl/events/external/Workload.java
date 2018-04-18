@@ -91,12 +91,16 @@ public class Workload extends ExternalEvent {
         }
 
         public WorkloadBuilder(String name) {
-            super(name);
+            this(null, name);
+        }
+
+        public WorkloadBuilder(Deployment.DeploymentBuilder parentBuilder, Workload instance) {
+            super(parentBuilder, instance);
+            runCommand = new String(instance.runCommand);
         }
 
         public WorkloadBuilder(Workload instance) {
-            super(instance);
-            runCommand = instance.runCommand;
+            this(null, instance);
         }
 
         public WorkloadBuilder runCommand(String runCommand) {

@@ -31,43 +31,58 @@ import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.entities.Service;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.util.ShellUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
 public class SingleNodeRuntimeEngine extends RuntimeEngine {
+    private static Logger logger = LoggerFactory.getLogger(SingleNodeRuntimeEngine.class);
+
     Map<String, Process> processMap;
 
-    public SingleNodeRuntimeEngine(Deployment deployment, Map<String, String> instrumentedApplicationAddressMap, Path workingDirectory) {
-        super(deployment, instrumentedApplicationAddressMap, workingDirectory);
+    public SingleNodeRuntimeEngine(Deployment deployment) {
+        super(deployment);
         processMap = new HashMap<>();
     }
 
     @Override
     protected void startNodes() throws RuntimeEngineException {
         for (Node node: deployment.getNodes().values()) {
+            if (node.getOffOnStartup()) {
+                logger.info("Skipping node " + node.getName() + " on startup since it is off!");
+                continue;
+            }
+
             Service service = deployment.getService(node.getServiceName());
-            ProcessBuilder processBuilder = new ProcessBuilder();
-            Map<String, String> environment = processBuilder.environment();
+
             String runCommand = service.getRunCommand();
             if (node.getRunCommand() != null) {
                 runCommand = node.getRunCommand();
             }
-            environment.put(Constants.APPLICATION_ADDRESS_ENVVAR_NAME, instrumentedApplicationAddressMap.get(node.getName()));
+
+            ProcessBuilder processBuilder = new ProcessBuilder();
+            getNodeEnvironmentVariablesMap(node.getName(), processBuilder.environment());
             // TODO this should change to storing in file
             processBuilder.inheritIO();
+            // TODO this is not cross-platform
             String currentShell = ShellUtil.getCurrentShellAddress();
             if (currentShell == null) {
                 throw new RuntimeEngineException("Cannot find the current system shell to start the nodes processes!");
             }
+
+            logger.info("Starting node " + node.getName() + " ...");
+
             processBuilder.command(currentShell, "-c", runCommand);
             try {
                 processMap.put(node.getName(), processBuilder.start());
             } catch (IOException e) {
                 throw new RuntimeEngineException(e.getMessage());
             }
+
+            logger.info("Node " + node.getName() + " is started!");
         }
     }
 
@@ -88,6 +103,26 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 process.destroy();
             }
         }
+    }
+
+    @Override
+    public void startNode(String nodeName) {
+
+    }
+
+    @Override
+    public void restartNode(String nodeName) {
+
+    }
+
+    @Override
+    public void clockDrift(String nodeName) {
+
+    }
+
+    @Override
+    public void networkPartition(String nodeNames) {
+
     }
 
 }

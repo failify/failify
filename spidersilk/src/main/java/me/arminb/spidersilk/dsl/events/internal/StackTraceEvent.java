@@ -87,12 +87,17 @@ public class StackTraceEvent extends BlockingEvent {
         }
 
         public StackTraceEventBuilder(String name, String nodeName) {
-            super(name, nodeName);
+            this(null, name, nodeName);
+        }
+
+        public StackTraceEventBuilder(Node.NodeBuilder parentBuilder, StackTraceEvent instance) {
+            super(parentBuilder, instance);
+            stack = new String(instance.stack);
+            schedulingPoint = instance.schedulingPoint;
         }
 
         public StackTraceEventBuilder(StackTraceEvent instance) {
-            super(instance);
-            stack = instance.stack;
+            this(null, instance);
         }
 
         public StackTraceEventBuilder trace(String trace) {

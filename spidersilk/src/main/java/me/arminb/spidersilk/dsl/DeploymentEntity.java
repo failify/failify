@@ -54,18 +54,14 @@ public abstract class DeploymentEntity {
         protected final String name;
         protected S parentBuilder;
 
-        public DeploymentBuilderBase(String name) {
-            this.name = name;
-            parentBuilder = null;
-        }
-
         public DeploymentBuilderBase(S parentBuilder, String name) {
             this.name = name;
             this.parentBuilder = parentBuilder;
         }
 
-        public DeploymentBuilderBase(DeploymentEntity instance) {
-            this.name = instance.getName();
+        public DeploymentBuilderBase(S parentBuilder, DeploymentEntity instance) {
+            this.name = new String(instance.getName());
+            this.parentBuilder = parentBuilder;
         }
 
         public String getName() {

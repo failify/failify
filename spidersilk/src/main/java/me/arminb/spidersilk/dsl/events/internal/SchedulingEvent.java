@@ -101,16 +101,22 @@ public class SchedulingEvent extends BlockingEvent {
         private String targetEventName;
 
         public SchedulingEventBuilder(String name, String nodeName) {
-            super(name, nodeName);
+            this(null, name, nodeName);
         }
 
         public SchedulingEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name, nodeName);
         }
 
-        public SchedulingEventBuilder(SchedulingEvent instance) {
-            super(instance);
+        public SchedulingEventBuilder(Node.NodeBuilder parentBuilder, SchedulingEvent instance) {
+            super(parentBuilder, instance);
             operation = instance.operation;
+            schedulingPoint = instance.schedulingPoint;
+            targetEventName = instance.targetEventName;
+        }
+
+        public SchedulingEventBuilder(SchedulingEvent instance) {
+            this(null, instance);
         }
 
         public SchedulingEventBuilder operation(SchedulingOperation operation) {
