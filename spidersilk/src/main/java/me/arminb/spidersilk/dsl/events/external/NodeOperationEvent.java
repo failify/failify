@@ -28,13 +28,17 @@ package me.arminb.spidersilk.dsl.events.external;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.RuntimeEngine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * An abstraction for defining an operation on top of a node. The operation can a choice be between making a node down, making a node up
  * and resetting a node.
  */
 public class NodeOperationEvent extends ExternalEvent {
+    private final static Logger logger = LoggerFactory.getLogger(NodeOperationEvent.class);
     private final NodeOperation nodeOperation;
     private final String nodeName;
 
@@ -47,7 +51,11 @@ public class NodeOperationEvent extends ExternalEvent {
     @Override
     protected void execute(RuntimeEngine runtimeEngine) {
         // TODO this should support node up and reset
-        runtimeEngine.stopNode(nodeName, true);
+        try {
+            runtimeEngine.stopNode(nodeName, true);
+        } catch (RuntimeEngineException e) {
+            logger.info("Error while trying to stop node {}!", nodeName);
+        }
     }
 
     public NodeOperation getNodeOperation() {

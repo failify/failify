@@ -64,22 +64,25 @@ public class SpiderSilkRunner {
         logger.info("Starting SpiderSilkRunner ...");
         SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment, runtimeEngine);
         spiderSilkRunner.start();
-        while (true) {
-            // TODO there should be a way to stop the runner due to a timeout in receiving an event
-            if (EventService.getInstance().isTheRunSequenceCompleted()) {
-                break;
+
+        if (!deployment.shouldStopManually()) {
+            while (true) {
+                // TODO there should be a way to stop the runner due to a timeout in receiving an event
+                if (EventService.getInstance().isTheRunSequenceCompleted()) {
+                    break;
+                }
             }
+            logger.info("The run sequence is completed!");
+            logger.info("Waiting for {} seconds before stopping the runner ...",
+                    deployment.getSecondsToWaitForCompletion());
+            try {
+                Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
+            } catch (InterruptedException e) {
+                logger.warn("The SpiderSilkRunner wait for completion thread sleep has been interrupted!", e);
+            }
+            spiderSilkRunner.stop();
         }
-        logger.info("The run sequence is completed!");
-        logger.info("Waiting for {} seconds before stopping the runner ...",
-                deployment.getSecondsToWaitForCompletion());
-        try {
-            Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
-        } catch (InterruptedException e) {
-            logger.warn("The SpiderSilkRunner wait for completion thread sleep has been interrupted!", e);
-        }
-        logger.info("Stopping SpiderSilkRunner ...");
-        spiderSilkRunner.stop();
+
         return spiderSilkRunner;
     }
 
@@ -107,7 +110,7 @@ public class SpiderSilkRunner {
         try {
             instrumentationEngine.instrumentNodes();
         } catch (InstrumentationException e) {
-            throw new RuntimeException(e.getMessage());
+            throw new RuntimeException(e);
         }
         logger.info("Instrumentation process is completed!");
 
@@ -118,12 +121,13 @@ public class SpiderSilkRunner {
             runtimeEngine.setNodeWorkspaceMap(nodeWorkspaceMap);
             runtimeEngine.start();
         } catch (RuntimeEngineException e) {
-            throw new RuntimeException(e.getMessage());
+            throw new RuntimeException(e);
         }
     }
 
     // TODO
-    protected void stop() {
+    public void stop() {
+        logger.info("Stopping SpiderSilkRunner ...");
         logger.info("Stopping the runtime engine ...");
         runtimeEngine.stop();
     }

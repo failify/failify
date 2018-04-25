@@ -41,12 +41,15 @@ import java.util.*;
 public class Service extends DeploymentEntity {
     private final Map<String, PathEntry> applicationPaths;
     private final Set<String> libraryPaths;
+    private final Set<String> logFiles;
+    private final String logFolder;
     private final Map<String, String> environmentVariables;
     private final String dockerImage;
     private final String instrumentableAddress;
     private final String runCommand;
     private final ServiceType serviceType;
     private Integer pathOrderCounter;
+    private final String appHomeEnvVar;
 
     private Service(ServiceBuilder builder) {
         super(builder.getName());
@@ -56,8 +59,11 @@ public class Service extends DeploymentEntity {
         serviceType = builder.serviceType;
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
         libraryPaths = Collections.unmodifiableSet(builder.libraryPaths);
+        logFiles = Collections.unmodifiableSet(builder.logFiles);
+        logFolder = builder.logFolder;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         pathOrderCounter = builder.pathOrderCounter;
+        appHomeEnvVar = builder.appHomeEnvVar;
     }
 
     public String getDockerImage() {
@@ -84,8 +90,20 @@ public class Service extends DeploymentEntity {
         return libraryPaths;
     }
 
+    public Set<String> getLogFiles() {
+        return logFiles;
+    }
+
+    public String getLogFolder() {
+        return logFolder;
+    }
+
     public Map<String, String> getEnvironmentVariables() {
         return environmentVariables;
+    }
+
+    public String getAppHomeEnvVar() {
+        return appHomeEnvVar;
     }
 
     public static class ServiceBuilder extends DeploymentBuilderBase<Service, Deployment.DeploymentBuilder> {
@@ -93,20 +111,27 @@ public class Service extends DeploymentEntity {
 
         private Map<String, PathEntry> applicationPaths;
         private Set<String> libraryPaths;
+        private Set<String> logFiles;
+        private String logFolder;
         private Map<String, String> environmentVariables;
         private String dockerImage;
         private String instrumentableAddress;
         private String runCommand;
         private ServiceType serviceType;
         private Integer pathOrderCounter;
+        private String appHomeEnvVar;
+
 
         public ServiceBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
             super(parentBuilder, name);
             applicationPaths = new HashMap<>();
             libraryPaths = new HashSet<>();
+            logFiles = new HashSet<>();
+            logFolder = null;
             environmentVariables = new HashMap<>();
             dockerImage = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
             pathOrderCounter = 0;
+            appHomeEnvVar = null;
         }
 
         public ServiceBuilder(String name) {
@@ -121,8 +146,11 @@ public class Service extends DeploymentEntity {
             serviceType = instance.serviceType;
             applicationPaths = new HashMap<>(instance.applicationPaths);
             libraryPaths = new HashSet<>(instance.libraryPaths);
+            logFiles = new HashSet<>(instance.logFiles);
+            logFolder = new String(instance.logFolder);
             environmentVariables = new HashMap<>(instance.environmentVariables);
-            pathOrderCounter = instance.pathOrderCounter;
+            pathOrderCounter = new Integer(instance.pathOrderCounter);
+            appHomeEnvVar = new String(instance.appHomeEnvVar);
         }
 
         public ServiceBuilder(Service instance) {
@@ -179,8 +207,23 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
+        public ServiceBuilder logFile(String path) {
+            logFiles.add(path);
+            return this;
+        }
+
+        public ServiceBuilder logFolder(String path) {
+            this.logFolder = path;
+            return this;
+        }
+
         public ServiceBuilder environmentVariable(String name, String value) {
             this.environmentVariables.put(name, value);
+            return this;
+        }
+
+        public ServiceBuilder exposeAppHomeDirectoryAs(String appHomeEnvVar) {
+            this.appHomeEnvVar = appHomeEnvVar;
             return this;
         }
 

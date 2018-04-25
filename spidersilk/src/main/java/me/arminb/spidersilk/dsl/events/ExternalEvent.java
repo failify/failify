@@ -61,6 +61,8 @@ public abstract class ExternalEvent extends ReferableDeploymentEntity {
     }
 
     public void stop() {
-        executionThread.interrupt();
+        if (executionThread != null) {
+            executionThread.stop();
+        }
     }
 }

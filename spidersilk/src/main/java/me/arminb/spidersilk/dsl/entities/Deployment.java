@@ -60,6 +60,7 @@ public class Deployment extends DeploymentEntity {
     private final Integer secondsToWaitForCompletion;
     private final String runSequence;
     private final String appHomeEnvVar;
+    private final Boolean manualStop;
 
     private Deployment(DeploymentBuilder builder) {
         super("deployment");
@@ -76,6 +77,7 @@ public class Deployment extends DeploymentEntity {
         // List of blocking type scheduling events that are present in the run sequence
         blockingSchedulingEvents = Collections.unmodifiableMap(generateBlockingSchedulingEventsMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
+        manualStop = builder.manualStop;
     }
 
     private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
@@ -215,6 +217,10 @@ public class Deployment extends DeploymentEntity {
         return appHomeEnvVar;
     }
 
+    public Boolean shouldStopManually() {
+        return manualStop;
+    }
+
     public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
         private Map<String, Node> nodes;
         private String runSequence;
@@ -223,6 +229,7 @@ public class Deployment extends DeploymentEntity {
         private Integer eventServerPortNumber;
         private Integer secondsToWaitForCompletion;
         private String appHomeEnvVar;
+        private Boolean manualStop;
 
         public DeploymentBuilder() {
             super(null, "root");
@@ -233,6 +240,7 @@ public class Deployment extends DeploymentEntity {
             eventServerPortNumber = 8765; // Default port number for the event server
             secondsToWaitForCompletion = 5;
             appHomeEnvVar = Constants.DEFAULT_APP_HOME_ENVVAR_NAME;
+            manualStop = false;
         }
 
         public DeploymentBuilder(Deployment instance) {
@@ -244,6 +252,7 @@ public class Deployment extends DeploymentEntity {
             eventServerPortNumber = new Integer(instance.eventServerPortNumber);
             secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
             appHomeEnvVar = new String(instance.appHomeEnvVar);
+            manualStop = new Boolean(instance.manualStop);
         }
 
         public DeploymentBuilder node(Node node) {
@@ -340,6 +349,11 @@ public class Deployment extends DeploymentEntity {
 
         public DeploymentBuilder secondsToWaitForCompletion(Integer secondsToWaitForCompletion) {
             this.secondsToWaitForCompletion = secondsToWaitForCompletion;
+            return this;
+        }
+
+        public DeploymentBuilder manualStop(Boolean manualStop) {
+            this.manualStop = manualStop;
             return this;
         }
 

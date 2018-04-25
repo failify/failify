@@ -25,6 +25,10 @@
 
 package me.arminb.spidersilk.samples;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Random;
 
 public class Main {
@@ -41,6 +45,13 @@ public class Main {
         new Thread(()-> helloWorld1()).start();
         new Thread(()-> helloWorld2()).start();
         new Thread(()-> helloWorld3()).start();
+
+        File testLogFile = new File("/var/log/spidersilk");
+        try {
+            Files.write(Paths.get("/var/log/spidersilk"), "This is a test!".getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void helloWorld1() {

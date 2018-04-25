@@ -45,11 +45,14 @@ import java.util.*;
 public class Node extends ReferableDeploymentEntity {
     private final Map<String, PathEntry> applicationPaths;
     private final Map<String, String> environmentVariables;
+    private final Set<String> logFiles;
+    private final String logFolder;
     private final String serviceName;
     private final String runCommand;
     private final Map<String, InternalEvent> internalEvents;
     private final Boolean offOnStartup;
     private final Integer pathOrderCounter;
+    private final String appHomeEnvVar;
 
     private Node(NodeBuilder builder) {
         super(builder.getName());
@@ -59,7 +62,10 @@ public class Node extends ReferableDeploymentEntity {
         offOnStartup = builder.offOnStartup;
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
+        logFiles = Collections.unmodifiableSet(builder.logFiles);
+        logFolder = builder.logFolder;
         pathOrderCounter = builder.pathOrderCounter;
+        appHomeEnvVar = builder.appHomeEnvVar;
     }
 
     public String getServiceName() {
@@ -86,8 +92,20 @@ public class Node extends ReferableDeploymentEntity {
         return environmentVariables;
     }
 
+    public Set<String> getLogFiles() {
+        return logFiles;
+    }
+
+    public String getLogFolder() {
+        return logFolder;
+    }
+
     public Map<String, PathEntry> getApplicationPaths() {
         return applicationPaths;
+    }
+
+    public String getAppHomeEnvVar() {
+        return appHomeEnvVar;
     }
 
     public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
@@ -95,11 +113,14 @@ public class Node extends ReferableDeploymentEntity {
 
         private Map<String, PathEntry> applicationPaths;
         private Map<String, String> environmentVariables;
+        private Set<String> logFiles;
+        private String logFolder;
         private final String serviceName;
         private String runCommand;
         private Map<String, InternalEvent> internalEvents;
         private Boolean offOnStartup;
         private Integer pathOrderCounter;
+        private String appHomeEnvVar;
 
         public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name, String serviceName) {
             super(parentBuilder, name);
@@ -108,7 +129,10 @@ public class Node extends ReferableDeploymentEntity {
             internalEvents = new HashMap<>();
             applicationPaths = new HashMap<>();
             environmentVariables = new HashMap<>();
+            logFiles = new HashSet<>();
+            logFolder = null;
             pathOrderCounter = 0;
+            appHomeEnvVar = null;
         }
 
         public NodeBuilder(String name, String serviceName) {
@@ -123,7 +147,10 @@ public class Node extends ReferableDeploymentEntity {
             internalEvents = new HashMap<>(instance.internalEvents);
             applicationPaths = new HashMap<>(instance.applicationPaths);
             environmentVariables = new HashMap<>(instance.environmentVariables);
-            pathOrderCounter = instance.pathOrderCounter;
+            logFiles = new HashSet<>(instance.logFiles);
+            logFolder = new String(instance.logFolder);
+            pathOrderCounter = new Integer(instance.pathOrderCounter);
+            appHomeEnvVar = new String(instance.appHomeEnvVar);
         }
 
         public NodeBuilder(Node instance) {
@@ -208,6 +235,21 @@ public class Node extends ReferableDeploymentEntity {
 
         public NodeBuilder environmentVariable(String name, String value) {
             this.environmentVariables.put(name, value);
+            return this;
+        }
+
+        public NodeBuilder logFile(String path) {
+            logFiles.add(path);
+            return this;
+        }
+
+        public NodeBuilder logFolder(String path) {
+            this.logFolder = path;
+            return this;
+        }
+
+        public NodeBuilder exposeAppHomeDirectoryAs(String appHomeEnvVar) {
+            this.appHomeEnvVar = appHomeEnvVar;
             return this;
         }
 

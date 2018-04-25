@@ -33,14 +33,14 @@ import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.rt.SpiderSilk;
 import me.arminb.spidersilk.util.HostUtil;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public abstract class RuntimeEngine {
+    private final static Logger logger = LoggerFactory.getLogger(RuntimeEngine.class);
     private final EventServer eventServer;
     protected final Deployment deployment;
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
@@ -64,10 +64,13 @@ public abstract class RuntimeEngine {
             throw new RuntimeEngineException("Cannot get the local IP address to configure the local SpiderSilk runtime!");
         }
 
+        logger.info("Starting event server ...");
         startEventServer();
+        logger.info("Starting external events ...");
         startExternalEvents();
 
         try {
+            logger.info("Starting nodes ...");
             startNodes();
         } catch (RuntimeEngineException e) {
             stop();
@@ -89,6 +92,7 @@ public abstract class RuntimeEngine {
             }
         }
 
+        // TODO provide a handler for exception in threads and stop the runtime engine accordingly
         for (ExternalEvent externalEvent: externalEvents) {
             externalEvent.start(this);
         }
@@ -99,8 +103,11 @@ public abstract class RuntimeEngine {
     }
 
     public void stop() {
+        logger.info("Stopping external events ...");
         stopExternalEvents();
+        logger.info("Stopping nodes ...");
         stopNodes();
+        logger.info("Stopping event server ...");
         stopEventServer();
         stopped = true;
     }
@@ -128,9 +135,26 @@ public abstract class RuntimeEngine {
             environment.put(entry.getKey(), entry.getValue());
         }
 
-        environment.put(deployment.getAppHomeEnvVar(), nodeWorkspace.getRootDirectory());
+        environment.put(getNodeAppHomeEnvVar(nodeName), nodeWorkspace.getRootDirectory());
 
         return environment;
+    }
+
+    private String getNodeAppHomeEnvVar(String nodeName) {
+        Node node = deployment.getNode(nodeName);
+        Service nodeService = deployment.getService(node.getServiceName());
+
+        String envVar = deployment.getAppHomeEnvVar();
+
+        if (nodeService.getAppHomeEnvVar() != null) {
+            envVar = nodeService.getAppHomeEnvVar();
+        }
+
+        if (node.getAppHomeEnvVar() != null) {
+            envVar = node.getAppHomeEnvVar();
+        }
+
+        return envVar;
     }
 
     protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName) {
@@ -139,18 +163,36 @@ public abstract class RuntimeEngine {
         return retMap;
     }
 
+    protected Set<String> getNodeLogFiles(Node node) {
+        Set<String> logFiles = new HashSet<>(deployment.getService(node.getServiceName()).getLogFiles());
+        logFiles.addAll(node.getLogFiles());
+        return logFiles;
+    }
+
+    protected String getNodeLogFolder(Node node) {
+        if (node.getLogFolder() != null) {
+            return node.getLogFolder();
+        }
+        return deployment.getService(node.getServiceName()).getLogFolder();
+    }
+
     /**
      * This method should start all of the nodes. In case of a problem in startup of a node, all of the started nodes should be
      * stopped and a RuntimeEngine Exception should be thrown
      * @throws RuntimeEngineException
      */
     protected abstract void startNodes() throws RuntimeEngineException;
+
+    /**
+     * This method should stop all of the nodes and in case of a failure in stopping something it won't throw any exception, but
+     * error logs the exception or a message. This method should only be called when stopping the runtime engine
+     */
     protected abstract void stopNodes();
-    public abstract void stopNode(String nodeName, boolean kill);
-    public abstract void startNode(String nodeName);
-    public abstract void restartNode(String nodeName);
-    public abstract void clockDrift(String nodeName);
-    public abstract void networkPartition(String nodeNames);
+    public abstract void stopNode(String nodeName, boolean kill) throws RuntimeEngineException;
+    public abstract void startNode(String nodeName) throws RuntimeEngineException;
+    public abstract void restartNode(String nodeName) throws RuntimeEngineException;
+    public abstract void clockDrift(String nodeName) throws RuntimeEngineException;
+    public abstract void networkPartition(String nodeNames) throws RuntimeEngineException;
 
     public void setNodeWorkspaceMap(Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.nodeWorkspaceMap = nodeWorkspaceMap;

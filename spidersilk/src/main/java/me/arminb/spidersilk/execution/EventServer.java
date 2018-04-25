@@ -43,7 +43,7 @@ public class EventServer {
             jettyServer.stop();
             jettyServer.destroy();
         } catch (Exception e) {
-            logger.warn("Unable to stop Jetty Server!", e);
+            logger.error("Unable to stop Jetty Server!", e);
         }
     }
 
@@ -51,7 +51,7 @@ public class EventServer {
         try {
             jettyServer.join();
         } catch (InterruptedException e) {
-            logger.warn("Jetty Server has been interrupted!", e);
+            logger.error("Jetty Server has been interrupted!", e);
         }
     }
 
