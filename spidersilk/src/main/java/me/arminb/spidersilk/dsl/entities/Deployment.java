@@ -61,6 +61,7 @@ public class Deployment extends DeploymentEntity {
     private final String runSequence;
     private final String appHomeEnvVar;
     private final Boolean manualStop;
+    private final Integer secondsUntilForcedStop;
 
     private Deployment(DeploymentBuilder builder) {
         super("deployment");
@@ -78,6 +79,7 @@ public class Deployment extends DeploymentEntity {
         blockingSchedulingEvents = Collections.unmodifiableMap(generateBlockingSchedulingEventsMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
         manualStop = builder.manualStop;
+        secondsUntilForcedStop = builder.secondsUntilForcedStop;
     }
 
     private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
@@ -213,6 +215,10 @@ public class Deployment extends DeploymentEntity {
         return secondsToWaitForCompletion;
     }
 
+    public Integer getSecondsUntilForcedStop() {
+        return secondsUntilForcedStop;
+    }
+
     public String getAppHomeEnvVar() {
         return appHomeEnvVar;
     }
@@ -230,6 +236,7 @@ public class Deployment extends DeploymentEntity {
         private Integer secondsToWaitForCompletion;
         private String appHomeEnvVar;
         private Boolean manualStop;
+        private Integer secondsUntilForcedStop;
 
         public DeploymentBuilder() {
             super(null, "root");
@@ -241,6 +248,7 @@ public class Deployment extends DeploymentEntity {
             secondsToWaitForCompletion = 5;
             appHomeEnvVar = Constants.DEFAULT_APP_HOME_ENVVAR_NAME;
             manualStop = false;
+            secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
         }
 
         public DeploymentBuilder(Deployment instance) {
@@ -253,6 +261,7 @@ public class Deployment extends DeploymentEntity {
             secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
             appHomeEnvVar = new String(instance.appHomeEnvVar);
             manualStop = new Boolean(instance.manualStop);
+            secondsUntilForcedStop = new Integer(instance.secondsUntilForcedStop);
         }
 
         public DeploymentBuilder node(Node node) {
@@ -354,6 +363,11 @@ public class Deployment extends DeploymentEntity {
 
         public DeploymentBuilder manualStop(Boolean manualStop) {
             this.manualStop = manualStop;
+            return this;
+        }
+
+        public DeploymentBuilder secondsUntilForcedStop(Integer secondsUntilForcedStop) {
+            this.secondsUntilForcedStop = secondsUntilForcedStop;
             return this;
         }
 

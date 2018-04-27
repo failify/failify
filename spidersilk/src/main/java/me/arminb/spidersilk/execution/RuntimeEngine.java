@@ -50,6 +50,7 @@ public abstract class RuntimeEngine {
         this.stopped = true;
         this.deployment = deployment;
         eventServer = new EventServer(deployment);
+        EventService.initialize(deployment);
     }
 
     public boolean isStopped() {
@@ -78,7 +79,6 @@ public abstract class RuntimeEngine {
         }
 
         // initialize event service. We do it here because we want the eligible blocking events to be satisfied after the nodes are up
-        EventService.initialize(deployment);
 
         stopped = false;
     }
@@ -188,9 +188,10 @@ public abstract class RuntimeEngine {
      * error logs the exception or a message. This method should only be called when stopping the runtime engine
      */
     protected abstract void stopNodes();
-    public abstract void stopNode(String nodeName, boolean kill) throws RuntimeEngineException;
+    public abstract void killNode(String nodeName) throws RuntimeEngineException;
+    public abstract void stopNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
     public abstract void startNode(String nodeName) throws RuntimeEngineException;
-    public abstract void restartNode(String nodeName) throws RuntimeEngineException;
+    public abstract void restartNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
     public abstract void clockDrift(String nodeName) throws RuntimeEngineException;
     public abstract void networkPartition(String nodeNames) throws RuntimeEngineException;
 

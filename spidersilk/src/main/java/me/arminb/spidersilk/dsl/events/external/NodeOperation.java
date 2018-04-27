@@ -26,7 +26,8 @@
 package me.arminb.spidersilk.dsl.events.external;
 
 public enum NodeOperation {
-    UP,
-    DOWN,
+    START,
+    STOP,
+    KILL,
     RESET
 }

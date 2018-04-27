@@ -27,6 +27,7 @@ package me.arminb.spidersilk;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.ServiceType;
+import me.arminb.spidersilk.dsl.events.external.NodeOperation;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
 import me.arminb.spidersilk.execution.SingleNodeRuntimeEngine;
@@ -65,15 +66,17 @@ public class DefinitionTest {
                         .before("e2").and()
                     .withGarbageCollectionEvent("g1").and()
                     .and()
+                .withNode("n2", "s1").offOnStartup()
+                .and()
                 // Workload Definitions
                 .withWorkload("w1")
                     .runCommand("cmd3").and()
                 // External Events Definitions
-//                .withNodeOperationEvent("x1")
-//                    .nodeName("n1")
-//                    .nodeOperation(NodeOperation.DOWN).and()
+                .withNodeOperationEvent("x1")
+                    .nodeName("n2")
+                    .nodeOperation(NodeOperation.START).and()
                 // Run Sequence Definition
-                .runSequence("bbe2 * e1 * ubbe2 * e2 * e3")
+                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * e3")
                 .secondsToWaitForCompletion(5)
                 .exposeAppHomeDirectoryAs("HADOOP_HOME")
                 .build();

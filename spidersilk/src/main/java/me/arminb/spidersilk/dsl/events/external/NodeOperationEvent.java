@@ -25,7 +25,7 @@
 
 package me.arminb.spidersilk.dsl.events.external;
 
-import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
@@ -41,21 +41,53 @@ public class NodeOperationEvent extends ExternalEvent {
     private final static Logger logger = LoggerFactory.getLogger(NodeOperationEvent.class);
     private final NodeOperation nodeOperation;
     private final String nodeName;
+    private final Integer secondsUntilForcedStop;
 
     protected NodeOperationEvent(NodeOperationEventBuilder builder) {
         super(builder.getName());
         nodeName = builder.nodeName;
         nodeOperation = builder.nodeOperation;
+        if (builder.secondsUntilForcedStop == null) {
+            if (nodeOperation == NodeOperation.STOP) {
+                secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
+            } else {
+                secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_RESTART;
+            }
+        } else {
+            secondsUntilForcedStop = builder.secondsUntilForcedStop;
+        }
     }
 
     @Override
     protected void execute(RuntimeEngine runtimeEngine) {
         // TODO this should support node up and reset
-        try {
-            runtimeEngine.stopNode(nodeName, true);
-        } catch (RuntimeEngineException e) {
-            logger.info("Error while trying to stop node {}!", nodeName);
+        switch (nodeOperation) {
+            case KILL:
+                try {
+                    runtimeEngine.killNode(nodeName);
+                } catch (RuntimeEngineException e) {
+                    logger.info("Error while trying to kill node {}!", nodeName);
+                }
+            case STOP:
+                try {
+                    runtimeEngine.stopNode(nodeName, secondsUntilForcedStop);
+                } catch (RuntimeEngineException e) {
+                    logger.info("Error while trying to stop node {}!", nodeName);
+                }
+            case RESET:
+                try {
+                    runtimeEngine.restartNode(nodeName, secondsUntilForcedStop);
+                } catch (RuntimeEngineException e) {
+                    logger.info("Error while trying to restart node {}!", nodeName);
+                }
+            case START:
+                try {
+                    runtimeEngine.startNode(nodeName);
+                } catch (RuntimeEngineException e) {
+                    logger.info("Error while trying to start node {}!", nodeName);
+                }
         }
+
     }
 
     public NodeOperation getNodeOperation() {
@@ -66,9 +98,14 @@ public class NodeOperationEvent extends ExternalEvent {
         return nodeName;
     }
 
+    public Integer getSecondsUntilForcedStop() {
+        return secondsUntilForcedStop;
+    }
+
     public static class NodeOperationEventBuilder extends DeploymentBuilderBase<NodeOperationEvent, Deployment.DeploymentBuilder> {
         private NodeOperation nodeOperation;
         private String nodeName;
+        private Integer secondsUntilForcedStop;
 
         public NodeOperationEventBuilder(String name) {
             this(null, name);
@@ -76,6 +113,7 @@ public class NodeOperationEvent extends ExternalEvent {
 
         public NodeOperationEventBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
             super(parentBuilder, name);
+            secondsUntilForcedStop = null;
         }
 
         public NodeOperationEventBuilder(NodeOperationEvent instance) {
@@ -86,6 +124,7 @@ public class NodeOperationEvent extends ExternalEvent {
             super(parentBuilder, instance);
             nodeName = new String(instance.nodeName);
             nodeOperation = instance.nodeOperation;
+            secondsUntilForcedStop = new Integer(instance.secondsUntilForcedStop);
         }
 
         public NodeOperationEventBuilder nodeName(String nodeName) {
@@ -95,6 +134,11 @@ public class NodeOperationEvent extends ExternalEvent {
 
         public NodeOperationEventBuilder nodeOperation(NodeOperation nodeOperation) {
             this.nodeOperation = nodeOperation;
+            return this;
+        }
+
+        public NodeOperationEventBuilder secondsUntilForcedStop(Integer secondsUntilForcedStop) {
+            this.secondsUntilForcedStop = secondsUntilForcedStop;
             return this;
         }
 

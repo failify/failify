@@ -1,5 +1,6 @@
 package me.arminb.spidersilk.workspace;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.entities.PathEntry;
@@ -21,15 +22,12 @@ import java.util.stream.Collectors;
 
 public class WorkspaceManager {
     private final static Logger logger = LoggerFactory.getLogger(WorkspaceManager.class);
-    private final static String DEFAULT_WORKING_DIRECTORY_NAME = ".SpiderSilkWorkingDirectory";
-    private final static String NODE_ROOT_DIRECTORY_NAME = "root";
-    private final static String NODE_LOG_DIRECTORY_NAME = "logs";
 
     private final Deployment deployment;
     private final Path workingDirectory;
 
     public WorkspaceManager(Deployment deployment) {
-        this(deployment, DEFAULT_WORKING_DIRECTORY_NAME);
+        this(deployment, Constants.DEFAULT_WORKING_DIRECTORY_NAME);
     }
 
     public WorkspaceManager(Deployment deployment, String workingDirectory) {
@@ -82,7 +80,7 @@ public class WorkspaceManager {
         }
 
         // Creates the node root directory
-        Path nodeRootDirectory = nodeWorkingDirectory.resolve(NODE_ROOT_DIRECTORY_NAME);
+        Path nodeRootDirectory = nodeWorkingDirectory.resolve(Constants.NODE_ROOT_DIRECTORY_NAME);
         try {
             Files.createDirectory(nodeRootDirectory);
         } catch (IOException e) {
@@ -91,7 +89,7 @@ public class WorkspaceManager {
         }
 
         // Creates the node's log directory
-        Path nodeLogDirectory = nodeWorkingDirectory.resolve(NODE_LOG_DIRECTORY_NAME);
+        Path nodeLogDirectory = nodeWorkingDirectory.resolve(Constants.NODE_LOG_DIRECTORY_NAME);
         try {
             Files.createDirectory(nodeLogDirectory);
         } catch (IOException e) {
