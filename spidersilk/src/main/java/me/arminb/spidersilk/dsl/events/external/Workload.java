@@ -28,7 +28,7 @@ package me.arminb.spidersilk.dsl.events.external;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.exceptions.ExternalEventExecutionException;
-import me.arminb.spidersilk.execution.RuntimeEngine;
+import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import me.arminb.spidersilk.util.ShellUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,7 +53,7 @@ public class Workload extends ExternalEvent {
     }
 
     @Override
-    protected void execute(RuntimeEngine runtimeEngine) throws ExternalEventExecutionException {
+    protected void execute(LimitedRuntimeEngine runtimeEngine) throws Exception {
         ProcessBuilder processBuilder = new ProcessBuilder();
         processBuilder.inheritIO();
         String currentShell = ShellUtil.getCurrentShellAddress();

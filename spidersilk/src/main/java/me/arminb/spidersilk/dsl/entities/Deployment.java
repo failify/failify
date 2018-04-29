@@ -27,6 +27,7 @@ package me.arminb.spidersilk.dsl.entities;
 
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.dsl.events.external.NetworkOperationEvent;
 import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
@@ -60,8 +61,8 @@ public class Deployment extends DeploymentEntity {
     private final Integer secondsToWaitForCompletion;
     private final String runSequence;
     private final String appHomeEnvVar;
-    private final Boolean manualStop;
     private final Integer secondsUntilForcedStop;
+    private final Integer nextEventReceiptTimeout;
 
     private Deployment(DeploymentBuilder builder) {
         super("deployment");
@@ -78,8 +79,8 @@ public class Deployment extends DeploymentEntity {
         // List of blocking type scheduling events that are present in the run sequence
         blockingSchedulingEvents = Collections.unmodifiableMap(generateBlockingSchedulingEventsMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
-        manualStop = builder.manualStop;
         secondsUntilForcedStop = builder.secondsUntilForcedStop;
+        nextEventReceiptTimeout = builder.nextEventReceiptTimeout;
     }
 
     private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
@@ -219,12 +220,12 @@ public class Deployment extends DeploymentEntity {
         return secondsUntilForcedStop;
     }
 
-    public String getAppHomeEnvVar() {
-        return appHomeEnvVar;
+    public Integer getNextEventReceiptTimeout() {
+        return nextEventReceiptTimeout;
     }
 
-    public Boolean shouldStopManually() {
-        return manualStop;
+    public String getAppHomeEnvVar() {
+        return appHomeEnvVar;
     }
 
     public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
@@ -235,8 +236,8 @@ public class Deployment extends DeploymentEntity {
         private Integer eventServerPortNumber;
         private Integer secondsToWaitForCompletion;
         private String appHomeEnvVar;
-        private Boolean manualStop;
         private Integer secondsUntilForcedStop;
+        private Integer nextEventReceiptTimeout;
 
         public DeploymentBuilder() {
             super(null, "root");
@@ -247,8 +248,8 @@ public class Deployment extends DeploymentEntity {
             eventServerPortNumber = 8765; // Default port number for the event server
             secondsToWaitForCompletion = 5;
             appHomeEnvVar = Constants.DEFAULT_APP_HOME_ENVVAR_NAME;
-            manualStop = false;
             secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
+            nextEventReceiptTimeout = Constants.DEFAULT_NEXT_EVENT_RECEIPT_TIMEOUT;
         }
 
         public DeploymentBuilder(Deployment instance) {
@@ -260,8 +261,8 @@ public class Deployment extends DeploymentEntity {
             eventServerPortNumber = new Integer(instance.eventServerPortNumber);
             secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
             appHomeEnvVar = new String(instance.appHomeEnvVar);
-            manualStop = new Boolean(instance.manualStop);
             secondsUntilForcedStop = new Integer(instance.secondsUntilForcedStop);
+            nextEventReceiptTimeout = new Integer(instance.nextEventReceiptTimeout);
         }
 
         public DeploymentBuilder node(Node node) {
@@ -341,6 +342,27 @@ public class Deployment extends DeploymentEntity {
             return this;
         }
 
+        public NetworkOperationEvent.NetworkOperationEventBuilder withNetworkOperationEvent(String name) {
+            return new NetworkOperationEvent.NetworkOperationEventBuilder(this, name);
+        }
+
+        public NetworkOperationEvent.NetworkOperationEventBuilder networkOperationEvent(String eventName) {
+            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof NetworkOperationEvent)) {
+                throw new DeploymentEntityNotFound(eventName, "NetworkOperationEvent");
+            }
+            return new NetworkOperationEvent.NetworkOperationEventBuilder(this,
+                    (NetworkOperationEvent) externalEvents.get(eventName));
+        }
+
+        public DeploymentBuilder networkOperationEvent(NetworkOperationEvent networkOperationEvent) {
+            if (externalEvents.containsKey(networkOperationEvent.getName())) {
+                logger.warn("The network operation event " + networkOperationEvent.getName()
+                        + " is being redefined in the deployment definition!");
+            }
+            externalEvents.put(networkOperationEvent.getName(), networkOperationEvent);
+            return this;
+        }
+
         public DeploymentBuilder eventServerPortNumber(Integer eventServerPortNumber) {
             this.eventServerPortNumber = eventServerPortNumber;
             return this;
@@ -361,13 +383,13 @@ public class Deployment extends DeploymentEntity {
             return this;
         }
 
-        public DeploymentBuilder manualStop(Boolean manualStop) {
-            this.manualStop = manualStop;
+        public DeploymentBuilder secondsUntilForcedStop(Integer secondsUntilForcedStop) {
+            this.secondsUntilForcedStop = secondsUntilForcedStop;
             return this;
         }
 
-        public DeploymentBuilder secondsUntilForcedStop(Integer secondsUntilForcedStop) {
-            this.secondsUntilForcedStop = secondsUntilForcedStop;
+        public DeploymentBuilder nextEventReceiptTimeout(Integer nextEventReceiptTimeout) {
+            this.nextEventReceiptTimeout = nextEventReceiptTimeout;
             return this;
         }
 

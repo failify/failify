@@ -30,6 +30,8 @@ import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.EventService;
 import me.arminb.spidersilk.execution.RuntimeEngine;
+import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
+import me.arminb.spidersilk.execution.NextEventReceiptTimeoutCheckerThread;
 import me.arminb.spidersilk.instrumentation.InstrumentationEngine;
 import me.arminb.spidersilk.verification.*;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
@@ -65,75 +67,92 @@ public class SpiderSilkRunner {
         SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment, runtimeEngine);
         spiderSilkRunner.start();
 
-        if (!deployment.shouldStopManually()) {
-            while (true) {
-                // TODO there should be a way to stop the runner due to a timeout in receiving an event
-                if (EventService.getInstance().isTheRunSequenceCompleted()) {
-                    break;
-                }
-            }
-            logger.info("The run sequence is completed!");
-            logger.info("Waiting for {} seconds before stopping the runner ...",
-                    deployment.getSecondsToWaitForCompletion());
-            try {
-                Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
-            } catch (InterruptedException e) {
-                logger.warn("The SpiderSilkRunner wait for completion thread sleep has been interrupted!", e);
-            }
-            spiderSilkRunner.stop();
-        }
+        // Starts last event receipt timeout checker
+        logger.info("Starting next event receipt timeout checker thread with {} seconds timeout ..."
+                , deployment.getNextEventReceiptTimeout());
+        new NextEventReceiptTimeoutCheckerThread(spiderSilkRunner).start();
 
         return spiderSilkRunner;
+    }
+
+    public void waitForRunSequenceCompletion() {
+        waitForRunSequenceCompletion(false);
+    }
+
+    public void waitForRunSequenceCompletion(boolean stopAfter) {
+        while (!isStopped()) {
+            if (EventService.getInstance().isTheRunSequenceCompleted()) {
+                logger.info("The run sequence is completed!");
+                logger.info("Waiting for {} seconds before stopping the runner ...",
+                        deployment.getSecondsToWaitForCompletion());
+                try {
+                    Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
+                } catch (InterruptedException e) {
+                    logger.error("The SpiderSilkRunner wait for completion thread sleep has been interrupted!", e);
+                }
+                if (stopAfter && !isStopped()) {
+                    stop();
+                }
+            }
+        }
     }
 
     public Deployment getDeployment() {
         return deployment;
     }
 
+    public LimitedRuntimeEngine runtime() {
+        return runtimeEngine;
+    }
+
     private void start() {
-        // Register the shutdown hook
-        Runtime.getRuntime().addShutdownHook(new SpiderSilkShutdownHook(this));
-
-        // Verify the deployment definition
-        logger.info("Verifying the deployment definition ...");
-        for (DeploymentVerifier verifier: verifiers) {
-            verifier.verify();
-        }
-
-        // Setup the nodes' workspaces
-        logger.info("Creating the nodes' workspaces ...");
-        Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);
-
-        // Instrument the nodes binaries and get the new application addresses map
-        logger.info("Starting the instrumentation process ...");
-        instrumentationEngine = new InstrumentationEngine(deployment, nodeWorkspaceMap);
         try {
+            // Register the shutdown hook
+            Runtime.getRuntime().addShutdownHook(new SpiderSilkShutdownHook(this));
+
+            // Verify the deployment definition
+            logger.info("Verifying the deployment definition ...");
+            for (DeploymentVerifier verifier : verifiers) {
+                verifier.verify();
+            }
+
+            // Setup the nodes' workspaces
+            logger.info("Creating the nodes' workspaces ...");
+            Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);
+
+            // Instrument the nodes binaries. This shouldn't change any of the application paths
+            logger.info("Starting the instrumentation process ...");
+            instrumentationEngine = new InstrumentationEngine(deployment, nodeWorkspaceMap);
             instrumentationEngine.instrumentNodes();
+            logger.info("Instrumentation process is completed!");
+
+            // Starting the runtime engine
+            logger.info("Starting the runtime engine ...");
+
+            runtimeEngine.setNodeWorkspaceMap(nodeWorkspaceMap);
+            runtimeEngine.start(this);
+        } catch (RuntimeEngineException e) {
+            if (!isStopped()) {
+                stop();
+            }
+            throw new RuntimeException(e);
         } catch (InstrumentationException e) {
             throw new RuntimeException(e);
-        }
-        logger.info("Instrumentation process is completed!");
-
-        // Starting the runtime engine
-        logger.info("Starting the runtime engine ...");
-
-        try {
-            runtimeEngine.setNodeWorkspaceMap(nodeWorkspaceMap);
-            runtimeEngine.start();
-        } catch (RuntimeEngineException e) {
-            throw new RuntimeException(e);
+        } catch (Throwable e) {
+            logger.error("An unexpected error has happened. Stopping ...");
+            if (!isStopped()) {
+                stop();
+            }
+            throw e;
         }
     }
 
-    // TODO
     public void stop() {
         logger.info("Stopping SpiderSilkRunner ...");
-        logger.info("Stopping the runtime engine ...");
         runtimeEngine.stop();
     }
 
-    // TODO
-    protected boolean isStopped() {
+    public boolean isStopped() {
         if (runtimeEngine == null) {
             return false;
         }

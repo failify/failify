@@ -29,7 +29,7 @@ import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
-import me.arminb.spidersilk.execution.RuntimeEngine;
+import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,33 +59,16 @@ public class NodeOperationEvent extends ExternalEvent {
     }
 
     @Override
-    protected void execute(RuntimeEngine runtimeEngine) {
-        // TODO this should support node up and reset
+    protected void execute(LimitedRuntimeEngine runtimeEngine) throws Exception {
         switch (nodeOperation) {
             case KILL:
-                try {
-                    runtimeEngine.killNode(nodeName);
-                } catch (RuntimeEngineException e) {
-                    logger.info("Error while trying to kill node {}!", nodeName);
-                }
+                runtimeEngine.killNode(nodeName); break;
             case STOP:
-                try {
-                    runtimeEngine.stopNode(nodeName, secondsUntilForcedStop);
-                } catch (RuntimeEngineException e) {
-                    logger.info("Error while trying to stop node {}!", nodeName);
-                }
+                runtimeEngine.stopNode(nodeName, secondsUntilForcedStop); break;
             case RESET:
-                try {
-                    runtimeEngine.restartNode(nodeName, secondsUntilForcedStop);
-                } catch (RuntimeEngineException e) {
-                    logger.info("Error while trying to restart node {}!", nodeName);
-                }
+                runtimeEngine.restartNode(nodeName, secondsUntilForcedStop); break;
             case START:
-                try {
-                    runtimeEngine.startNode(nodeName);
-                } catch (RuntimeEngineException e) {
-                    logger.info("Error while trying to start node {}!", nodeName);
-                }
+                runtimeEngine.startNode(nodeName); break;
         }
 
     }

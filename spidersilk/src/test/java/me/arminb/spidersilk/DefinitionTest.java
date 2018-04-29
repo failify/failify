@@ -27,10 +27,11 @@ package me.arminb.spidersilk;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.ServiceType;
+import me.arminb.spidersilk.dsl.events.external.NetworkOperation;
 import me.arminb.spidersilk.dsl.events.external.NodeOperation;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
-import me.arminb.spidersilk.execution.SingleNodeRuntimeEngine;
+import me.arminb.spidersilk.execution.single_node.SingleNodeRuntimeEngine;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,9 +46,9 @@ public class DefinitionTest {
                 .withService("s1")
                     .applicationPath("../sample-multithread/target/multithread-helloworld.jar")
                     .relativeInstrumentableAddress("multithread-helloworld.jar")
+                    .exposeAppHomeDirectoryAs("HADOOP_HOME")
                     .runCommand("java -jar ${HADOOP_HOME}/multithread-helloworld.jar")
-//                    .libDir("libDir1")
-                    .dockerImage("java:8-jre")
+                    .dockerImage("spidersilk/sample-multithread")
                     .logFile("/var/log/spidersilk")
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
@@ -75,12 +76,20 @@ public class DefinitionTest {
                 .withNodeOperationEvent("x1")
                     .nodeName("n2")
                     .nodeOperation(NodeOperation.START).and()
+                .withNodeOperationEvent("x2")
+                    .nodeName("n2")
+                    .nodeOperation(NodeOperation.RESET).and()
+                .withNetworkOperationEvent("net1")
+                    .networkOperation(NetworkOperation.PARTITION)
+                    .nodePartitions("n1,n2").and()
+                .withNetworkOperationEvent("net2")
+                    .networkOperation(NetworkOperation.REMOVE_PARTITION).and()
                 // Run Sequence Definition
-                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * e3")
+                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * net1 * e3 * net2 * x2")
                 .secondsToWaitForCompletion(5)
-                .exposeAppHomeDirectoryAs("HADOOP_HOME")
                 .build();
 
-        SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
+        SpiderSilkRunner runner = SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
+        runner.waitForRunSequenceCompletion(true);
     }
 }

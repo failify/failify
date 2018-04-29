@@ -69,6 +69,7 @@ public class InstrumentationEngine {
         }
     }
 
+    // This method shouldn't change any of the application paths
     public Map<String, String> instrumentNodes() throws InstrumentationException {
         Map<String, String> retMap = new HashMap<>();
 

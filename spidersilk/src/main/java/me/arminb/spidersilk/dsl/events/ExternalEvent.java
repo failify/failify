@@ -25,8 +25,9 @@
 
 package me.arminb.spidersilk.dsl.events;
 
+import me.arminb.spidersilk.SpiderSilkRunner;
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
-import me.arminb.spidersilk.execution.RuntimeEngine;
+import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import me.arminb.spidersilk.rt.SpiderSilk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,23 +46,39 @@ public abstract class ExternalEvent extends ReferableDeploymentEntity {
     }
 
 
-    protected abstract void execute(RuntimeEngine runtimeEngine);
+    protected abstract void execute(LimitedRuntimeEngine runtimeEngine) throws Exception;
 
-    public void start(RuntimeEngine runtimeEngine) {
+    public void start(SpiderSilkRunner spiderSilkRunner) {
         executionThread = new Thread(new Runnable() {
             @Override
             public void run() {
-                SpiderSilk.getInstance().blockAndPoll(name);
-                execute(runtimeEngine);
-                SpiderSilk.getInstance().sendEvent(name);
+                try {
+                    SpiderSilk.getInstance().blockAndPoll(name);
+                    execute(spiderSilkRunner.runtime());
+                    SpiderSilk.getInstance().sendEvent(name);
+                } catch (Exception e) {
+                    logger.error("An error happened during execution of external event {}", name, e);
+                    if (!spiderSilkRunner.isStopped()) {
+                        // A new thread is required since this thread is going to be killed as part of the system stop
+                        new Thread(new Runnable() {
+                            @Override
+                            public void run() {
+                                // TODO this should make the test case fail
+                                spiderSilkRunner.stop();
+                            }
+                        }).start();
+                    }
+                }
             }
         });
+
         logger.info("Starting external event {}", name);
         executionThread.start();
     }
 
     public void stop() {
         if (executionThread != null) {
+            // TODO stop is deprecated!
             executionThread.stop();
         }
     }

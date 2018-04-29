@@ -25,6 +25,7 @@
 
 package me.arminb.spidersilk.execution;
 
+import me.arminb.spidersilk.SpiderSilkRunner;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.entities.Service;
@@ -39,7 +40,7 @@ import org.slf4j.LoggerFactory;
 import java.net.UnknownHostException;
 import java.util.*;
 
-public abstract class RuntimeEngine {
+public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private final static Logger logger = LoggerFactory.getLogger(RuntimeEngine.class);
     private final EventServer eventServer;
     protected final Deployment deployment;
@@ -53,11 +54,15 @@ public abstract class RuntimeEngine {
         EventService.initialize(deployment);
     }
 
+    public Set<String> nodeNames() {
+        return deployment.getNodes().keySet();
+    }
+
     public boolean isStopped() {
         return stopped;
     }
 
-    public void start() throws RuntimeEngineException {
+    public void start(SpiderSilkRunner spiderSilkRunner) throws RuntimeEngineException {
         // Configure local SpiderSilk runtime
         try {
             SpiderSilk.configure(HostUtil.getLocalIpAddress(), deployment.getEventServerPortNumber().toString());
@@ -65,25 +70,27 @@ public abstract class RuntimeEngine {
             throw new RuntimeEngineException("Cannot get the local IP address to configure the local SpiderSilk runtime!");
         }
 
+        // Exits if nodes' workspaces is not set
+        if (nodeWorkspaceMap == null || nodeWorkspaceMap.isEmpty()) {
+            throw new RuntimeEngineException("NodeWorkspaces is not set!");
+        }
+
         logger.info("Starting event server ...");
         startEventServer();
         logger.info("Starting external events ...");
-        startExternalEvents();
+        startExternalEvents(spiderSilkRunner);
 
         try {
             logger.info("Starting nodes ...");
+            stopped = false;
             startNodes();
         } catch (RuntimeEngineException e) {
             stop();
             throw e;
         }
-
-        // initialize event service. We do it here because we want the eligible blocking events to be satisfied after the nodes are up
-
-        stopped = false;
     }
 
-    protected void startExternalEvents() {
+    protected void startExternalEvents(SpiderSilkRunner spiderSilkRunner) {
         // Find those external events that are present in the run sequence
         List<ExternalEvent> externalEvents = new ArrayList<>();
         for (String id: deployment.getRunSequence().split("\\W+")) {
@@ -92,9 +99,8 @@ public abstract class RuntimeEngine {
             }
         }
 
-        // TODO provide a handler for exception in threads and stop the runtime engine accordingly
         for (ExternalEvent externalEvent: externalEvents) {
-            externalEvent.start(this);
+            externalEvent.start(spiderSilkRunner);
         }
     }
 
@@ -103,6 +109,7 @@ public abstract class RuntimeEngine {
     }
 
     public void stop() {
+        logger.info("Stopping the runtime engine ...");
         logger.info("Stopping external events ...");
         stopExternalEvents();
         logger.info("Stopping nodes ...");
@@ -176,6 +183,16 @@ public abstract class RuntimeEngine {
         return deployment.getService(node.getServiceName()).getLogFolder();
     }
 
+    @Override
+    public void waitFor(String eventName) {
+        SpiderSilk.getInstance().blockAndPoll(eventName);
+    }
+
+    @Override
+    public void sendEvent(String eventName) {
+        SpiderSilk.getInstance().sendEvent(eventName);
+    }
+
     /**
      * This method should start all of the nodes. In case of a problem in startup of a node, all of the started nodes should be
      * stopped and a RuntimeEngine Exception should be thrown
@@ -188,12 +205,6 @@ public abstract class RuntimeEngine {
      * error logs the exception or a message. This method should only be called when stopping the runtime engine
      */
     protected abstract void stopNodes();
-    public abstract void killNode(String nodeName) throws RuntimeEngineException;
-    public abstract void stopNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
-    public abstract void startNode(String nodeName) throws RuntimeEngineException;
-    public abstract void restartNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
-    public abstract void clockDrift(String nodeName) throws RuntimeEngineException;
-    public abstract void networkPartition(String nodeNames) throws RuntimeEngineException;
 
     public void setNodeWorkspaceMap(Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.nodeWorkspaceMap = nodeWorkspaceMap;
