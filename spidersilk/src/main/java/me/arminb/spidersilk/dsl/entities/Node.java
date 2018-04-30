@@ -29,6 +29,7 @@ import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.dsl.events.internal.GarbageCollectionEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
+import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.dsl.events.internal.StackTraceEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 import me.arminb.spidersilk.exceptions.PathNotFoundException;
@@ -174,6 +175,16 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
+        public NodeBuilder stackTrace(String eventName, String stack) {
+            String[] stackParts = stack.trim().split(",");
+            StackTraceEvent.StackTraceEventBuilder builder = this.withStackTraceEvent(eventName);
+            for (String part: stackParts) {
+                builder.trace(part);
+            }
+
+            return builder.and();
+        }
+
         public SchedulingEvent.SchedulingEventBuilder withSchedulingEvent(String name) {
             return new SchedulingEvent.SchedulingEventBuilder(this, name, this.name);
         }
@@ -191,6 +202,30 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
+        public NodeBuilder blockBefore(String eventName, String stackTraceEventName) {
+            return withSchedulingEvent(eventName)
+                    .operation(SchedulingOperation.BLOCK)
+                    .before(stackTraceEventName).and();
+        }
+
+        public NodeBuilder blockAfter(String eventName, String stackTraceEventName) {
+            return withSchedulingEvent(eventName)
+                    .operation(SchedulingOperation.BLOCK)
+                    .after(stackTraceEventName).and();
+        }
+
+        public NodeBuilder unblockBefore(String eventName, String stackTraceEventName) {
+            return withSchedulingEvent(eventName)
+                    .operation(SchedulingOperation.UNBLOCK)
+                    .before(stackTraceEventName).and();
+        }
+
+        public NodeBuilder unblockAfter(String eventName, String stackTraceEventName) {
+            return withSchedulingEvent(eventName)
+                    .operation(SchedulingOperation.UNBLOCK)
+                    .after(stackTraceEventName).and();
+        }
+
         public GarbageCollectionEvent.GarbageCollectionEventBuilder withGarbageCollectionEvent(String name) {
             return new GarbageCollectionEvent.GarbageCollectionEventBuilder(this, name, this.name);
         }
@@ -198,6 +233,10 @@ public class Node extends ReferableDeploymentEntity {
         public NodeBuilder garbageCollectionEvent(GarbageCollectionEvent garbageCollectionEvent) {
             addInternalEvent(garbageCollectionEvent);
             return this;
+        }
+
+        public NodeBuilder garbageCollection(String eventName) {
+            return withGarbageCollectionEvent(eventName).and();
         }
 
         private void addInternalEvent(InternalEvent event) {
