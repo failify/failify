@@ -28,7 +28,9 @@ package me.arminb.spidersilk.dsl.entities;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.events.WorkloadEvent;
+import me.arminb.spidersilk.dsl.events.external.NetworkOperation;
 import me.arminb.spidersilk.dsl.events.external.NetworkOperationEvent;
+import me.arminb.spidersilk.dsl.events.external.NodeOperation;
 import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
@@ -357,6 +359,30 @@ public class Deployment extends DeploymentEntity {
             return this;
         }
 
+        public DeploymentBuilder startNode(String eventName, String nodeName) {
+            return this.withNodeOperationEvent(eventName)
+                    .nodeOperation(NodeOperation.START)
+                    .nodeName(nodeName).and();
+        }
+
+        public DeploymentBuilder stopNode(String eventName, String nodeName) {
+            return this.withNodeOperationEvent(eventName)
+                    .nodeOperation(NodeOperation.STOP)
+                    .nodeName(nodeName).and();
+        }
+
+        public DeploymentBuilder killNode(String eventName, String nodeName) {
+            return this.withNodeOperationEvent(eventName)
+                    .nodeOperation(NodeOperation.KILL)
+                    .nodeName(nodeName).and();
+        }
+
+        public DeploymentBuilder restartNode(String eventName, String nodeName) {
+            return this.withNodeOperationEvent(eventName)
+                    .nodeOperation(NodeOperation.RESET)
+                    .nodeName(nodeName).and();
+        }
+
         public NetworkOperationEvent.NetworkOperationEventBuilder withNetworkOperationEvent(String name) {
             return new NetworkOperationEvent.NetworkOperationEventBuilder(this, name);
         }
@@ -376,6 +402,17 @@ public class Deployment extends DeploymentEntity {
             }
             externalEvents.put(networkOperationEvent.getName(), networkOperationEvent);
             return this;
+        }
+
+        public DeploymentBuilder networkPartition(String eventName, String nodePartitions) {
+            return withNetworkOperationEvent(eventName)
+                    .networkOperation(NetworkOperation.PARTITION)
+                    .nodePartitions(nodePartitions).and();
+        }
+
+        public DeploymentBuilder removeNetworkPartition(String eventName) {
+            return withNetworkOperationEvent(eventName)
+                    .networkOperation(NetworkOperation.REMOVE_PARTITION).and();
         }
 
         public DeploymentBuilder eventServerPortNumber(Integer eventServerPortNumber) {

@@ -73,17 +73,10 @@ public class DefinitionTest {
                 // Workload Events
                 .workloadEvents("we1,we2,we3")
                 // External Events Definitions
-                .withNodeOperationEvent("x1")
-                    .nodeName("n2")
-                    .nodeOperation(NodeOperation.START).and()
-                .withNodeOperationEvent("x2")
-                    .nodeName("n2")
-                    .nodeOperation(NodeOperation.RESET).and()
-                .withNetworkOperationEvent("net1")
-                    .networkOperation(NetworkOperation.PARTITION)
-                    .nodePartitions("n1,n2").and()
-                .withNetworkOperationEvent("net2")
-                    .networkOperation(NetworkOperation.REMOVE_PARTITION).and()
+                .startNode("x1", "n2")
+                .restartNode("x2", "n2")
+                .networkPartition("net1", "n1,n2")
+                .removeNetworkPartition("net2")
                 // Run Sequence Definition
                 .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * net1 * e3 * net2 * x2")
                 .secondsToWaitForCompletion(5)
