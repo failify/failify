@@ -31,6 +31,7 @@ import me.arminb.spidersilk.dsl.events.external.NetworkOperation;
 import me.arminb.spidersilk.dsl.events.external.NodeOperation;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
+import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.single_node.SingleNodeRuntimeEngine;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class DefinitionTest {
     public static final Logger logger = LoggerFactory.getLogger(DefinitionTest.class);
 
     @Test
-    public void simpleDefinition() throws DeploymentVerificationException {
+    public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
         Deployment deployment = new Deployment.DeploymentBuilder()
                 // Service Definitions
                 .withService("s1")
@@ -69,9 +70,8 @@ public class DefinitionTest {
                     .and()
                 .withNode("n2", "s1").offOnStartup()
                 .and()
-                // Workload Definitions
-                .withWorkload("w1")
-                    .runCommand("cmd3").and()
+                // Workload Events
+                .workloadEvents("we1,we2,we3")
                 // External Events Definitions
                 .withNodeOperationEvent("x1")
                     .nodeName("n2")
@@ -85,11 +85,13 @@ public class DefinitionTest {
                 .withNetworkOperationEvent("net2")
                     .networkOperation(NetworkOperation.REMOVE_PARTITION).and()
                 // Run Sequence Definition
-                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * net1 * e3 * net2 * x2")
+                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * net1 * e3 * net2 * x2")
                 .secondsToWaitForCompletion(5)
                 .build();
 
         SpiderSilkRunner runner = SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
+        runner.runtime().waitFor("x1");
+        runner.runtime().enforceOrder("we1");
         runner.waitForRunSequenceCompletion(true);
     }
 }

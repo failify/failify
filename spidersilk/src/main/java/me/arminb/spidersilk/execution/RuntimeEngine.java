@@ -25,6 +25,7 @@
 
 package me.arminb.spidersilk.execution;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.SpiderSilkRunner;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
@@ -183,14 +184,35 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         return deployment.getService(node.getServiceName()).getLogFolder();
     }
 
-    @Override
-    public void waitFor(String eventName) {
-        SpiderSilk.getInstance().blockAndPoll(eventName);
+    public void waitFor(String eventName) throws RuntimeEngineException {
+        if (deployment.isInRunSequence(eventName)) {
+            logger.info("Waiting for event {} in workload ...", eventName);
+            SpiderSilk.getInstance().blockAndPoll(eventName, true);
+        } else {
+            throw new RuntimeEngineException("Event " + eventName + " is not referred to in the run sequence. Thus," +
+                    " its order cannot be enforced!");
+        }
     }
 
     @Override
-    public void sendEvent(String eventName) {
-        SpiderSilk.getInstance().sendEvent(eventName);
+    public void enforceOrder(String eventName) throws RuntimeEngineException {
+        if (deployment.workloadEventExists(eventName) && deployment.isInRunSequence(eventName)) {
+            logger.info("Enforcing order for workload event {} ...", eventName);
+            SpiderSilk.getInstance().enforceOrder(eventName, null);
+        } else {
+            throw new RuntimeEngineException("Event " + eventName + " is not a defined workload event or is not referred to" +
+                    " in the run sequence. Thus, its order cannot be enforced from the workload!");
+        }
+    }
+
+    @Override
+    public void sendEvent(String eventName)throws RuntimeEngineException {
+        if (deployment.workloadEventExists(eventName)) {
+            SpiderSilk.getInstance().sendEvent(eventName);
+        } else {
+            throw new RuntimeEngineException("Event " + eventName + " is not a defined workload event and" +
+                    " cannot be sent from the workload!");
+        }
     }
 
     /**

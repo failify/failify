@@ -67,6 +67,10 @@ public class EventService {
     }
 
     public boolean areDependenciesMet(String eventName) {
+        return areDependenciesMet(eventName, 0);
+    }
+
+    public boolean areDependenciesMet(String eventName, Integer eventInclusion) {
         ReferableDeploymentEntity deploymentEntity = deployment.getReferableDeploymentEntity(eventName);
         if (deploymentEntity == null) {
             return false;
@@ -82,7 +86,12 @@ public class EventService {
                 return false;
             }
         }
-        return true;
+
+        if (eventInclusion == 0) {
+            return true;
+        } else {
+            return eventCheckList.containsKey(eventName);
+        }
     }
 
     public boolean areBlockDependenciesMet(String eventName) {
@@ -117,7 +126,7 @@ public class EventService {
         if (isTheRunSequenceCompleted()) {
             return false;
         }
-        if (Duration.between(Instant.now(), lastTimeEventReceived).getSeconds() >= deployment.getNextEventReceiptTimeout()) {
+        if (Duration.between(lastTimeEventReceived, Instant.now()).getSeconds() >= deployment.getNextEventReceiptTimeout()) {
             return true;
         }
         return false;

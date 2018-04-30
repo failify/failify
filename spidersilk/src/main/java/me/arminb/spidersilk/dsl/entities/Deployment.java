@@ -27,6 +27,7 @@ package me.arminb.spidersilk.dsl.entities;
 
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
+import me.arminb.spidersilk.dsl.events.WorkloadEvent;
 import me.arminb.spidersilk.dsl.events.external.NetworkOperationEvent;
 import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
@@ -36,7 +37,6 @@ import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.dsl.events.external.NodeOperationEvent;
-import me.arminb.spidersilk.dsl.events.external.Workload;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,6 +53,7 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, Node> nodes;
     private final Map<String, Service> services;
     private final Map<String, ExternalEvent> externalEvents;
+    private final Map<String, WorkloadEvent> workloadEvents;
     private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities;
     private final Map<String, DeploymentEntity> deploymentEntities;
     private final Map<String, BlockingEvent> blockingEvents;
@@ -73,6 +74,7 @@ public class Deployment extends DeploymentEntity {
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
         externalEvents = Collections.unmodifiableMap(builder.externalEvents);
+        workloadEvents = Collections.unmodifiableMap(builder.workloadEvents);
         deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
         // List of events that potentially can impose a blockage in the run sequence
         blockingEvents = Collections.unmodifiableMap(generateBlockingEventsMap());
@@ -104,6 +106,13 @@ public class Deployment extends DeploymentEntity {
                 throw new DeploymentEntityNameConflictException(externalEvent.getName());
             }
             returnMap.put(externalEvent.getName(), externalEvent);
+        }
+
+        for (WorkloadEvent workloadEvent: workloadEvents.values()) {
+            if (returnMap.containsKey(workloadEvent.getName())) {
+                throw new DeploymentEntityNameConflictException(workloadEvent.getName());
+            }
+            returnMap.put(workloadEvent.getName(), workloadEvent);
         }
 
         return returnMap;
@@ -162,6 +171,10 @@ public class Deployment extends DeploymentEntity {
 
     public ExternalEvent getExternalEvent(String name) {
         return externalEvents.get(name);
+    }
+
+    public Boolean workloadEventExists(String name) {
+        return workloadEvents.containsKey(name);
     }
 
     public Map<String, BlockingEvent> getBlockingEvents() {
@@ -228,10 +241,22 @@ public class Deployment extends DeploymentEntity {
         return appHomeEnvVar;
     }
 
+    // TODO make this more efficient and refactor other places that uses this functionality
+    public Boolean isInRunSequence(String eventName) {
+        String[] eventNames = runSequence.split("\\W+");
+        for (String event: eventNames) {
+            if (event.equals(eventName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static class DeploymentBuilder extends DeploymentEntity.DeploymentBuilderBase<Deployment, DeploymentEntity.DeploymentBuilderBase> {
         private Map<String, Node> nodes;
         private String runSequence;
         private Map<String, Service> services;
+        private Map<String, WorkloadEvent> workloadEvents;
         private Map<String, ExternalEvent> externalEvents;
         private Integer eventServerPortNumber;
         private Integer secondsToWaitForCompletion;
@@ -244,6 +269,7 @@ public class Deployment extends DeploymentEntity {
             nodes = new HashMap<>();
             services = new HashMap<>();
             externalEvents = new HashMap<>();
+            workloadEvents = new HashMap<>();
             runSequence = "";
             eventServerPortNumber = 8765; // Default port number for the event server
             secondsToWaitForCompletion = 5;
@@ -257,6 +283,7 @@ public class Deployment extends DeploymentEntity {
             nodes = new HashMap<>(instance.nodes);
             services = new HashMap<>(instance.services);
             externalEvents = new HashMap<>(instance.externalEvents);
+            workloadEvents = new HashMap<>(instance.workloadEvents);
             runSequence =  new String(instance.runSequence);
             eventServerPortNumber = new Integer(instance.eventServerPortNumber);
             secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
@@ -303,27 +330,15 @@ public class Deployment extends DeploymentEntity {
             return new Service.ServiceBuilder(this, name);
         }
 
-        public DeploymentBuilder workload(Workload workload) {
-            if (externalEvents.containsKey(workload.getName())) {
-                logger.warn("The workload " + workload.getName() + " is being redefined in the deployment definition!");
-            }
-            externalEvents.put(workload.getName(), workload);
-            return this;
-        }
-
-        public Workload.WorkloadBuilder workload(String workloadName) {
-            if (!externalEvents.containsKey(workloadName) || !(externalEvents.get(workloadName) instanceof Workload)) {
-                throw new DeploymentEntityNotFound(workloadName, "Workload");
-            }
-            return new Workload.WorkloadBuilder(this, (Workload) externalEvents.get(workloadName));
-        }
-
-        public Workload.WorkloadBuilder withWorkload(String name) {
-            return new Workload.WorkloadBuilder(this, name);
-        }
-
         public NodeOperationEvent.NodeOperationEventBuilder withNodeOperationEvent(String name) {
             return new NodeOperationEvent.NodeOperationEventBuilder(this, name);
+        }
+
+        public DeploymentBuilder workloadEvents(String events) {
+            for (String event: events.trim().split(",")) {
+                workloadEvents.put(event.trim(), new WorkloadEvent(event.trim()));
+            }
+            return this;
         }
 
         public NodeOperationEvent.NodeOperationEventBuilder nodeOperationEvent(String eventName) {

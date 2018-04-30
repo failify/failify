@@ -65,7 +65,7 @@ public class SpiderSilk {
     public void enforceOrder(String eventName, String stack) {
         // check if event is not already sent - useful when resetting a node
         if (!isEventAlreadySent(eventName)) {
-            if (stackMatcher.match(stack)) {
+            if (stack == null || stackMatcher.match(stack)) {
                 // check if blocking is allowed in the current pass
                 if (allowBlocking.get()) {
                     // check if blocking condition is satisfied
@@ -136,10 +136,16 @@ public class SpiderSilk {
         }
     }
 
+    // This method blocks until the dependencies of eventName are met not the event itself
     public void blockAndPoll(String eventName) {
+        blockAndPoll(eventName, false);
+    }
+    public void blockAndPoll(String eventName, Boolean includeEvent) {
         while (true) {
             try {
-                URL url = new URL("http://" + hostname + ":" + port + "/dependencies/" + eventName);
+                Integer eventInclusion = includeEvent? 1:0;
+                URL url = new URL("http://" + hostname + ":" + port + "/dependencies/" + eventName
+                        + "?includeEvent=" + eventInclusion);
                 HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
                 connection.connect();

@@ -13,8 +13,8 @@ public class JerseyEndPoint {
 
     @GET
     @Path("/dependencies/{name}")
-    public Response checkEventDependencies(@PathParam("name") String eventName) {
-        if (EventService.getInstance().areDependenciesMet(eventName)) {
+    public Response checkEventDependencies(@PathParam("name") String eventName, @QueryParam("includeEvent") Integer eventInclusion) {
+        if (EventService.getInstance().areDependenciesMet(eventName, eventInclusion)) {
             return Response.status(Response.Status.OK).build();
         } else {
             return Response.status(Response.Status.NOT_FOUND).build();

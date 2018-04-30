@@ -19,6 +19,7 @@ public interface LimitedRuntimeEngine {
     String ip(String nodeName);
 
     // Events
-    void waitFor(String eventName);
-    void sendEvent(String eventName);
+    void waitFor(String eventName) throws RuntimeEngineException;
+    void sendEvent(String eventName) throws RuntimeEngineException;
+    void enforceOrder(String eventName) throws RuntimeEngineException;
 }
