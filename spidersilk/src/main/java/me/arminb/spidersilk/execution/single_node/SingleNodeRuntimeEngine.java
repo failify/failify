@@ -53,7 +53,6 @@ import java.util.*;
 public class SingleNodeRuntimeEngine extends RuntimeEngine {
     private static Logger logger = LoggerFactory.getLogger(SingleNodeRuntimeEngine.class);
 
-    private DockerClient dockerClient;
     private Map<String, DockerContainerInfo> nodeToContainerInfoMap;
     private DockerNetworkManager networkManager;
 
@@ -76,12 +75,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     @Override
     protected void startNodes() throws RuntimeEngineException {
-        try {
-            dockerClient = DefaultDockerClient.fromEnv().build();
-        } catch (DockerCertificateException e) {
-            throw new RuntimeEngineException("Cannot create docker client!");
-        }
-
         // creates a new docker network. This will be a new one every time the runtime engine starts.
         networkManager = new DockerNetworkManager(this);
 
@@ -180,18 +173,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         containerConfigBuilder.cmd(wrapperScriptAddress);
         // Finalizing host config
         containerConfigBuilder.hostConfig(hostConfigBuilder.build());
-
-        // Pulls the node's corresponding docker image
-        try {
-            if (dockerClient.listImages(DockerClient.ListImagesParam.byName(nodeService.getDockerImage())).isEmpty()) {
-                logger.info("Pulling image `{}` for node {} ...", nodeService.getDockerImage(), node.getName());
-                dockerClient.pull(nodeService.getDockerImage());
-            }
-        } catch (DockerException e) {
-            throw new RuntimeEngineException("Error while pulling docker image for node " + node.getName() + "!");
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
         // Creates the container
         String containerName = Constants.DOCKER_CONTAINER_NAME_PREFIX + node.getName() + "_" + Instant.now().getEpochSecond();
         try {

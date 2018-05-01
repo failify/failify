@@ -45,6 +45,8 @@ public class Service extends DeploymentEntity {
     private final String logFolder;
     private final Map<String, String> environmentVariables;
     private final String dockerImage;
+    private final String dockerFileAddress;
+    private final Boolean dockerImageForceBuild;
     private final String instrumentableAddress;
     private final String runCommand;
     private final ServiceType serviceType;
@@ -54,6 +56,8 @@ public class Service extends DeploymentEntity {
     private Service(ServiceBuilder builder) {
         super(builder.getName());
         dockerImage = builder.dockerImage;
+        dockerFileAddress = builder.dockerFileAddress;
+        dockerImageForceBuild = builder.dockerImageForceBuild;
         instrumentableAddress = builder.instrumentableAddress;
         runCommand = builder.runCommand;
         serviceType = builder.serviceType;
@@ -68,6 +72,14 @@ public class Service extends DeploymentEntity {
 
     public String getDockerImage() {
         return dockerImage;
+    }
+
+    public Boolean getDockerImageForceBuild() {
+        return dockerImageForceBuild;
+    }
+
+    public String getDockerFileAddress() {
+        return dockerFileAddress;
     }
 
     public String getInstrumentableAddress() {
@@ -115,6 +127,8 @@ public class Service extends DeploymentEntity {
         private String logFolder;
         private Map<String, String> environmentVariables;
         private String dockerImage;
+        private String dockerFileAddress;
+        private Boolean dockerImageForceBuild;
         private String instrumentableAddress;
         private String runCommand;
         private ServiceType serviceType;
@@ -130,6 +144,8 @@ public class Service extends DeploymentEntity {
             logFolder = null;
             environmentVariables = new HashMap<>();
             dockerImage = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
+            dockerImageForceBuild = false;
+            dockerFileAddress = "Dockerfile-" + name;
             pathOrderCounter = 0;
             appHomeEnvVar = null;
         }
@@ -141,6 +157,8 @@ public class Service extends DeploymentEntity {
         public ServiceBuilder(Deployment.DeploymentBuilder parentBuilder, Service instance) {
             super(parentBuilder, instance);
             dockerImage = new String(instance.dockerImage);
+            dockerFileAddress = new String(instance.dockerFileAddress);
+            dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
             instrumentableAddress = new String(instance.instrumentableAddress);
             runCommand = new String(instance.runCommand);
             serviceType = instance.serviceType;
@@ -159,6 +177,12 @@ public class Service extends DeploymentEntity {
 
         public ServiceBuilder dockerImage(String dockerImage) {
             this.dockerImage = dockerImage;
+            return this;
+        }
+
+        public ServiceBuilder dockerFileAddress(String dockerFileAddress, Boolean forceBuild) {
+            this.dockerFileAddress = dockerFileAddress;
+            this.dockerImageForceBuild = forceBuild;
             return this;
         }
 

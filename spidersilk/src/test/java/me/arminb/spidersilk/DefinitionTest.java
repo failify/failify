@@ -50,6 +50,7 @@ public class DefinitionTest {
                     .exposeAppHomeDirectoryAs("HADOOP_HOME")
                     .runCommand("java -jar ${HADOOP_HOME}/multithread-helloworld.jar")
                     .dockerImage("spidersilk/sample-multithread")
+                    .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)
                     .logFile("/var/log/spidersilk")
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
