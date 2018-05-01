@@ -35,9 +35,7 @@
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <groupId>me.arminb.spidersilk</groupId>
     <artifactId>spidersilk</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
     <name>SpiderSilk</name>
     <description>A library for regression testing of Java-based distributed systems</description>
     <url>https://github.com/arminbalalaie/SpiderSilk</url>
@@ -52,12 +50,6 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>1.7.25</version>
-        </dependency>
-        <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.2.3</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>me.arminb.spidersilk</groupId>

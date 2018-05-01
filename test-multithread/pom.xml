@@ -21,25 +21,41 @@
   ~ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   ~ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   ~ SOFTWARE.
-  ~
   -->
 
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>me.arminb.spidersilk</groupId>
         <artifactId>spidersilk-parent</artifactId>
+        <groupId>me.arminb.spidersilk</groupId>
         <version>0.1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>spidersilkrt</artifactId>
-    <name>SpiderSilk Runtime</name>
-    <description>The runtime library for SpiderSilk testing library</description>
+    <groupId>me.arminb.spidersilk.tests</groupId>
+    <artifactId>test-multithread</artifactId>
+    <name>SpiderSilk Test - Multithread</name>
+    <description>SpiderSilk tests for sample multithread</description>
     <url>https://github.com/arminbalalaie/SpiderSilk</url>
 
-    <!-- TODO Consider changing the java version for runtime lib to 1.6 -->
+    <dependencies>
+        <dependency>
+            <groupId>me.arminb.spidersilk</groupId>
+            <artifactId>spidersilk</artifactId>
+            <version>0.1.0-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.2.3</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
 
 </project>
