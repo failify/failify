@@ -54,6 +54,8 @@ public class RunSequenceVerifier extends DeploymentVerifier {
     public void verify() {
         checkUniquenessOfEventNames();
 
+        if (deployment.getRunSequence().isEmpty()) return;
+
         String runSequence = deployment.getRunSequence().replaceAll("\\s+", "");
         levelStack = new ArrayList<>();
         levelHistory= new ArrayList<>();

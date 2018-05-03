@@ -70,17 +70,7 @@ public class InstrumentationEngine {
     }
 
     // This method shouldn't change any of the application paths
-    public Map<String, String> instrumentNodes() throws InstrumentationException {
-        Map<String, String> retMap = new HashMap<>();
-
-        for (Node node: deployment.getNodes().values()) {
-            retMap.put(
-                    node.getName(),
-                    FilenameUtils.normalize(Paths.get(deployment.getService(node.getServiceName())
-                            .getInstrumentableAddress()).toFile().getAbsolutePath().toString())
-            );
-        }
-
+    public void instrumentNodes() throws InstrumentationException {
         String[] eventNames = deployment.getRunSequence().split("\\W+");
         Map<Node, List<InternalEvent>> nodeMap = new HashMap<>();
 
@@ -103,7 +93,6 @@ public class InstrumentationEngine {
         for (Node node: nodeMap.keySet()) {
             logger.info("Starting the instrumentation process for node {} ...", node.getName());
             Service service = deployment.getService(node.getServiceName());
-            String newApplicationAddress = service.getInstrumentableAddress();
             List<InstrumentationDefinition> instrumentationDefinitions = new ArrayList<>();
 
             for (InternalEvent event: nodeMap.get(node)) {
@@ -117,15 +106,12 @@ public class InstrumentationEngine {
 
                 // Performs the actual instrumentation and receives the new instrumented file name
                 Instrumentor instrumentor = getInstrumentor(service.getServiceType());
-                newApplicationAddress = instrumentor.instrument(
+                instrumentor.instrument(
                         nodeWorkspaceMap.get(node.getName()),
                         instrumentationDefinitions
                 );
             }
-            retMap.put(node.getName(), newApplicationAddress);
         }
-
-        return retMap;
     }
 
     private List<InstrumentationDefinition> preProcessInstrumentationDefinitions(List<InstrumentationDefinition> definitions) throws InstrumentationException {

@@ -7,6 +7,7 @@ import me.arminb.spidersilk.dsl.entities.PathEntry;
 import me.arminb.spidersilk.dsl.entities.Service;
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.exceptions.WorkspaceException;
+import me.arminb.spidersilk.util.FileUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
@@ -14,9 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -102,8 +101,13 @@ public class WorkspaceManager {
         // copies over the node paths to the node root directory
         copyOverNodePaths(node, nodeService, nodeRootDirectory);
 
+        String instrumentableAddress = nodeService.getInstrumentableAddress();
+        if (instrumentableAddress != null) {
+            instrumentableAddress = FilenameUtils.normalize(nodeRootDirectory.resolve(instrumentableAddress).toAbsolutePath().toString());
+        }
+
         return new NodeWorkspace(
-                FilenameUtils.normalize(nodeRootDirectory.resolve(nodeService.getInstrumentableAddress()).toAbsolutePath().toString()),
+                instrumentableAddress,
                 getNodeLibPaths(nodeService, nodeRootDirectory),
                 nodeWorkingDirectory.toAbsolutePath().toString(),
                 nodeRootDirectory.toAbsolutePath().toString(),
@@ -142,11 +146,12 @@ public class WorkspaceManager {
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
                 if (new File(pathEntry.getPath()).isDirectory()) {
-                    FileUtils.copyDirectory(new File(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile());
+                    FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
+                            nodeRootDirectory.resolve(pathEntry.getTargetPath()));
                 } else {
-                    FileUtils.copyFile(new File(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile());
+                    Files.copy(Paths.get(pathEntry.getPath()),
+                            nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
+                            StandardCopyOption.REPLACE_EXISTING);
                 }
             }
 
@@ -155,14 +160,16 @@ public class WorkspaceManager {
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
                 if (new File(pathEntry.getPath()).isDirectory()) {
-                    FileUtils.copyDirectory(new File(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile());
+                    FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
+                            nodeRootDirectory.resolve(pathEntry.getTargetPath()));
                 } else {
-                    FileUtils.copyFile(new File(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile());
+                    Files.copy(Paths.get(pathEntry.getPath()),
+                            nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
+                            StandardCopyOption.REPLACE_EXISTING);
                 }
             }
         } catch (IOException e) {
+            logger.error("kooni", e);
             throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!");
         }
     }

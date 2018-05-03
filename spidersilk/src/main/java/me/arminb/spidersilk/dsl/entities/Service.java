@@ -48,7 +48,9 @@ public class Service extends DeploymentEntity {
     private final String dockerFileAddress;
     private final Boolean dockerImageForceBuild;
     private final String instrumentableAddress;
-    private final String runCommand;
+    private final String initCommand;
+    private final String startCommand;
+    private final String stopCommand;
     private final ServiceType serviceType;
     private Integer pathOrderCounter;
     private final String appHomeEnvVar;
@@ -59,7 +61,9 @@ public class Service extends DeploymentEntity {
         dockerFileAddress = builder.dockerFileAddress;
         dockerImageForceBuild = builder.dockerImageForceBuild;
         instrumentableAddress = builder.instrumentableAddress;
-        runCommand = builder.runCommand;
+        initCommand = builder.initCommand;
+        startCommand = builder.startCommand;
+        stopCommand = builder.stopCommand;
         serviceType = builder.serviceType;
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
         libraryPaths = Collections.unmodifiableSet(builder.libraryPaths);
@@ -86,8 +90,16 @@ public class Service extends DeploymentEntity {
         return instrumentableAddress;
     }
 
-    public String getRunCommand() {
-        return runCommand;
+    public String getInitCommand() {
+        return initCommand;
+    }
+
+    public String getStartCommand() {
+        return startCommand;
+    }
+
+    public String getStopCommand() {
+        return stopCommand;
     }
 
     public ServiceType getServiceType() {
@@ -130,7 +142,9 @@ public class Service extends DeploymentEntity {
         private String dockerFileAddress;
         private Boolean dockerImageForceBuild;
         private String instrumentableAddress;
-        private String runCommand;
+        private String initCommand;
+        private String startCommand;
+        private String stopCommand;
         private ServiceType serviceType;
         private Integer pathOrderCounter;
         private String appHomeEnvVar;
@@ -160,7 +174,9 @@ public class Service extends DeploymentEntity {
             dockerFileAddress = new String(instance.dockerFileAddress);
             dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
             instrumentableAddress = new String(instance.instrumentableAddress);
-            runCommand = new String(instance.runCommand);
+            initCommand = new String(instance.initCommand);
+            startCommand = new String(instance.startCommand);
+            stopCommand = new String(instance.stopCommand);
             serviceType = instance.serviceType;
             applicationPaths = new HashMap<>(instance.applicationPaths);
             libraryPaths = new HashSet<>(instance.libraryPaths);
@@ -191,8 +207,18 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder runCommand(String runCommand) {
-            this.runCommand = runCommand;
+        public ServiceBuilder startCommand(String startCommand) {
+            this.startCommand = startCommand;
+            return this;
+        }
+
+        public ServiceBuilder initCommand(String initCommand) {
+            this.initCommand = initCommand;
+            return this;
+        }
+
+        public ServiceBuilder stopCommand(String stopCommand) {
+            this.stopCommand = stopCommand;
             return this;
         }
 

@@ -49,7 +49,9 @@ public class Node extends ReferableDeploymentEntity {
     private final Set<String> logFiles;
     private final String logFolder;
     private final String serviceName;
-    private final String runCommand;
+    private final String initCommand;
+    private final String startCommand;
+    private final String stopCommand;
     private final Map<String, InternalEvent> internalEvents;
     private final Boolean offOnStartup;
     private final Integer pathOrderCounter;
@@ -58,7 +60,9 @@ public class Node extends ReferableDeploymentEntity {
     private Node(NodeBuilder builder) {
         super(builder.getName());
         serviceName = builder.serviceName;
-        runCommand = builder.runCommand;
+        initCommand = builder.initCommand;
+        startCommand = builder.startCommand;
+        stopCommand = builder.stopCommand;
         internalEvents = Collections.unmodifiableMap(builder.internalEvents);
         offOnStartup = builder.offOnStartup;
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
@@ -73,8 +77,16 @@ public class Node extends ReferableDeploymentEntity {
         return serviceName;
     }
 
-    public String getRunCommand() {
-        return runCommand;
+    public String getInitCommand() {
+        return initCommand;
+    }
+
+    public String getStartCommand() {
+        return startCommand;
+    }
+
+    public String getStopCommand() {
+        return stopCommand;
     }
 
     public InternalEvent getInternalEvent(String name) {
@@ -117,7 +129,9 @@ public class Node extends ReferableDeploymentEntity {
         private Set<String> logFiles;
         private String logFolder;
         private final String serviceName;
-        private String runCommand;
+        private String initCommand;
+        private String startCommand;
+        private String stopCommand;
         private Map<String, InternalEvent> internalEvents;
         private Boolean offOnStartup;
         private Integer pathOrderCounter;
@@ -143,7 +157,9 @@ public class Node extends ReferableDeploymentEntity {
         public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, Node instance) {
             super(parentBuilder, instance);
             serviceName = new String(instance.serviceName);
-            runCommand = new String(instance.runCommand);
+            initCommand = new String(instance.initCommand);
+            startCommand = new String(instance.startCommand);
+            stopCommand = new String(instance.stopCommand);
             offOnStartup = new Boolean(instance.offOnStartup);
             internalEvents = new HashMap<>(instance.internalEvents);
             applicationPaths = new HashMap<>(instance.applicationPaths);
@@ -252,8 +268,18 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
-        public NodeBuilder runCommand(String runCommand) {
-            this.runCommand = runCommand;
+        public NodeBuilder initCommand(String initCommand) {
+            this.initCommand = initCommand;
+            return this;
+        }
+
+        public NodeBuilder startCommand(String startCommand) {
+            this.startCommand = startCommand;
+            return this;
+        }
+
+        public NodeBuilder stopCommand(String stopCommand) {
+            this.stopCommand = stopCommand;
             return this;
         }
 

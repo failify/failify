@@ -178,11 +178,11 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(nodeName);
 
         for (Map.Entry<String, String> entry: nodeService.getEnvironmentVariables().entrySet()) {
-            environment.put(entry.getKey(), entry.getValue());
+            environment.put(entry.getKey(), improveNodeAddress(nodeName, entry.getValue()));
         }
 
         for (Map.Entry<String, String> entry: node.getEnvironmentVariables().entrySet()) {
-            environment.put(entry.getKey(), entry.getValue());
+            environment.put(entry.getKey(), improveNodeAddress(nodeName, entry.getValue()));
         }
 
         environment.put(getNodeAppHomeEnvVar(nodeName), nodeWorkspace.getRootDirectory());
@@ -216,15 +216,54 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected Set<String> getNodeLogFiles(Node node) {
         Set<String> logFiles = new HashSet<>(deployment.getService(node.getServiceName()).getLogFiles());
         logFiles.addAll(node.getLogFiles());
+
+
+        logFiles.stream().forEach(logFile -> improveNodeAddress(node.getName(), logFile));
         return logFiles;
     }
 
     protected String getNodeLogFolder(Node node) {
         if (node.getLogFolder() != null) {
-            return node.getLogFolder();
+            return improveNodeAddress(node.getName(), node.getLogFolder());
         }
-        return deployment.getService(node.getServiceName()).getLogFolder();
+        return improveNodeAddress(node.getName(), deployment.getService(node.getServiceName()).getLogFolder());
     }
+
+    protected String improveNodeAddress(String nodeName, String address) {
+        return address.replace("{{APP_HOME}}", nodeWorkspaceMap.get(nodeName).getRootDirectory());
+    }
+
+    protected String getNodeInitCommand(String nodeName) {
+        Node node = deployment.getNode(nodeName);
+        Service nodeService = deployment.getService(node.getServiceName());
+
+        if (node.getInitCommand() != null) {
+            return node.getInitCommand();
+        }
+        return nodeService.getInitCommand();
+    }
+
+    protected String getNodeStartCommand(String nodeName) {
+        Node node = deployment.getNode(nodeName);
+        Service nodeService = deployment.getService(node.getServiceName());
+
+        if (node.getStartCommand() != null) {
+            return node.getStartCommand();
+        }
+        return nodeService.getStartCommand();
+    }
+
+    protected String getNodeStopCommand(String nodeName) {
+        Node node = deployment.getNode(nodeName);
+        Service nodeService = deployment.getService(node.getServiceName());
+
+        if (node.getStopCommand() != null) {
+            return node.getStopCommand();
+        }
+        return nodeService.getStopCommand();
+    }
+
+
 
     public void waitFor(String eventName) throws RuntimeEngineException {
         if (deployment.isInRunSequence(eventName)) {

@@ -26,9 +26,7 @@
 package me.arminb.spidersilk.execution.single_node;
 
 import com.google.common.collect.ImmutableList;
-import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.*;
 import me.arminb.spidersilk.Constants;
@@ -46,6 +44,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
@@ -90,6 +89,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             }
         }
 
+        for (String nodeName: nodeToContainerInfoMap.keySet()) {
+            logger.info("Node {} ip address is: {}", nodeName, nodeToContainerInfoMap.get(nodeName).ip());
+        }
+
         // We don't want any other change in this map later
         nodeToContainerInfoMap = Collections.unmodifiableMap(nodeToContainerInfoMap);
     }
@@ -127,13 +130,24 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // Adds auto remove after stop
         hostConfigBuilder.autoRemove(true);
         // Sets env vars for the container
+        List<String> envList = new ArrayList<>();
         for (Map.Entry<String, String> envEntry: getNodeEnvironmentVariablesMap(node.getName()).entrySet()) {
-            containerConfigBuilder.env(envEntry.getKey() + "=" + envEntry.getValue());
+            envList.add(envEntry.getKey() + "=" + envEntry.getValue());
         }
+        containerConfigBuilder.env(envList);
         // Adds wrapper script to the node's root directory
         String wrapperScriptAddress = createWrapperScriptForNode(node);
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
         hostConfigBuilder.capAdd("NET_ADMIN").networkMode(networkManager.dockerNetworkName());
+        // Creates do init file in the workspace and adds a bind mount for it
+        try {
+            Files.write(Paths.get(nodeWorkspace.getWorkingDirectory(), "spidersilk_do_init"), "1".getBytes());
+        } catch (IOException e) {
+            throw new RuntimeEngineException("Error while spidersilk do init file in node " + node.getName() + " workspace!");
+        }
+        hostConfigBuilder.appendBinds(HostConfig.Bind
+                .from(Paths.get(nodeWorkspace.getWorkingDirectory(), "spidersilk_do_init").toAbsolutePath().toString())
+                .to("/spidersilk_do_init").build());
         // Adds workspace to the container and sets working directory
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(nodeWorkspace.getRootDirectory())
                 .to(nodeWorkspace.getRootDirectory()).readOnly(false).build());
@@ -170,7 +184,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLogFileName).to(logFile).build());
         }
         // Sets the wrapper script as the starting command
-        containerConfigBuilder.cmd(wrapperScriptAddress);
+        containerConfigBuilder.cmd("/bin/sh", "-c", wrapperScriptAddress + " >> /spidersilk_out_err 2>&1");
         // Finalizing host config
         containerConfigBuilder.hostConfig(hostConfigBuilder.build());
         // Creates the container
@@ -191,17 +205,21 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
      * @return the address of wrapper script
      */
     private String createWrapperScriptForNode(Node node) throws RuntimeEngineException {
-        Service nodeService = deployment.getService(node.getServiceName());
         File wrapperScriptFile = new File(nodeWorkspaceMap.get(node.getName()).getRootDirectory() + "/wrapper_script");
-
-        String runCommand = nodeService.getRunCommand();
-        if (node.getRunCommand() != null) {
-            runCommand = node.getRunCommand();
-        }
 
         try {
             String wrapperScriptString = IOUtils.toString(ClassLoader.getSystemResourceAsStream("wrapper_script"),
-                    StandardCharsets.UTF_8).replace("{{RUN_COMMAND}}", runCommand);
+                    StandardCharsets.UTF_8);
+            String initCommand = getNodeInitCommand(node.getName());
+            String startCommand = getNodeStartCommand(node.getName());
+
+            if (initCommand != null) {
+                wrapperScriptString = wrapperScriptString.replace("{{INIT_COMMAND}}", initCommand);
+            } else {
+                wrapperScriptString = wrapperScriptString.replace("{{INIT_COMMAND}}", ":");
+            }
+            wrapperScriptString = wrapperScriptString.replace("{{START_COMMAND}}", startCommand);
+
             FileOutputStream fileOutputStream = new FileOutputStream(wrapperScriptFile);
             IOUtils.write(wrapperScriptString, fileOutputStream, StandardCharsets.UTF_8);
             fileOutputStream.close();
@@ -259,6 +277,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         if (nodeToContainerInfoMap.containsKey(nodeName)) {
             logger.info("Stopping node {} ...", nodeName);
             try {
+                // Runs stop command. useful for stopping daemon processes gracefully
+                String stopCommand = getNodeStopCommand(nodeName);
+                if (stopCommand != null) {
+                    runCommandInNode(nodeName, stopCommand);
+                }
                 dockerClient.stopContainer(nodeToContainerInfoMap.get(nodeName).containerId(), secondsUntilForcedStop);
                 logger.info("Node {} container is stopped!", nodeName);
             } catch (InterruptedException e) {
@@ -284,6 +307,18 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             } catch (InterruptedException e) {
                 throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!");
             }
+            // Prevents the init command to be executed in the next run of this node
+            try {
+                Thread.sleep(50);
+            } catch (InterruptedException e) {
+                throw new RuntimeEngineException("Error while waiting for node " + nodeName + " to get started!");
+            }
+            try {
+                Files.write(Paths.get(nodeWorkspaceMap.get(nodeName).getWorkingDirectory(), "spidersilk_do_init"),
+                        "0".getBytes());
+            } catch (IOException e) {
+                throw new RuntimeEngineException("Error while spidersilk do init file in node " + nodeName + " workspace!");
+            }
         } else {
             logger.error("There is no container for node {} to be started!", nodeName);
         }
@@ -294,6 +329,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         if (nodeToContainerInfoMap.containsKey(nodeName)) {
             logger.info("Restarting node {} ...", nodeName);
             try {
+                // Runs stop command. useful for restarting daemon processes gracefully
+                String stopCommand = getNodeStopCommand(nodeName);
+                if (stopCommand != null) {
+                    runCommandInNode(nodeName, stopCommand);
+                }
                 dockerClient.restartContainer(nodeToContainerInfoMap.get(nodeName).containerId());
                 networkManager.reApplyIptablesRules(nodeName);
                 logger.info("Container {} for node {} is restarted!", nodeToContainerInfoMap.get(nodeName).containerId(), nodeName);

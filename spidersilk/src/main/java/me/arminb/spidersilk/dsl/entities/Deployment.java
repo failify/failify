@@ -277,7 +277,7 @@ public class Deployment extends DeploymentEntity {
             secondsToWaitForCompletion = 5;
             appHomeEnvVar = Constants.DEFAULT_APP_HOME_ENVVAR_NAME;
             secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
-            nextEventReceiptTimeout = Constants.DEFAULT_NEXT_EVENT_RECEIPT_TIMEOUT;
+            nextEventReceiptTimeout = null;
         }
 
         public DeploymentBuilder(Deployment instance) {

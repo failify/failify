@@ -110,7 +110,6 @@ import org.slf4j.LoggerFactory;
 public class MultithreadTest {
     public static final Logger logger = LoggerFactory.getLogger(MultithreadTest.class);
 
-    @Test
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
         Deployment deployment = new Deployment.DeploymentBuilder()
                 // Service Definitions
@@ -118,7 +117,7 @@ public class MultithreadTest {
                     .applicationPath("../sample-multithread/target/multithread-helloworld.jar")
                     .relativeInstrumentableAddress("multithread-helloworld.jar")
                     .exposeAppHomeDirectoryAs("HADOOP_HOME")
-                    .runCommand("java -jar ${HADOOP_HOME}/multithread-helloworld.jar")
+                    .startCommand("java -jar ${HADOOP_HOME}/multithread-helloworld.jar")
                     .dockerImage("spidersilk/sample-multithread")
                     .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)
                     .logFile("/var/log/spidersilk")

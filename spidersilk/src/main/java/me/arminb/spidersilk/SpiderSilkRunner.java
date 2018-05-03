@@ -68,9 +68,11 @@ public class SpiderSilkRunner {
         spiderSilkRunner.start();
 
         // Starts last event receipt timeout checker
-        logger.info("Starting next event receipt timeout checker thread with {} seconds timeout ..."
-                , deployment.getNextEventReceiptTimeout());
-        new NextEventReceiptTimeoutCheckerThread(spiderSilkRunner).start();
+        if (deployment.getNextEventReceiptTimeout() != null) {
+            logger.info("Starting next event receipt timeout checker thread with {} seconds timeout ..."
+                    , deployment.getNextEventReceiptTimeout());
+            new NextEventReceiptTimeoutCheckerThread(spiderSilkRunner).start();
+        }
 
         return spiderSilkRunner;
     }

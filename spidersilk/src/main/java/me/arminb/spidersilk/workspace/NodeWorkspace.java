@@ -33,4 +33,8 @@ public class NodeWorkspace {
     public String getLogDirectory() {
         return logDirectory;
     }
+
+    public String getWorkingDirectory() {
+        return workingDirectory;
+    }
 }

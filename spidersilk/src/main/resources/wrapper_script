@@ -1,10 +1,22 @@
 #!/bin/sh
 
-# Start the first process
-{{RUN_COMMAND}} >> /spidersilk_out_err 2>&1
+env
+
+# run the init command
+if [ $(cat /spidersilk_do_init) = "1" ]; then
+    {{INIT_COMMAND}}
+    status=$?
+    if [ $status -ne 0 ]; then
+      echo "Failed to start {{INIT_COMMAND}}: $status"
+      exit $status
+    fi
+fi
+
+# run the start command
+{{START_COMMAND}}
 status=$?
 if [ $status -ne 0 ]; then
-  echo "Failed to start {{RUN_COMMAND}}: $status"
+  echo "Failed to start {{START_COMMAND}}: $status"
   exit $status
 fi
 
