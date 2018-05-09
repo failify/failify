@@ -110,6 +110,7 @@ import org.slf4j.LoggerFactory;
 public class MultithreadTest {
     public static final Logger logger = LoggerFactory.getLogger(MultithreadTest.class);
 
+    @Test
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
         Deployment deployment = new Deployment.DeploymentBuilder()
                 // Service Definitions

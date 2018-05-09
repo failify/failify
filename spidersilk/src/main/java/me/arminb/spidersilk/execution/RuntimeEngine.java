@@ -216,17 +216,19 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected Set<String> getNodeLogFiles(Node node) {
         Set<String> logFiles = new HashSet<>(deployment.getService(node.getServiceName()).getLogFiles());
         logFiles.addAll(node.getLogFiles());
-
-
         logFiles.stream().forEach(logFile -> improveNodeAddress(node.getName(), logFile));
         return logFiles;
     }
 
     protected String getNodeLogFolder(Node node) {
+        Service nodeService = deployment.getService(node.getServiceName());
         if (node.getLogFolder() != null) {
             return improveNodeAddress(node.getName(), node.getLogFolder());
         }
-        return improveNodeAddress(node.getName(), deployment.getService(node.getServiceName()).getLogFolder());
+        if (nodeService.getLogFolder() != null) {
+            return improveNodeAddress(node.getName(), nodeService.getLogFolder());
+        }
+        return null;
     }
 
     protected String improveNodeAddress(String nodeName, String address) {
