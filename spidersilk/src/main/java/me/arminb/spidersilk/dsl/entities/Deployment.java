@@ -43,6 +43,7 @@ import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.*;
 
 /**
@@ -330,6 +331,20 @@ public class Deployment extends DeploymentEntity {
 
         public Service.ServiceBuilder withService(String name) {
             return new Service.ServiceBuilder(this, name);
+        }
+
+        public Service.ServiceBuilder withServiceFromJavaClasspath(String name) {
+            Service.ServiceBuilder serviceBuilder = new Service.ServiceBuilder(this, name);
+            StringBuilder newClassPath = new StringBuilder();
+            for (String path: System.getProperty("java.class.path").split(":")) {
+                String fileName = new File(path).getName();
+                serviceBuilder.applicationPath(path, true, "lib/" + fileName );
+                // TODO this is not a good for handling folders. e.g. target/classes changes to lib/classes
+                newClassPath.append("{{APP_HOME}}/lib/" + fileName);
+                newClassPath.append(":");
+            }
+            serviceBuilder.environmentVariable(Constants.JAVA_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
+            return serviceBuilder;
         }
 
         public NodeOperationEvent.NodeOperationEventBuilder withNodeOperationEvent(String name) {

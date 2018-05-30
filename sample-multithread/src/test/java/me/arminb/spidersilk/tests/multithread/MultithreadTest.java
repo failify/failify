@@ -1,6 +1,30 @@
 /*
  * MIT License
  *
+ * Copyright (c) 2017-2018 Armin Balalaie
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*
+ * MIT License
+ *
  * Copyright (c) 2017 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -114,11 +138,9 @@ public class MultithreadTest {
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
         Deployment deployment = new Deployment.DeploymentBuilder()
                 // Service Definitions
-                .withService("s1")
-                    .applicationPath("../sample-multithread/target/multithread-helloworld.jar")
-                    .relativeInstrumentableAddress("multithread-helloworld.jar")
-                    .exposeAppHomeDirectoryAs("HADOOP_HOME")
-                    .startCommand("java -jar ${HADOOP_HOME}/multithread-helloworld.jar")
+                .withServiceFromJavaClasspath("s1")
+                    .relativeInstrumentableAddress("lib/classes")
+                    .startCommand("java -cp ${SPIDERSILK_JAVA_CLASSPATH} me.arminb.spidersilk.samples.multithread.Main")
                     .dockerImage("spidersilk/sample-multithread")
                     .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)
                     .logFile("/var/log/spidersilk")

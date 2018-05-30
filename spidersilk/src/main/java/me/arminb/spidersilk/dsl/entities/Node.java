@@ -33,7 +33,6 @@ import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.dsl.events.internal.StackTraceEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 import me.arminb.spidersilk.exceptions.PathNotFoundException;
-import me.arminb.spidersilk.util.PathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -284,7 +283,7 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         public NodeBuilder applicationPath(String path) {
-            applicationPath(path, PathUtil.getLastFolderOrFileName(path));
+            applicationPath(path, new File(path).getName());
             return this;
         }
 

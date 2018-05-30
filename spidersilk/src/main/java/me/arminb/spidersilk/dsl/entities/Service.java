@@ -28,7 +28,6 @@ package me.arminb.spidersilk.dsl.entities;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.exceptions.PathNotFoundException;
-import me.arminb.spidersilk.util.PathUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -228,7 +227,7 @@ public class Service extends DeploymentEntity {
         }
 
         public ServiceBuilder applicationPath(String path) {
-            applicationPath(path, false, PathUtil.getLastFolderOrFileName(path));
+            applicationPath(path, false, new File(path).getName());
             return this;
         }
 
@@ -238,7 +237,7 @@ public class Service extends DeploymentEntity {
         }
 
         public ServiceBuilder applicationPath(String path, Boolean isLibrary) {
-            applicationPath(path, isLibrary, PathUtil.getLastFolderOrFileName(path));
+            applicationPath(path, isLibrary, new File(path).getName());
             return this;
         }
 

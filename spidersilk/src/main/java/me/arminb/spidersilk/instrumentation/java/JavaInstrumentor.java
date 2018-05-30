@@ -28,10 +28,13 @@ package me.arminb.spidersilk.instrumentation.java;
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 import me.arminb.spidersilk.instrumentation.Instrumentor;
+import me.arminb.spidersilk.util.JarUtil;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
 import me.arminb.spidersilk.util.ShellUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,8 +42,11 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.jar.JarFile;
 
 public class JavaInstrumentor implements Instrumentor {
+
+    private static final Logger logger = LoggerFactory.getLogger(JavaInstrumentor.class);
 
     @Override
     public String instrument(NodeWorkspace nodeWorkspace, List<InstrumentationDefinition> instrumentationDefinitions)
@@ -90,10 +96,6 @@ public class JavaInstrumentor implements Instrumentor {
             if (ajcProcess.exitValue() != 0) {
                 throw new InstrumentationException("Error in instrumenting using AspectJ. See log file in " +
                         Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toString() + "!");
-            } else {
-                FileUtils.copyFile(Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toFile(),
-                        new File(nodeWorkspace.getInstrumentableAddress()));
-                Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toFile().delete();
             }
         } catch (IOException e) {
             throw new InstrumentationException("Error in instrumenting using AspectJ. See log file in " +
@@ -101,6 +103,22 @@ public class JavaInstrumentor implements Instrumentor {
         } catch (InterruptedException e) {
             throw new InstrumentationException("Error in instrumenting using AspectJ. See log file in " +
                     Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toString() + "!");
+        }
+
+        try {
+            if (new File(nodeWorkspace.getInstrumentableAddress()).isDirectory()) {
+                JarFile jarFile = new JarFile(Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar")
+                        .toAbsolutePath().toString());
+                JarUtil.unzipJar(Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar")
+                        .toAbsolutePath().toString(), nodeWorkspace.getInstrumentableAddress());
+            } else {
+                FileUtils.copyFile(Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toFile(),
+                        new File(nodeWorkspace.getInstrumentableAddress()));
+            }
+            Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toFile().delete();
+
+        } catch (IOException e) {
+            throw new InstrumentationException("Error while trying to unzip aspectj jar output!");
         }
 
         return FilenameUtils.normalize(Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toString());

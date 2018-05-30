@@ -149,6 +149,7 @@ public class WorkspaceManager {
                     FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
                             nodeRootDirectory.resolve(pathEntry.getTargetPath()));
                 } else {
+                    nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
                     Files.copy(Paths.get(pathEntry.getPath()),
                             nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
                             StandardCopyOption.REPLACE_EXISTING);
@@ -163,13 +164,13 @@ public class WorkspaceManager {
                     FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
                             nodeRootDirectory.resolve(pathEntry.getTargetPath()));
                 } else {
+                    nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
                     Files.copy(Paths.get(pathEntry.getPath()),
                             nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
                             StandardCopyOption.REPLACE_EXISTING);
                 }
             }
         } catch (IOException e) {
-            logger.error("kooni", e);
             throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!");
         }
     }

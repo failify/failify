@@ -82,6 +82,5 @@
         <module>spidersilkrt</module>
         <module>spidersilk</module>
         <module>sample-multithread</module>
-        <module>test-multithread</module>
     </modules>
 </project>
