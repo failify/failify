@@ -6,6 +6,7 @@ import com.spotify.docker.client.messages.Network;
 import com.spotify.docker.client.messages.NetworkConfig;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
+import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +16,7 @@ import java.util.*;
 public class DockerNetworkManager {
     private final static Logger logger = LoggerFactory.getLogger(DockerNetworkManager.class);
 
-    private final SingleNodeRuntimeEngine runtimeEngine;
+    private final LimitedRuntimeEngine runtimeEngine;
     private final DockerClient dockerClient;
     private final String dockerNetworkId;
     private final String dockerNetworkName;
@@ -23,10 +24,10 @@ public class DockerNetworkManager {
     private Integer currentIp;
     private Map<String, Set<String>> blockedNodesMap;
 
-    public DockerNetworkManager(SingleNodeRuntimeEngine runtimeEngine)
+    public DockerNetworkManager(LimitedRuntimeEngine runtimeEngine, DockerClient dockerClient)
             throws RuntimeEngineException {
         this.runtimeEngine = runtimeEngine;
-        this.dockerClient = runtimeEngine.getDockerClient();
+        this.dockerClient = dockerClient;
         blockedNodesMap = new HashMap<>();
 
         // Sets docker network's name, creates it and fetches its id
@@ -127,9 +128,7 @@ public class DockerNetworkManager {
                             throw new RuntimeEngineException("Error while adding iptables rules to node " + partitionNode + "!");
                         }
                         blockedNodesMap.get(partitionNode).addAll(others);
-                    } catch (InterruptedException e) {
-                        throw new RuntimeEngineException("Error while adding iptables rules to node " + partitionNode + "!");
-                    } catch (DockerException e) {
+                    } catch (RuntimeEngineException e) {
                         throw new RuntimeEngineException("Error while adding iptables rules to node " + partitionNode + "!");
                     }
                 }
@@ -161,9 +160,7 @@ public class DockerNetworkManager {
                     }
                     blockedNodesMap.put(nodeName, new HashSet<>());
                 }
-            } catch (InterruptedException e) {
-                throw new RuntimeEngineException("Error while trying to delete iptables rules in node " + nodeName + "!");
-            } catch (DockerException e) {
+            } catch (RuntimeEngineException e) {
                 throw new RuntimeEngineException("Error while trying to delete iptables rules in node " + nodeName + "!");
             }
         }
@@ -189,9 +186,7 @@ public class DockerNetworkManager {
                 if (runtimeEngine.runCommandInNode(nodeName, outputCommand) != 0) {
                     throw new RuntimeEngineException("Error while adding iptables rules to node " + nodeName + "!");
                 }
-            } catch (InterruptedException e) {
-                throw new RuntimeEngineException("Error while adding iptables rules to node " + nodeName + "!");
-            } catch (DockerException e) {
+            } catch (RuntimeEngineException e) {
                 throw new RuntimeEngineException("Error while adding iptables rules to node " + nodeName + "!");
             }
         }

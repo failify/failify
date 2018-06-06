@@ -26,7 +26,10 @@
 package me.arminb.spidersilk.execution.single_node;
 
 import com.google.common.collect.ImmutableList;
+import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
+import com.spotify.docker.client.LoggingBuildHandler;
+import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.*;
 import me.arminb.spidersilk.Constants;
@@ -45,6 +48,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
@@ -54,6 +58,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     private Map<String, DockerContainerInfo> nodeToContainerInfoMap;
     private DockerNetworkManager networkManager;
+    private DockerClient dockerClient;
 
     public SingleNodeRuntimeEngine(Deployment deployment) {
         super(deployment);
@@ -74,8 +79,19 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     @Override
     protected void startNodes() throws RuntimeEngineException {
+        // Creates the docker client
+        try {
+            dockerClient = DefaultDockerClient.fromEnv().build();
+        } catch (DockerCertificateException e) {
+            throw new RuntimeEngineException("Cannot create docker client!");
+        }
+
+        // Builds docker images for the services if necessary
+        logger.info("Building docker images ...");
+        buildDockerImages();
+
         // creates a new docker network. This will be a new one every time the runtime engine starts.
-        networkManager = new DockerNetworkManager(this);
+        networkManager = new DockerNetworkManager(this, dockerClient);
 
         logger.info("Creating a container for each of the nodes ...");
         for (Node node: deployment.getNodes().values()) {
@@ -97,23 +113,64 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         nodeToContainerInfoMap = Collections.unmodifiableMap(nodeToContainerInfoMap);
     }
 
-    public int runCommandInNode(String nodeName, String command) throws DockerException, InterruptedException {
+    public int runCommandInNode(String nodeName, String command) throws RuntimeEngineException{
         if (!nodeToContainerInfoMap.containsKey(nodeName)) {
             logger.error("Node {} does not have a running container to run command {}!", nodeName, command);
             return -1;
         }
 
-        ExecCreation execCreation = dockerClient.execCreate(nodeToContainerInfoMap.get(nodeName).containerId(),
-                command.split("\\s+"));
-        dockerClient.execStart(execCreation.id());
+        ExecCreation execCreation;
+
+        try {
+            execCreation = dockerClient.execCreate(nodeToContainerInfoMap.get(nodeName).containerId(),
+                    command.split("\\s+"));
+            dockerClient.execStart(execCreation.id());
+        } catch (InterruptedException e) {
+            throw new RuntimeEngineException("Error while trying to run command " + command + " in node "
+                    + nodeName + "!");
+        } catch (DockerException e) {
+            throw new RuntimeEngineException("Error while trying to run command " + command + " in node "
+                    + nodeName + "!");
+        }
 
         ExecState execState;
-        do {
-            Thread.sleep(10);
-            execState = dockerClient.execInspect(execCreation.id());
-        } while (execState.running());
+
+        try {
+            do {
+                Thread.sleep(10);
+                execState = dockerClient.execInspect(execCreation.id());
+            } while (execState.running());
+        } catch (InterruptedException e) {
+            throw new RuntimeEngineException("Error while trying to inspect the status of command " + command
+                    + " in node " + nodeName + "!");
+        } catch (DockerException e) {
+            throw new RuntimeEngineException("Error while trying to inspect the status of command " + command
+                    + " in node " + nodeName + "!");
+        }
 
         return execState.exitCode();
+    }
+
+    private void buildDockerImages() throws RuntimeEngineException {
+        for (Service service: deployment.getServices().values()) {
+            try {
+                if (service.getDockerImageForceBuild() ||
+                        dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImage())).isEmpty()) {
+                    logger.info("Building docker image `{}` for service {} ...", service.getDockerImage(), service.getName());
+                    Path dockerFile = Paths.get(service.getDockerFileAddress()).toAbsolutePath().normalize();
+                    dockerClient.build(dockerFile.getParent(), service.getDockerImage(),
+                            new LoggingBuildHandler(),
+                            DockerClient.BuildParam.forceRm(),
+                            DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
+                }
+            } catch (DockerException e) {
+                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
+            } catch (InterruptedException e) {
+                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
+            } catch (IOException e) {
+                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
+            }
+        }
     }
 
     private void createNodeContainer(Node node) throws RuntimeEngineException {

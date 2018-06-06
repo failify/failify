@@ -13,6 +13,7 @@ public interface LimitedRuntimeEngine {
     void clockDrift(String nodeName) throws RuntimeEngineException;
     void networkPartition(String nodePartitions) throws RuntimeEngineException;
     void removeNetworkPartition() throws RuntimeEngineException;
+    int runCommandInNode(String nodeName, String command) throws RuntimeEngineException;
 
     // Runtime Info
     Set<String> nodeNames();

@@ -25,13 +25,6 @@
 
 package me.arminb.spidersilk.execution;
 
-import com.spotify.docker.client.DefaultDockerClient;
-import com.spotify.docker.client.DockerClient;
-import com.spotify.docker.client.LoggingBuildHandler;
-import com.spotify.docker.client.ProgressHandler;
-import com.spotify.docker.client.exceptions.DockerCertificateException;
-import com.spotify.docker.client.exceptions.DockerException;
-import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.SpiderSilkRunner;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
@@ -44,10 +37,7 @@ import me.arminb.spidersilk.workspace.NodeWorkspace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.net.UnknownHostException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 
 public abstract class RuntimeEngine implements LimitedRuntimeEngine {
@@ -56,7 +46,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected final Deployment deployment;
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
-    protected DockerClient dockerClient;
 
     public RuntimeEngine(Deployment deployment) {
         this.stopped = true;
@@ -74,12 +63,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     public void start(SpiderSilkRunner spiderSilkRunner) throws RuntimeEngineException {
-        try {
-            dockerClient = DefaultDockerClient.fromEnv().build();
-        } catch (DockerCertificateException e) {
-            throw new RuntimeEngineException("Cannot create docker client!");
-        }
-
         // Configure local SpiderSilk runtime
         try {
             SpiderSilk.configure(HostUtil.getLocalIpAddress(), deployment.getEventServerPortNumber().toString());
@@ -91,10 +74,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         if (nodeWorkspaceMap == null || nodeWorkspaceMap.isEmpty()) {
             throw new RuntimeEngineException("NodeWorkspaces is not set!");
         }
-
-        // Builds docker images for the services if necessary
-        logger.info("Building docker images ...");
-        buildDockerImages();
 
         logger.info("Starting event server ...");
         startEventServer();
@@ -108,28 +87,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         } catch (RuntimeEngineException e) {
             stop();
             throw e;
-        }
-    }
-
-    private void buildDockerImages() throws RuntimeEngineException {
-        for (Service service: deployment.getServices().values()) {
-            try {
-                if (service.getDockerImageForceBuild() ||
-                        dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImage())).isEmpty()) {
-                    logger.info("Building docker image `{}` for service {} ...", service.getDockerImage(), service.getName());
-                    Path dockerFile = Paths.get(service.getDockerFileAddress()).toAbsolutePath().normalize();
-                    dockerClient.build(dockerFile.getParent(), service.getDockerImage(),
-                            new LoggingBuildHandler(),
-                            DockerClient.BuildParam.forceRm(),
-                            DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
-                }
-            } catch (DockerException e) {
-                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
-            } catch (InterruptedException e) {
-                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
-            } catch (IOException e) {
-                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
-            }
         }
     }
 
