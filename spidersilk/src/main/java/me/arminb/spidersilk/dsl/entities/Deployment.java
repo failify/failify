@@ -344,6 +344,7 @@ public class Deployment extends DeploymentEntity {
                 newClassPath.append(":");
             }
             serviceBuilder.environmentVariable(Constants.JAVA_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
+            serviceBuilder.serviceType(ServiceType.JAVA);
             return serviceBuilder;
         }
 
