@@ -5,7 +5,6 @@ import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.entities.PathEntry;
 import me.arminb.spidersilk.dsl.entities.Service;
-import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.exceptions.WorkspaceException;
 import me.arminb.spidersilk.util.FileUtil;
 import org.apache.commons.io.FileUtils;
@@ -122,12 +121,11 @@ public class WorkspaceManager {
         // Adds application paths that are library to the set
         for (PathEntry pathEntry: nodeService.getApplicationPaths().values()) {
             if (pathEntry.isLibrary()) {
-                libPaths.add(FilenameUtils.normalize(
-                        nodeRootDirectory.resolve(pathEntry.getTargetPath()).toAbsolutePath().toString()));
+                libPaths.add(pathEntryToLibPath(pathEntry, nodeRootDirectory));
             }
         }
 
-        // Adds marked library paths
+        // Adds marked relative library paths
         for (String libPath: nodeService.getLibraryPaths()) {
             libPaths.add(FilenameUtils.normalize(nodeRootDirectory.resolve(libPath).toAbsolutePath().toString()));
         }
@@ -139,20 +137,31 @@ public class WorkspaceManager {
         return libPathsBuilder.toString();
     }
 
+    private String pathEntryToLibPath(PathEntry pathEntry, Path nodeRootDirectory) {
+        if (pathEntry.isShared()) {
+            return pathEntry.getTargetPath();
+        } else {
+            return FilenameUtils.normalize(
+                    nodeRootDirectory.resolve(pathEntry.getTargetPath()).toAbsolutePath().toString());
+        }
+    }
+
     private void copyOverNodePaths(Node node, Service nodeService, Path nodeRootDirectory) {
         try {
             // Copies over node's service paths based on their entry path order
             for (PathEntry pathEntry : nodeService.getApplicationPaths().values().stream()
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
-                if (new File(pathEntry.getPath()).isDirectory()) {
-                    FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()));
-                } else {
-                    nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
-                    Files.copy(Paths.get(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
-                            StandardCopyOption.REPLACE_EXISTING);
+                if (!pathEntry.isShared()) {
+                    if (new File(pathEntry.getPath()).isDirectory()) {
+                        FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
+                                nodeRootDirectory.resolve(pathEntry.getTargetPath()));
+                    } else {
+                        nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
+                        Files.copy(Paths.get(pathEntry.getPath()),
+                                nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
+                                StandardCopyOption.REPLACE_EXISTING);
+                    }
                 }
             }
 
@@ -160,14 +169,16 @@ public class WorkspaceManager {
             for (PathEntry pathEntry : node.getApplicationPaths().values().stream()
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
-                if (new File(pathEntry.getPath()).isDirectory()) {
-                    FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()));
-                } else {
-                    nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
-                    Files.copy(Paths.get(pathEntry.getPath()),
-                            nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
-                            StandardCopyOption.REPLACE_EXISTING);
+                if (!pathEntry.isShared()) {
+                    if (new File(pathEntry.getPath()).isDirectory()) {
+                        FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
+                                nodeRootDirectory.resolve(pathEntry.getTargetPath()));
+                    } else {
+                        nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
+                        Files.copy(Paths.get(pathEntry.getPath()),
+                                nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
+                                StandardCopyOption.REPLACE_EXISTING);
+                    }
                 }
             }
         } catch (IOException e) {

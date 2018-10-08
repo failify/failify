@@ -46,6 +46,7 @@ public class Node extends ReferableDeploymentEntity {
     private final Map<String, PathEntry> applicationPaths;
     private final Map<String, String> environmentVariables;
     private final Set<String> logFiles;
+    // TODO it should be possible to have multiple log folders
     private final String logFolder;
     private final String serviceName;
     private final String initCommand;
@@ -283,17 +284,29 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         public NodeBuilder applicationPath(String path) {
-            applicationPath(path, new File(path).getName());
+            applicationPath(path, path, true);
+            return this;
+        }
+
+        public NodeBuilder applicationPath(String path, Boolean isShared) {
+            applicationPath(path, path, isShared);
             return this;
         }
 
         public NodeBuilder applicationPath(String path, String targetPath) {
+            applicationPath(path, targetPath, true);
+            return this;
+        }
+
+        public NodeBuilder applicationPath(String path, String targetPath, Boolean isShared) {
             if (!new File(path).exists()) {
                 throw new PathNotFoundException(path);
             }
 
+            path = new File(path).getAbsolutePath();
+
             this.applicationPaths.put(path, new PathEntry(
-                    path, targetPath, false, pathOrderCounter++));
+                    path, targetPath, false, isShared, pathOrderCounter++));
             return this;
         }
 

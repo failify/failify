@@ -39,8 +39,11 @@ import java.util.*;
  */
 public class Service extends DeploymentEntity {
     private final Map<String, PathEntry> applicationPaths;
+    // Library paths relative to the node workspace. This is useful when a folder is copied over as an application path which
+    // is not a library. But for instrumentation purposes a sub-path inside this path needs to be marked as a library path
     private final Set<String> libraryPaths;
     private final Set<String> logFiles;
+    // TODO it should be possible to have multiple log folders
     private final String logFolder;
     private final Map<String, String> environmentVariables;
     private final String dockerImage;
@@ -227,27 +230,34 @@ public class Service extends DeploymentEntity {
         }
 
         public ServiceBuilder applicationPath(String path) {
-            applicationPath(path, false, new File(path).getName());
+            applicationPath(path, path, false, true);
             return this;
         }
 
         public ServiceBuilder applicationPath(String path, String targetPath) {
-            applicationPath(path, false, targetPath);
+            applicationPath(path, targetPath, false, true);
             return this;
         }
 
         public ServiceBuilder applicationPath(String path, Boolean isLibrary) {
-            applicationPath(path, isLibrary, new File(path).getName());
+            applicationPath(path, path, isLibrary, true);
             return this;
         }
 
-        public ServiceBuilder applicationPath(String path, Boolean isLibrary, String targetPath) {
+        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary) {
+            applicationPath(path, targetPath, isLibrary, true);
+            return this;
+        }
+
+        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean isShared) {
             if (!new File(path).exists()) {
                 throw new PathNotFoundException(path);
             }
 
+            path = new File(path).getAbsolutePath();
+
             this.applicationPaths.put(path, new PathEntry(
-                        path, targetPath, isLibrary, pathOrderCounter++));
+                        path, targetPath, isLibrary, isShared, pathOrderCounter++));
             return this;
         }
 

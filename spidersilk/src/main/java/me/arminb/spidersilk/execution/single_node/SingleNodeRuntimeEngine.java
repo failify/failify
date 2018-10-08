@@ -35,6 +35,7 @@ import com.spotify.docker.client.messages.*;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
+import me.arminb.spidersilk.dsl.entities.PathEntry;
 import me.arminb.spidersilk.dsl.entities.Service;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.RuntimeEngine;
@@ -209,6 +210,21 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(nodeWorkspace.getRootDirectory())
                 .to(nodeWorkspace.getRootDirectory()).readOnly(false).build());
         containerConfigBuilder.workingDir(nodeWorkspace.getRootDirectory());
+        // Adds shared application paths to the container
+        Map<String, PathEntry> allPaths = new HashMap(nodeService.getApplicationPaths());
+        allPaths.putAll(node.getApplicationPaths());
+        for (PathEntry pathEntry: allPaths.values()) {
+            if (pathEntry.isShared()) {
+                String targetPath;
+                if (new File(pathEntry.getTargetPath()).isAbsolute()) {
+                    targetPath = pathEntry.getTargetPath();
+                } else {
+                    targetPath = Paths.get(nodeWorkspace.getRootDirectory(), pathEntry.getTargetPath()).toAbsolutePath().toString();
+                }
+                hostConfigBuilder.appendBinds(HostConfig.Bind.from(pathEntry.getPath())
+                        .to(targetPath).readOnly(false).build());
+            }
+        }
         // Sets the network alias and hostname
         containerConfigBuilder.hostname(node.getName());
         Map<String, EndpointConfig> endpointConfigMap = new HashMap<>();

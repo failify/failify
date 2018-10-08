@@ -45,6 +45,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * The container class for the whole distributed system deployment definition. The builder class is the entry point for building
@@ -333,15 +334,25 @@ public class Deployment extends DeploymentEntity {
             return new Service.ServiceBuilder(this, name);
         }
 
-        public Service.ServiceBuilder withServiceFromJavaClasspath(String name) {
+        public Service.ServiceBuilder withServiceFromJavaClasspath(String name, String... pathToBeCopiedOver) {
             Service.ServiceBuilder serviceBuilder = new Service.ServiceBuilder(this, name);
+            Set<String> copiedOverPaths = Arrays.stream(pathToBeCopiedOver)
+                    .map((path) -> new File(path).getAbsolutePath())
+                    .collect(Collectors.toSet());
+
             StringBuilder newClassPath = new StringBuilder();
             for (String path: System.getProperty("java.class.path").split(":")) {
-                String fileName = new File(path).getName();
-                serviceBuilder.applicationPath(path, true, "lib/" + fileName );
-                // TODO this is not a good for handling folders. e.g. target/classes changes to lib/classes
-                newClassPath.append("{{APP_HOME}}/lib/" + fileName);
-                newClassPath.append(":");
+                if (copiedOverPaths.contains(new File(path).getAbsolutePath())) {
+                    String fileName = new File(path).getName();
+                    // TODO this is not a good for handling folders. e.g. target/classes changes to lib/classes
+                    serviceBuilder.applicationPath(path, "lib/" + fileName, true, false);
+                    newClassPath.append("{{APP_HOME}}/lib/" + fileName);
+                    newClassPath.append(":");
+                } else {
+                    serviceBuilder.applicationPath(path, true);
+                    newClassPath.append(path);
+                    newClassPath.append(":");
+                }
             }
             serviceBuilder.environmentVariable(Constants.JAVA_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
             serviceBuilder.serviceType(ServiceType.JAVA);
