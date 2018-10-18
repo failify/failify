@@ -46,8 +46,7 @@ public class Node extends ReferableDeploymentEntity {
     private final Map<String, PathEntry> applicationPaths;
     private final Map<String, String> environmentVariables;
     private final Set<String> logFiles;
-    // TODO it should be possible to have multiple log folders
-    private final String logFolder;
+    private final Set<String> logDirectories;
     private final String serviceName;
     private final String initCommand;
     private final String startCommand;
@@ -68,7 +67,7 @@ public class Node extends ReferableDeploymentEntity {
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
-        logFolder = builder.logFolder;
+        logDirectories = builder.logDirectories;
         pathOrderCounter = builder.pathOrderCounter;
         appHomeEnvVar = builder.appHomeEnvVar;
     }
@@ -109,8 +108,8 @@ public class Node extends ReferableDeploymentEntity {
         return logFiles;
     }
 
-    public String getLogFolder() {
-        return logFolder;
+    public Set<String> getLogDirectories() {
+        return logDirectories;
     }
 
     public Map<String, PathEntry> getApplicationPaths() {
@@ -127,7 +126,7 @@ public class Node extends ReferableDeploymentEntity {
         private Map<String, PathEntry> applicationPaths;
         private Map<String, String> environmentVariables;
         private Set<String> logFiles;
-        private String logFolder;
+        private Set<String> logDirectories;
         private final String serviceName;
         private String initCommand;
         private String startCommand;
@@ -145,7 +144,7 @@ public class Node extends ReferableDeploymentEntity {
             applicationPaths = new HashMap<>();
             environmentVariables = new HashMap<>();
             logFiles = new HashSet<>();
-            logFolder = null;
+            logDirectories = new HashSet<>();
             pathOrderCounter = 0;
             appHomeEnvVar = null;
         }
@@ -165,7 +164,7 @@ public class Node extends ReferableDeploymentEntity {
             applicationPaths = new HashMap<>(instance.applicationPaths);
             environmentVariables = new HashMap<>(instance.environmentVariables);
             logFiles = new HashSet<>(instance.logFiles);
-            logFolder = new String(instance.logFolder);
+            logDirectories = new HashSet<>(instance.logDirectories);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
             appHomeEnvVar = new String(instance.appHomeEnvVar);
         }
@@ -284,29 +283,23 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         public NodeBuilder applicationPath(String path) {
-            applicationPath(path, path, true);
+            applicationPath(path, path, false);
             return this;
         }
 
-        public NodeBuilder applicationPath(String path, Boolean isShared) {
-            applicationPath(path, path, isShared);
+        public NodeBuilder applicationPath(String path, Boolean willBeChanged) {
+            applicationPath(path, path, willBeChanged);
             return this;
         }
 
         public NodeBuilder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, true);
+            applicationPath(path, targetPath, false);
             return this;
         }
 
-        public NodeBuilder applicationPath(String path, String targetPath, Boolean isShared) {
-            if (!new File(path).exists()) {
-                throw new PathNotFoundException(path);
-            }
-
-            path = new File(path).getAbsolutePath();
-
+        public NodeBuilder applicationPath(String path, String targetPath, Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
-                    path, targetPath, false, isShared, pathOrderCounter++));
+                    path, targetPath, false, willBeChanged, pathOrderCounter++));
             return this;
         }
 
@@ -320,8 +313,8 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
-        public NodeBuilder logFolder(String path) {
-            this.logFolder = path;
+        public NodeBuilder logDirectory(String path) {
+            this.logDirectories.add(path);
             return this;
         }
 

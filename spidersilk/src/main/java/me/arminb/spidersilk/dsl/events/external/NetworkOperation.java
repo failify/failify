@@ -26,5 +26,7 @@ package me.arminb.spidersilk.dsl.events.external;
 
 public enum NetworkOperation {
     PARTITION,
-    REMOVE_PARTITION
+    REMOVE_PARTITION,
+    LINK_DOWN,
+    LINK_UP
 }

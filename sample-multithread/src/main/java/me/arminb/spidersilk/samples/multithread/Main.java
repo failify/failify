@@ -70,9 +70,22 @@ public class Main {
         new Thread(()-> helloWorld2()).start();
         new Thread(()-> helloWorld3()).start();
 
-        File testLogFile = new File("/var/log/spidersilk");
         try {
-            Files.write(Paths.get("/var/log/spidersilk"), "This is a test!".getBytes());
+            Files.write(Paths.get("/var/log/sample1"), "This is a var/log/sample1!".getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        try {
+            Files.write(Paths.get("/var/log/samples/sample2"), "This is a var/log/samples/sample2!".getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        try {
+            Files.write(Paths.get("/spidersilk/shared"), "I am the best shared file ever!".getBytes());
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -28,6 +28,7 @@ package me.arminb.spidersilk;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.exceptions.InstrumentationException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
+import me.arminb.spidersilk.exceptions.WorkspaceException;
 import me.arminb.spidersilk.execution.EventService;
 import me.arminb.spidersilk.execution.RuntimeEngine;
 import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
@@ -120,7 +121,7 @@ public class SpiderSilkRunner {
 
             // Setup the nodes' workspaces
             logger.info("Creating the nodes' workspaces ...");
-            Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);
+            Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);;
 
             // Instrument the nodes binaries. This shouldn't change any of the application paths
             logger.info("Starting the instrumentation process ...");
@@ -139,6 +140,8 @@ public class SpiderSilkRunner {
             }
             throw new RuntimeException(e);
         } catch (InstrumentationException e) {
+            throw new RuntimeException(e);
+        } catch (WorkspaceException e) {
             throw new RuntimeException(e);
         } catch (Throwable e) {
             logger.error("An unexpected error has happened. Stopping ...");

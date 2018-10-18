@@ -1,17 +1,28 @@
 package me.arminb.spidersilk.dsl.entities;
 
+import me.arminb.spidersilk.exceptions.PathNotFoundException;
+
+import java.io.File;
+import java.nio.file.Paths;
+
 public class PathEntry {
     private final String path;
-    private final String targetPath; // this should be a relative path if this is not a shared path entry
+    private final String targetPath; // this should be a relative path if this is a copyOverToWorkspace path entry
     private final Boolean library;
-    private final Boolean shared; // if shared the path will not be copied over to the node's workspace
+    private final Boolean copyOverToWorkspace; // if copyOverToWorkspace the path will be copied over to the node's workspace
     private final Integer order;
 
-    public PathEntry(String path, String targetPath, Boolean library, Boolean shared, Integer order) {
+    public PathEntry(String path, String targetPath, Boolean library, Boolean copyOverToWorkspace, Integer order) {
+        if (!new File(path).exists()) {
+            throw new PathNotFoundException(path);
+        }
+
+        path = Paths.get(path).toAbsolutePath().normalize().toString();
+
         this.path = path;
         this.targetPath = targetPath;
         this.library = library;
-        this.shared = shared;
+        this.copyOverToWorkspace = copyOverToWorkspace;
         this.order = order;
     }
 
@@ -31,8 +42,8 @@ public class PathEntry {
         return order;
     }
 
-    public Boolean isShared() {
-        return shared;
+    public Boolean shouldCopyOverToWorkspace() {
+        return copyOverToWorkspace;
     }
 
     @Override
@@ -53,7 +64,7 @@ public class PathEntry {
         if ((this.order == null) ? (other.order != null) : !this.order.equals(other.order)) {
             return false;
         }
-        if ((this.shared == null) ? (other.shared != null) : !this.shared.equals(other.shared)) {
+        if ((this.copyOverToWorkspace == null) ? (other.copyOverToWorkspace != null) : !this.copyOverToWorkspace.equals(other.copyOverToWorkspace)) {
             return false;
         }
         if ((this.library == null) ? (other.library != null) : !this.library.equals(other.library)) {

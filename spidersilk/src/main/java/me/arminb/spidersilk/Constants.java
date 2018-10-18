@@ -11,6 +11,7 @@ public class Constants {
     public final static String DEFAULT_WORKING_DIRECTORY_NAME = ".SpiderSilkWorkingDirectory";
     public final static String NODE_ROOT_DIRECTORY_NAME = "root";
     public final static String NODE_LOG_DIRECTORY_NAME = "logs";
+    public final static String SHAERD_DIRECTORIES_ROOT_NAME = "sharedDirectories";
     public final static String DOCKER_NETWORK_NAME_PREFIX = "spidersilk_";
     public final static String DOCKER_CONTAINER_NAME_PREFIX = "spidersilk_";
     public final static Integer DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_RESTART = 5;

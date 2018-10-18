@@ -75,6 +75,10 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             throw new RuntimeEngineException("NodeWorkspaces is not set!");
         }
 
+        if (!deployment.getSharedDirectories().isEmpty()) {
+            logger.info("Starting file sharing service ...");
+            startFileSharingService();
+        }
         logger.info("Starting event server ...");
         startEventServer();
         logger.info("Starting external events ...");
@@ -116,6 +120,10 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         stopNodes();
         logger.info("Stopping event server ...");
         stopEventServer();
+        if (!deployment.getSharedDirectories().isEmpty()) {
+            logger.info("Stopping file sharing service ...");
+            stopFileSharingService();
+        }
         stopped = true;
     }
 
@@ -135,11 +143,11 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(nodeName);
 
         for (Map.Entry<String, String> entry: nodeService.getEnvironmentVariables().entrySet()) {
-            environment.put(entry.getKey(), improveNodeAddress(nodeName, entry.getValue()));
+            environment.put(entry.getKey(), improveEnvironmentVariable(nodeName, entry.getValue()));
         }
 
         for (Map.Entry<String, String> entry: node.getEnvironmentVariables().entrySet()) {
-            environment.put(entry.getKey(), improveNodeAddress(nodeName, entry.getValue()));
+            environment.put(entry.getKey(), improveEnvironmentVariable(nodeName, entry.getValue()));
         }
 
         environment.put(getNodeAppHomeEnvVar(nodeName), nodeWorkspace.getRootDirectory());
@@ -170,25 +178,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         return retMap;
     }
 
-    protected Set<String> getNodeLogFiles(Node node) {
-        Set<String> logFiles = new HashSet<>(deployment.getService(node.getServiceName()).getLogFiles());
-        logFiles.addAll(node.getLogFiles());
-        logFiles.stream().forEach(logFile -> improveNodeAddress(node.getName(), logFile));
-        return logFiles;
-    }
-
-    protected String getNodeLogFolder(Node node) {
-        Service nodeService = deployment.getService(node.getServiceName());
-        if (node.getLogFolder() != null) {
-            return improveNodeAddress(node.getName(), node.getLogFolder());
-        }
-        if (nodeService.getLogFolder() != null) {
-            return improveNodeAddress(node.getName(), nodeService.getLogFolder());
-        }
-        return null;
-    }
-
-    protected String improveNodeAddress(String nodeName, String address) {
+    protected String improveEnvironmentVariable(String nodeName, String address) {
         return address.replace("{{APP_HOME}}", nodeWorkspaceMap.get(nodeName).getRootDirectory());
     }
 
@@ -268,7 +258,22 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      */
     protected abstract void stopNodes();
 
+    /**
+     * This method should start the file sharing service (if any), create the defined shared directory in the deployment definition
+     * if they do not exist, and make them available through the sharing service. Mounting in the nodes (if necessary) should be
+     * done later when starting the nodes.
+     * @throws RuntimeEngineException if some error happens when creating the shared directory for the nodes
+     */
+    protected abstract void startFileSharingService() throws RuntimeEngineException;
+
+    /**
+     * This method should stop the potentially running file sharing server and unmount shared directories in the nodes (if necessary).
+     * In case of a failure in stopping something it won't throw any exception, but error logs the exception or a message.
+     * This method should only be called when stopping the runtime engine
+     */
+    protected abstract void stopFileSharingService();
+
     public void setNodeWorkspaceMap(Map<String, NodeWorkspace> nodeWorkspaceMap) {
-        this.nodeWorkspaceMap = nodeWorkspaceMap;
+        this.nodeWorkspaceMap = Collections.unmodifiableMap(nodeWorkspaceMap);
     }
 }

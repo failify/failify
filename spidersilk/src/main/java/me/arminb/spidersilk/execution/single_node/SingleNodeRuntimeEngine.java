@@ -74,10 +74,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         return nodeToContainerInfoMap.get(nodeName).containerId();
     }
 
-    public DockerClient getDockerClient() {
-        return dockerClient;
-    }
-
     @Override
     protected void startNodes() throws RuntimeEngineException {
         // Creates the docker client
@@ -158,7 +154,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 if (service.getDockerImageForceBuild() ||
                         dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImage())).isEmpty()) {
                     logger.info("Building docker image `{}` for service {} ...", service.getDockerImage(), service.getName());
-                    Path dockerFile = Paths.get(service.getDockerFileAddress()).toAbsolutePath().normalize();
+                    Path dockerFile = Paths.get(service.getDockerFileAddress());
                     dockerClient.build(dockerFile.getParent(), service.getDockerImage(),
                             new LoggingBuildHandler(),
                             DockerClient.BuildParam.forceRm(),
@@ -210,19 +206,20 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(nodeWorkspace.getRootDirectory())
                 .to(nodeWorkspace.getRootDirectory()).readOnly(false).build());
         containerConfigBuilder.workingDir(nodeWorkspace.getRootDirectory());
-        // Adds shared application paths to the container
+        // Adds not copyOverToWorkspace application paths to the container
         Map<String, PathEntry> allPaths = new HashMap(nodeService.getApplicationPaths());
         allPaths.putAll(node.getApplicationPaths());
         for (PathEntry pathEntry: allPaths.values()) {
-            if (pathEntry.isShared()) {
+            if (!pathEntry.shouldCopyOverToWorkspace()) {
                 String targetPath;
                 if (new File(pathEntry.getTargetPath()).isAbsolute()) {
                     targetPath = pathEntry.getTargetPath();
                 } else {
-                    targetPath = Paths.get(nodeWorkspace.getRootDirectory(), pathEntry.getTargetPath()).toAbsolutePath().toString();
+                    targetPath = Paths.get(nodeWorkspace.getRootDirectory(), pathEntry.getTargetPath()).toAbsolutePath()
+                            .normalize().toString();
                 }
                 hostConfigBuilder.appendBinds(HostConfig.Bind.from(pathEntry.getPath())
-                        .to(targetPath).readOnly(false).build());
+                        .to(targetPath).readOnly(true).build());
             }
         }
         // Sets the network alias and hostname
@@ -233,6 +230,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 .aliases(ImmutableList.<String>builder().add(node.getName()).build()).build());
         containerConfigBuilder.networkingConfig(ContainerConfig.NetworkingConfig.create(endpointConfigMap));
         // Adds bind mount for console output
+        // TODO file creation should be moved to WorkspaceManager
         String localConsoleFile = Paths.get(nodeWorkspace.getLogDirectory(), "spidersilk_out_err").toAbsolutePath().toString();
         try {
             new File(localConsoleFile).createNewFile();
@@ -240,21 +238,20 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             throw new RuntimeEngineException("Error while creating initial console log file for node " + node.getName() + "!");
         }
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(localConsoleFile).to("/spidersilk_out_err").build());
-        // Adds bind mount for log folder
-        if (getNodeLogFolder(node) != null) {
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(nodeWorkspace.getLogDirectory()).to(getNodeLogFolder(node)).build());
+        // Adds bind mounts for shared directories
+        for (String localSharedDirectory: nodeWorkspace.getSharedDirectoriesMap().keySet()) {
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(localSharedDirectory).to(nodeWorkspace.getSharedDirectoriesMap()
+                    .get(localSharedDirectory)).readOnly(false).build());
+        }
+        // Adds bind mounts for log directories
+        for (String localLogDirectory: nodeWorkspace.getLogDirectoriesMap().keySet()) {
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLogDirectory).to(nodeWorkspace.getLogDirectoriesMap()
+                    .get(localLogDirectory)).readOnly(false).build());
         }
         // Adds bind mounts for log files
-        for (String logFile: getNodeLogFiles(node)) {
-            String localLogFileName = Paths.get(nodeWorkspace.getLogDirectory(), new File(logFile).getName())
-                    .toAbsolutePath().toString();
-            try {
-                new File(localLogFileName).createNewFile();
-            } catch (IOException e) {
-                throw new RuntimeEngineException("Error while creating initial log file " + logFile
-                        + " for node " + node.getName() + "!");
-            }
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLogFileName).to(logFile).build());
+        for (String localLogFile: nodeWorkspace.getLogFilesMap().keySet()) {
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLogFile).to(nodeWorkspace.getLogFilesMap()
+                    .get(localLogFile)).readOnly(false).build());
         }
         // Sets the wrapper script as the starting command
         containerConfigBuilder.cmd("/bin/sh", "-c", wrapperScriptAddress + " >> /spidersilk_out_err 2>&1");
@@ -278,7 +275,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
      * @return the address of wrapper script
      */
     private String createWrapperScriptForNode(Node node) throws RuntimeEngineException {
-        File wrapperScriptFile = new File(nodeWorkspaceMap.get(node.getName()).getRootDirectory() + "/wrapper_script");
+        File wrapperScriptFile = Paths.get(nodeWorkspaceMap.get(node.getName()).getRootDirectory())
+                .resolve("wrapper_script").toFile();
 
         try {
             String wrapperScriptString = IOUtils.toString(ClassLoader.getSystemResourceAsStream("wrapper_script"),
@@ -304,7 +302,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         wrapperScriptFile.setReadable(true);
         wrapperScriptFile.setWritable(true);
 
-        return wrapperScriptFile.getAbsolutePath();
+        return wrapperScriptFile.toString();
     }
 
     @Override
@@ -426,6 +424,16 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     @Override
+    public void linkDown(String node1, String node2) throws RuntimeEngineException {
+        networkManager.linkDown(node1, node2);
+    }
+
+    @Override
+    public void linkUp(String node1, String node2) throws RuntimeEngineException {
+        networkManager.linkUp(node1, node2);
+    }
+
+    @Override
     public void networkPartition(String nodePartitions) throws RuntimeEngineException {
         networkManager.networkPartition(nodePartitions);
     }
@@ -433,5 +441,15 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     @Override
     public void removeNetworkPartition() throws RuntimeEngineException {
         networkManager.removeNetworkPartition();
+    }
+
+    @Override
+    protected void startFileSharingService() {
+        // File sharing comes for free with docker. No additional service is needed.
+    }
+
+    @Override
+    protected void stopFileSharingService() {
+        // File sharing comes for free with docker. No additional service is needed.
     }
 }

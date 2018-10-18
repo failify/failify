@@ -50,6 +50,10 @@ public class NetworkOperationEvent extends ExternalEvent {
                 runtimeEngine.networkPartition(nodePartitions); break;
             case REMOVE_PARTITION:
                 runtimeEngine.removeNetworkPartition(); break;
+            case LINK_DOWN:
+                runtimeEngine.linkDown(nodePartitions.split(",")[0].trim(), nodePartitions.split(",")[1].trim()); break;
+            case LINK_UP:
+                runtimeEngine.linkUp(nodePartitions.split(",")[0].trim(), nodePartitions.split(",")[1].trim()); break;
         }
     }
 

@@ -44,6 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -56,6 +57,7 @@ public class Deployment extends DeploymentEntity {
 
     private final Map<String, Node> nodes;
     private final Map<String, Service> services;
+    private final Set<String> sharedDirectories;
     private final Map<String, ExternalEvent> externalEvents;
     private final Map<String, WorkloadEvent> workloadEvents;
     private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities;
@@ -77,6 +79,7 @@ public class Deployment extends DeploymentEntity {
         secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
+        sharedDirectories = Collections.unmodifiableSet(builder.sharedDorectories);
         externalEvents = Collections.unmodifiableMap(builder.externalEvents);
         workloadEvents = Collections.unmodifiableMap(builder.workloadEvents);
         deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
@@ -213,6 +216,10 @@ public class Deployment extends DeploymentEntity {
         return services;
     }
 
+    public Set<String> getSharedDirectories() {
+        return sharedDirectories;
+    }
+
     public Map<String, ExternalEvent> getExternalEvents() {
         return externalEvents;
     }
@@ -260,6 +267,7 @@ public class Deployment extends DeploymentEntity {
         private Map<String, Node> nodes;
         private String runSequence;
         private Map<String, Service> services;
+        private Set<String> sharedDorectories;
         private Map<String, WorkloadEvent> workloadEvents;
         private Map<String, ExternalEvent> externalEvents;
         private Integer eventServerPortNumber;
@@ -272,6 +280,7 @@ public class Deployment extends DeploymentEntity {
             super(null, "root");
             nodes = new HashMap<>();
             services = new HashMap<>();
+            sharedDorectories = new HashSet<>();
             externalEvents = new HashMap<>();
             workloadEvents = new HashMap<>();
             runSequence = "";
@@ -286,6 +295,7 @@ public class Deployment extends DeploymentEntity {
             super(null, instance);
             nodes = new HashMap<>(instance.nodes);
             services = new HashMap<>(instance.services);
+            sharedDorectories = new HashSet<>(instance.sharedDirectories);
             externalEvents = new HashMap<>(instance.externalEvents);
             workloadEvents = new HashMap<>(instance.workloadEvents);
             runSequence =  new String(instance.runSequence);
@@ -337,15 +347,15 @@ public class Deployment extends DeploymentEntity {
         public Service.ServiceBuilder withServiceFromJavaClasspath(String name, String... pathToBeCopiedOver) {
             Service.ServiceBuilder serviceBuilder = new Service.ServiceBuilder(this, name);
             Set<String> copiedOverPaths = Arrays.stream(pathToBeCopiedOver)
-                    .map((path) -> new File(path).getAbsolutePath())
+                    .map((path) -> Paths.get(path).toAbsolutePath().normalize().toString())
                     .collect(Collectors.toSet());
 
             StringBuilder newClassPath = new StringBuilder();
             for (String path: System.getProperty("java.class.path").split(":")) {
-                if (copiedOverPaths.contains(new File(path).getAbsolutePath())) {
+                if (copiedOverPaths.contains(Paths.get(path).toAbsolutePath().normalize().toString())) {
                     String fileName = new File(path).getName();
-                    // TODO this is not a good for handling folders. e.g. target/classes changes to lib/classes
-                    serviceBuilder.applicationPath(path, "lib/" + fileName, true, false);
+                    // TODO this is not a good for handling directories. e.g. target/classes changes to lib/classes
+                    serviceBuilder.applicationPath(path, "lib/" + fileName, true, true);
                     newClassPath.append("{{APP_HOME}}/lib/" + fileName);
                     newClassPath.append(":");
                 } else {
@@ -357,6 +367,11 @@ public class Deployment extends DeploymentEntity {
             serviceBuilder.environmentVariable(Constants.JAVA_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
             serviceBuilder.serviceType(ServiceType.JAVA);
             return serviceBuilder;
+        }
+
+        public DeploymentBuilder sharedDirectory(String path) {
+            sharedDorectories.add(Paths.get(path).toAbsolutePath().normalize().toString());
+            return this;
         }
 
         public NodeOperationEvent.NodeOperationEventBuilder withNodeOperationEvent(String name) {
@@ -440,6 +455,18 @@ public class Deployment extends DeploymentEntity {
         public DeploymentBuilder removeNetworkPartition(String eventName) {
             return withNetworkOperationEvent(eventName)
                     .networkOperation(NetworkOperation.REMOVE_PARTITION).and();
+        }
+
+        public DeploymentBuilder linkDown(String eventName, String node1, String node2) {
+            return withNetworkOperationEvent(eventName)
+                    .networkOperation(NetworkOperation.LINK_DOWN)
+                    .nodePartitions(node1 + "," + node2).and();
+        }
+
+        public DeploymentBuilder linkUp(String eventName, String node1, String node2) {
+            return withNetworkOperationEvent(eventName)
+                    .networkOperation(NetworkOperation.LINK_UP)
+                    .nodePartitions(node1 + "," + node2).and();
         }
 
         public DeploymentBuilder eventServerPortNumber(Integer eventServerPortNumber) {

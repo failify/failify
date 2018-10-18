@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -39,12 +40,12 @@ import java.util.*;
  */
 public class Service extends DeploymentEntity {
     private final Map<String, PathEntry> applicationPaths;
-    // Library paths relative to the node workspace. This is useful when a folder is copied over as an application path which
+    // Library paths relative to the node workspace. This is useful when a directory is copied over as an application path which
     // is not a library. But for instrumentation purposes a sub-path inside this path needs to be marked as a library path
     private final Set<String> libraryPaths;
     private final Set<String> logFiles;
-    // TODO it should be possible to have multiple log folders
-    private final String logFolder;
+    // TODO it should be possible to have multiple log directories
+    private final Set<String> logDirectories;
     private final Map<String, String> environmentVariables;
     private final String dockerImage;
     private final String dockerFileAddress;
@@ -70,7 +71,7 @@ public class Service extends DeploymentEntity {
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
         libraryPaths = Collections.unmodifiableSet(builder.libraryPaths);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
-        logFolder = builder.logFolder;
+        logDirectories = builder.logDirectories;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         pathOrderCounter = builder.pathOrderCounter;
         appHomeEnvVar = builder.appHomeEnvVar;
@@ -120,8 +121,8 @@ public class Service extends DeploymentEntity {
         return logFiles;
     }
 
-    public String getLogFolder() {
-        return logFolder;
+    public Set<String> getLogDirectories() {
+        return logDirectories;
     }
 
     public Map<String, String> getEnvironmentVariables() {
@@ -138,7 +139,7 @@ public class Service extends DeploymentEntity {
         private Map<String, PathEntry> applicationPaths;
         private Set<String> libraryPaths;
         private Set<String> logFiles;
-        private String logFolder;
+        private Set<String> logDirectories;
         private Map<String, String> environmentVariables;
         private String dockerImage;
         private String dockerFileAddress;
@@ -157,7 +158,7 @@ public class Service extends DeploymentEntity {
             applicationPaths = new HashMap<>();
             libraryPaths = new HashSet<>();
             logFiles = new HashSet<>();
-            logFolder = null;
+            logDirectories = new HashSet<>();
             environmentVariables = new HashMap<>();
             dockerImage = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
             dockerImageForceBuild = false;
@@ -183,7 +184,7 @@ public class Service extends DeploymentEntity {
             applicationPaths = new HashMap<>(instance.applicationPaths);
             libraryPaths = new HashSet<>(instance.libraryPaths);
             logFiles = new HashSet<>(instance.logFiles);
-            logFolder = new String(instance.logFolder);
+            logDirectories = new HashSet<>(instance.logDirectories);
             environmentVariables = new HashMap<>(instance.environmentVariables);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
             appHomeEnvVar = new String(instance.appHomeEnvVar);
@@ -199,7 +200,7 @@ public class Service extends DeploymentEntity {
         }
 
         public ServiceBuilder dockerFileAddress(String dockerFileAddress, Boolean forceBuild) {
-            this.dockerFileAddress = dockerFileAddress;
+            this.dockerFileAddress = Paths.get(dockerFileAddress).toAbsolutePath().normalize().toString();
             this.dockerImageForceBuild = forceBuild;
             return this;
         }
@@ -230,34 +231,28 @@ public class Service extends DeploymentEntity {
         }
 
         public ServiceBuilder applicationPath(String path) {
-            applicationPath(path, path, false, true);
+            applicationPath(path, path, false, false);
             return this;
         }
 
         public ServiceBuilder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, false, true);
+            applicationPath(path, targetPath, false, false);
             return this;
         }
 
         public ServiceBuilder applicationPath(String path, Boolean isLibrary) {
-            applicationPath(path, path, isLibrary, true);
+            applicationPath(path, path, isLibrary, false);
             return this;
         }
 
         public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary) {
-            applicationPath(path, targetPath, isLibrary, true);
+            applicationPath(path, targetPath, isLibrary, false);
             return this;
         }
 
-        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean isShared) {
-            if (!new File(path).exists()) {
-                throw new PathNotFoundException(path);
-            }
-
-            path = new File(path).getAbsolutePath();
-
+        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
-                        path, targetPath, isLibrary, isShared, pathOrderCounter++));
+                        path, targetPath, isLibrary, willBeChanged, pathOrderCounter++));
             return this;
         }
 
@@ -271,8 +266,8 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder logFolder(String path) {
-            this.logFolder = path;
+        public ServiceBuilder logDirectory(String path) {
+            this.logDirectories.add(path);
             return this;
         }
 

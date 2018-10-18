@@ -46,7 +46,8 @@ public class MultithreadTest {
                     .startCommand("java -cp ${SPIDERSILK_JAVA_CLASSPATH} me.arminb.spidersilk.samples.multithread.Main")
                     .dockerImage("spidersilk/sample-multithread")
                     .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)
-                    .logFile("/var/log/spidersilk")
+                    .logFile("/var/log/sample1")
+                    .logDirectory("/var/log/samples")
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
                 .withNode("n1", "s1")
@@ -69,6 +70,7 @@ public class MultithreadTest {
                 // Run Sequence Definition
                 .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * net1 * e3 * net2 * x2")
                 .secondsToWaitForCompletion(5)
+                .sharedDirectory("/spidersilk")
                 .build();
 
         SpiderSilkRunner runner = SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
