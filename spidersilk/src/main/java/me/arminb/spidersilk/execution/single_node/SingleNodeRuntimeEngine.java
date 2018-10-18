@@ -264,6 +264,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     dockerClient.createContainer(containerConfigBuilder.build(), containerName).id(), newIpAddress));
             logger.info("Container {} for node {} is created!", nodeToContainerInfoMap.get(node.getName()), node.getName());
         } catch (DockerException e) {
+            logger.error("Error while trying to create the container for node {}!", node.getName(), e);
             throw new RuntimeEngineException("Error while trying to create the container for node " + node.getName() + "!");
         } catch (InterruptedException e) {
             throw new RuntimeEngineException("Error while trying to create the container for node " + node.getName() + "!");

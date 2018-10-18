@@ -198,18 +198,18 @@ public class WorkspaceManager {
     protected Set<String> getNodeLogFiles(Node node, Path nodeRootDirectory) {
         Set<String> logFiles = new HashSet<>(deployment.getService(node.getServiceName()).getLogFiles());
         logFiles.addAll(node.getLogFiles());
-        logFiles.stream().forEach(logFile -> improveNodeAddress(node.getName(), logFile, nodeRootDirectory));
+        logFiles = logFiles.stream().map(logFile -> improveNodeAddress(logFile, nodeRootDirectory)).collect(Collectors.toSet());
         return logFiles;
     }
 
     protected Set<String> getNodeLogDirectories(Node node, Path nodeRootDirectory) {
         Set<String> logDirectories = new HashSet<>(deployment.getService(node.getServiceName()).getLogDirectories());
         logDirectories.addAll(node.getLogDirectories());
-        logDirectories.stream().forEach(logDirectory -> improveNodeAddress(node.getName(), logDirectory, nodeRootDirectory));
+        logDirectories = logDirectories.stream().map(logDirectory -> improveNodeAddress(logDirectory, nodeRootDirectory)).collect(Collectors.toSet());
         return logDirectories;
     }
 
-    protected String improveNodeAddress(String nodeName, String address, Path nodeRootDirectory) {
+    protected String improveNodeAddress(String address, Path nodeRootDirectory) {
         return address.replace("{{APP_HOME}}", nodeRootDirectory.toString());
     }
 
@@ -280,6 +280,7 @@ public class WorkspaceManager {
                 }
             }
         } catch (IOException e) {
+            logger.error("Error in copying over node {} binaries to its workspace!", node.getName(), e);
             throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!");
         }
     }
