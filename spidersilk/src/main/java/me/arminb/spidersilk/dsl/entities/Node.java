@@ -299,7 +299,7 @@ public class Node extends ReferableDeploymentEntity {
 
         public NodeBuilder applicationPath(String path, String targetPath, Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
-                    path, targetPath, false, willBeChanged, pathOrderCounter++));
+                    path, targetPath, false, willBeChanged, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 

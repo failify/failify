@@ -252,7 +252,7 @@ public class Service extends DeploymentEntity {
 
         public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
-                        path, targetPath, isLibrary, willBeChanged, pathOrderCounter++));
+                        path, targetPath, isLibrary, willBeChanged, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 

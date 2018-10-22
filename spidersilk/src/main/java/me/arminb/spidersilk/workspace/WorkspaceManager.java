@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.*;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -29,9 +30,11 @@ public class WorkspaceManager {
         this(deployment, Constants.DEFAULT_WORKING_DIRECTORY_NAME);
     }
 
-    public WorkspaceManager(Deployment deployment, String workingDirectory) {
+    public WorkspaceManager(Deployment deployment, String topLevelWorkingDirectory) {
         this.deployment = deployment;
-        this.workingDirectory = Paths.get(".", workingDirectory).toAbsolutePath().normalize();
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MMM-dd_HH-mm-ss-SSS");
+        this.workingDirectory = Paths.get(".", topLevelWorkingDirectory, deployment.getName() + "_" +
+                simpleDateFormat.format(new Date())).toAbsolutePath().normalize();
     }
 
     public Path getWorkingDirectory() {
@@ -43,10 +46,10 @@ public class WorkspaceManager {
 
         // Creates the working directory
         try {
-            cleanUp();
-            Files.createDirectory(workingDirectory);
+            logger.info("Creating the working directory at {}", workingDirectory.toString());
+            Files.createDirectories(workingDirectory);
         } catch (IOException e) {
-            throw new WorkspaceException("Error in creating SpiderSilk working directory!");
+            throw new WorkspaceException("Error in creating SpiderSilk working directory at " + workingDirectory.toString());
         }
 
         // Creates the shared directories
@@ -59,16 +62,6 @@ public class WorkspaceManager {
         }
 
         return Collections.unmodifiableMap(retMap);
-    }
-
-
-    public void cleanUp() throws WorkspaceException {
-        logger.info("Cleaning up the working directory at {}", workingDirectory.toString());
-        try {
-            FileUtils.deleteDirectory(workingDirectory.toFile());
-        } catch (IOException e) {
-            throw new WorkspaceException("Error in cleaning up SpiderSilk working directory!");
-        }
     }
 
     /**

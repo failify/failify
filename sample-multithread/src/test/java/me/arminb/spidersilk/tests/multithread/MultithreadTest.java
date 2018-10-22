@@ -39,7 +39,7 @@ public class MultithreadTest {
 
     @Test
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
-        Deployment deployment = new Deployment.DeploymentBuilder()
+        Deployment deployment = new Deployment.DeploymentBuilder("sample-multithread")
                 // Service Definitions
                 .withServiceFromJavaClasspath("s1", "target/classes")
                     .relativeInstrumentableAddress("lib/classes")

@@ -88,7 +88,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         buildDockerImages();
 
         // creates a new docker network. This will be a new one every time the runtime engine starts.
-        networkManager = new DockerNetworkManager(this, dockerClient);
+        networkManager = new DockerNetworkManager(deployment.getName(), this, dockerClient);
 
         logger.info("Creating a container for each of the nodes ...");
         for (Node node: deployment.getNodes().values()) {
@@ -258,7 +258,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // Finalizing host config
         containerConfigBuilder.hostConfig(hostConfigBuilder.build());
         // Creates the container
-        String containerName = Constants.DOCKER_CONTAINER_NAME_PREFIX + node.getName() + "_" + Instant.now().getEpochSecond();
+        String containerName = Constants.DOCKER_CONTAINER_NAME_PREFIX + deployment.getName() + "_" + node.getName() + "_" + Instant.now().getEpochSecond();
         try {
             nodeToContainerInfoMap.put(node.getName(), new DockerContainerInfo(
                     dockerClient.createContainer(containerConfigBuilder.build(), containerName).id(), newIpAddress));

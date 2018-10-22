@@ -72,7 +72,7 @@ public class Deployment extends DeploymentEntity {
     private final Integer nextEventReceiptTimeout;
 
     private Deployment(DeploymentBuilder builder) {
-        super("deployment");
+        super(builder.getName());
         runSequence = builder.runSequence;
         appHomeEnvVar = builder.appHomeEnvVar;
         eventServerPortNumber = new Integer(builder.eventServerPortNumber);
@@ -276,8 +276,8 @@ public class Deployment extends DeploymentEntity {
         private Integer secondsUntilForcedStop;
         private Integer nextEventReceiptTimeout;
 
-        public DeploymentBuilder() {
-            super(null, "root");
+        public DeploymentBuilder(String name) {
+            super(null, name);
             nodes = new HashMap<>();
             services = new HashMap<>();
             sharedDorectories = new HashSet<>();

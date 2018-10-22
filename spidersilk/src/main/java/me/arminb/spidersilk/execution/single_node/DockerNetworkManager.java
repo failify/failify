@@ -39,7 +39,7 @@ public class DockerNetworkManager {
         }
     }
 
-    public DockerNetworkManager(LimitedRuntimeEngine runtimeEngine, DockerClient dockerClient)
+    public DockerNetworkManager(String deploymentName, LimitedRuntimeEngine runtimeEngine, DockerClient dockerClient)
             throws RuntimeEngineException {
         this.runtimeEngine = runtimeEngine;
         this.dockerClient = dockerClient;
@@ -47,7 +47,7 @@ public class DockerNetworkManager {
 
         // Sets docker network's name, creates it and fetches its id
         try {
-            dockerNetworkName = Constants.DOCKER_NETWORK_NAME_PREFIX + Instant.now().getEpochSecond();
+            dockerNetworkName = Constants.DOCKER_NETWORK_NAME_PREFIX + deploymentName + "_" + Instant.now().getEpochSecond();
             dockerNetworkId = dockerClient.createNetwork(NetworkConfig.builder()
                     .name(dockerNetworkName)
                     .build()).id();
