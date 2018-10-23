@@ -40,6 +40,8 @@ import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.dsl.events.external.NodeOperationEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
+import me.arminb.spidersilk.util.FileUtil;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,14 +69,12 @@ public class Deployment extends DeploymentEntity {
     private final Integer eventServerPortNumber;
     private final Integer secondsToWaitForCompletion;
     private final String runSequence;
-    private final String appHomeEnvVar;
     private final Integer secondsUntilForcedStop;
     private final Integer nextEventReceiptTimeout;
 
     private Deployment(DeploymentBuilder builder) {
         super(builder.getName());
         runSequence = builder.runSequence;
-        appHomeEnvVar = builder.appHomeEnvVar;
         eventServerPortNumber = new Integer(builder.eventServerPortNumber);
         secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
         nodes = Collections.unmodifiableMap(builder.nodes);
@@ -248,10 +248,6 @@ public class Deployment extends DeploymentEntity {
         return nextEventReceiptTimeout;
     }
 
-    public String getAppHomeEnvVar() {
-        return appHomeEnvVar;
-    }
-
     // TODO make this more efficient and refactor other places that uses this functionality
     public Boolean isInRunSequence(String eventName) {
         String[] eventNames = runSequence.split("\\W+");
@@ -272,7 +268,6 @@ public class Deployment extends DeploymentEntity {
         private Map<String, ExternalEvent> externalEvents;
         private Integer eventServerPortNumber;
         private Integer secondsToWaitForCompletion;
-        private String appHomeEnvVar;
         private Integer secondsUntilForcedStop;
         private Integer nextEventReceiptTimeout;
 
@@ -286,7 +281,6 @@ public class Deployment extends DeploymentEntity {
             runSequence = "";
             eventServerPortNumber = 8765; // Default port number for the event server
             secondsToWaitForCompletion = 5;
-            appHomeEnvVar = Constants.DEFAULT_APP_HOME_ENVVAR_NAME;
             secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
             nextEventReceiptTimeout = null;
         }
@@ -301,7 +295,6 @@ public class Deployment extends DeploymentEntity {
             runSequence =  new String(instance.runSequence);
             eventServerPortNumber = new Integer(instance.eventServerPortNumber);
             secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
-            appHomeEnvVar = new String(instance.appHomeEnvVar);
             secondsUntilForcedStop = new Integer(instance.secondsUntilForcedStop);
             nextEventReceiptTimeout = new Integer(instance.nextEventReceiptTimeout);
         }
@@ -344,23 +337,32 @@ public class Deployment extends DeploymentEntity {
             return new Service.ServiceBuilder(this, name);
         }
 
-        public Service.ServiceBuilder withServiceFromJavaClasspath(String name, String... pathToBeCopiedOver) {
+        public Service.ServiceBuilder withServiceFromJavaClasspath(String name, String instrumentableAddress, String instrumentableTargetPath) {
             Service.ServiceBuilder serviceBuilder = new Service.ServiceBuilder(this, name);
-            Set<String> copiedOverPaths = Arrays.stream(pathToBeCopiedOver)
-                    .map((path) -> Paths.get(path).toAbsolutePath().normalize().toString())
-                    .collect(Collectors.toSet());
+
+
+            if (!FileUtil.isPathAbsoluteInUnix(instrumentableTargetPath)) {
+                throw new RuntimeException("The instrumentable target path `" + instrumentableTargetPath + "` is not absolute!");
+            }
+
+            instrumentableAddress = Paths.get(instrumentableAddress).toAbsolutePath().normalize().toString();
+            instrumentableTargetPath = FilenameUtils.normalizeNoEndSeparator(instrumentableTargetPath, true);
 
             StringBuilder newClassPath = new StringBuilder();
             for (String path: System.getProperty("java.class.path").split(":")) {
-                if (copiedOverPaths.contains(Paths.get(path).toAbsolutePath().normalize().toString())) {
-                    String fileName = new File(path).getName();
-                    // TODO this is not a good for handling directories. e.g. target/classes changes to lib/classes
-                    serviceBuilder.applicationPath(path, "lib/" + fileName, true, true);
-                    newClassPath.append("{{APP_HOME}}/lib/" + fileName);
+                if (Paths.get(path).toAbsolutePath().normalize().toString().equals(instrumentableAddress)) {
+                    serviceBuilder.applicationPath(instrumentableAddress, instrumentableTargetPath, false, false, true);
+                    serviceBuilder.instrumentableAddress(instrumentableTargetPath);
+                    newClassPath.append(instrumentableTargetPath);
                     newClassPath.append(":");
                 } else {
-                    serviceBuilder.applicationPath(path, true);
-                    newClassPath.append(path);
+                    // target path should be in linux format, but path may come from windows
+                    String newTargetPath = "/" + path.replaceAll("\\W", "");
+                    if (path.endsWith(".jar")) {
+                        newTargetPath = newTargetPath + ".jar";
+                    }
+                    serviceBuilder.applicationPath(path, newTargetPath, true);
+                    newClassPath.append(newTargetPath);
                     newClassPath.append(":");
                 }
             }
@@ -370,7 +372,11 @@ public class Deployment extends DeploymentEntity {
         }
 
         public DeploymentBuilder sharedDirectory(String path) {
-            sharedDorectories.add(Paths.get(path).toAbsolutePath().normalize().toString());
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The shared directory `" + path + "` path is not absolute!");
+            }
+
+            sharedDorectories.add(FilenameUtils.normalizeNoEndSeparator(path, true));
             return this;
         }
 
@@ -476,11 +482,6 @@ public class Deployment extends DeploymentEntity {
 
         public DeploymentBuilder runSequence(String sequence) {
             runSequence = sequence;
-            return this;
-        }
-
-        public DeploymentBuilder exposeAppHomeDirectoryAs(String appHomeEnvVar) {
-            this.appHomeEnvVar = appHomeEnvVar;
             return this;
         }
 

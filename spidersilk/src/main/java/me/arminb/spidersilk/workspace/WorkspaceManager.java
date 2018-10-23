@@ -7,8 +7,8 @@ import me.arminb.spidersilk.dsl.entities.PathEntry;
 import me.arminb.spidersilk.dsl.entities.Service;
 import me.arminb.spidersilk.exceptions.WorkspaceException;
 import me.arminb.spidersilk.util.FileUtil;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FilenameUtils;
+import net.lingala.zip4j.core.ZipFile;
+import net.lingala.zip4j.exception.ZipException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,7 +19,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
-// TODO make this class cross-platform
 public class WorkspaceManager {
     private final static Logger logger = LoggerFactory.getLogger(WorkspaceManager.class);
 
@@ -55,10 +54,14 @@ public class WorkspaceManager {
         // Creates the shared directories
         Map<String, String> sharedDirectoriesMap = createSharedDirectories();
 
+        // Decompress compressed application paths in services
+        Map<String, Map<String, String>> serviceToMapOfCompressedToDecompressedMap = decompressCompressedApplicationPaths();
+
         // Creates the nodes' workspaces
         for (Node node: deployment.getNodes().values()) {
             logger.info("Creating workspace for node {}", node.getName());
-            retMap.put(node.getName(), createNodeWorkspace(node, sharedDirectoriesMap));
+            retMap.put(node.getName(), createNodeWorkspace(node, sharedDirectoriesMap,
+                    serviceToMapOfCompressedToDecompressedMap.get(node.getServiceName())));
         }
 
         return Collections.unmodifiableMap(retMap);
@@ -70,7 +73,7 @@ public class WorkspaceManager {
      * @return the given path with replaced slashes
      */
     private String pathToStringWithoutSlashes(String path) {
-        return path.replace("/", "_-_");
+        return path.replace("/", "_-");
     }
 
     private Map<String, String> createSharedDirectories() throws WorkspaceException {
@@ -101,7 +104,45 @@ public class WorkspaceManager {
         return sharedDirectoriesMap;
     }
 
-    private NodeWorkspace createNodeWorkspace(Node node, Map<String, String> sharedDirectoriesMap) throws WorkspaceException {
+    private Map<String, Map<String, String>> decompressCompressedApplicationPaths() throws WorkspaceException {
+        Map<String, Map<String, String>> retMap = new HashMap<>();
+        Path decompressedDirectory = workingDirectory.resolve(Constants.DECOMPRESSED_DIRECTORIES_ROOT_NAME);
+
+        try {
+            Files.createDirectory(decompressedDirectory);
+        } catch (IOException e) {
+            logger.error("Error in creating decompressed directory at {}", decompressedDirectory, e);
+            throw new WorkspaceException("Error in creating decompressed directory at " + decompressedDirectory);
+        }
+
+        for (Service service: deployment.getServices().values()) {
+            retMap.put(service.getName(), new HashMap<>());
+            for (PathEntry pathEntry: service.getApplicationPaths().values()) {
+                if (pathEntry.shouldBeDecompressed()) {
+                    if (pathEntry.getPath().endsWith(".zip")) {
+                        try {
+                            ZipFile zipFile = new ZipFile(pathEntry.getPath());
+                            Path targetPath = decompressedDirectory.resolve(service.getName())
+                                    .resolve(pathToStringWithoutSlashes(pathEntry.getPath()));
+                            zipFile.extractAll(targetPath.toString());
+                            retMap.get(service.getName()).put(pathEntry.getPath(), targetPath.toString());
+                        } catch (ZipException e) {
+                            logger.error("Error while unzipping {}", pathEntry.getPath(), e);
+                            throw new WorkspaceException("Error while unzipping " + pathEntry.getPath());
+                        }
+
+                    } else {
+                        throw new WorkspaceException("Decompression is only supported for zip files!"
+                                + pathEntry.getPath() + " is not a zip file.");
+                    }
+                }
+            }
+        }
+        return retMap;
+    }
+
+    private NodeWorkspace createNodeWorkspace(Node node, Map<String, String> sharedDirectoriesMap,
+                                              Map<String, String> compressedToDecompressedMap) throws WorkspaceException {
         // Creates the node's working directory
         Path nodeWorkingDirectory = workingDirectory.resolve(node.getName());
         try {
@@ -130,38 +171,47 @@ public class WorkspaceManager {
         }
 
         // Creates the node's log files
-        Map<String, String> logFilesMap = createLogFiles(node, nodeRootDirectory, nodeLogDirectory);
+        Map<String, String> logFilesMap = createLogFiles(node, nodeLogDirectory);
 
         // Creates the node's log directories
-        Map<String, String> logDirectoriesMap = createLogDirectories(node, nodeRootDirectory, nodeLogDirectory);
+        Map<String, String> logDirectoriesMap = createLogDirectories(node, nodeLogDirectory);
 
         Service nodeService = deployment.getService(node.getServiceName());
 
         // Copies over the node paths to the node root directory
-        copyOverNodePaths(node, nodeService, nodeRootDirectory);
+        List<NodeWorkspace.PathMappingEntry> pathMappingList = copyOverNodePathsAndMakePathMappingList(node, nodeService,
+                nodeRootDirectory, compressedToDecompressedMap);
 
+        // Determines the instrumentable address
         String instrumentableAddress = nodeService.getInstrumentableAddress();
         if (instrumentableAddress != null) {
-            instrumentableAddress = nodeRootDirectory.resolve(instrumentableAddress).toString();
+            instrumentableAddress = getLocalPathFromNodeTargetPath(pathMappingList,
+                    nodeService.getInstrumentableAddress(), true);
+
+            if (instrumentableAddress == null || !new File(instrumentableAddress).exists()) {
+                throw new WorkspaceException("The marked instrumentable address `" + nodeService.getInstrumentableAddress() +
+                        "` does not exist!");
+            }
         }
 
+        // Creates the node workspace object
         return new NodeWorkspace(
                 instrumentableAddress,
-                getNodeLibPaths(nodeService, nodeRootDirectory),
+                getNodeLibPaths(nodeService, pathMappingList),
                 nodeWorkingDirectory.toString(),
                 nodeRootDirectory.toString(),
                 nodeLogDirectory.toString(),
-                logDirectoriesMap, logFilesMap, sharedDirectoriesMap);
+                logDirectoriesMap, logFilesMap, sharedDirectoriesMap, pathMappingList);
     }
 
-    private Map<String, String> createLogFiles(Node node, Path nodeRootDirectory, Path nodeLogDirectory) throws WorkspaceException {
+    private Map<String, String> createLogFiles(Node node, Path nodeLogDirectory) throws WorkspaceException {
         Map<String, String> logFilesMap = new HashMap<>();
 
-        for (String path: getNodeLogFiles(node, nodeRootDirectory)) {
+        for (String path: getNodeLogFiles(node)) {
             Path logFile = nodeLogDirectory.resolve(pathToStringWithoutSlashes(path));
             try {
                 logFile.toFile().createNewFile();
-                logFilesMap.put(logFile.toString(), FilenameUtils.normalize(path));
+                logFilesMap.put(logFile.toString(), path);
             } catch (IOException e) {
                 logger.error("Error while creating log file {}", logFile, e);
                 throw new WorkspaceException("Error while creating log file " + logFile);
@@ -171,14 +221,14 @@ public class WorkspaceManager {
         return logFilesMap;
     }
 
-    private Map<String, String> createLogDirectories(Node node, Path nodeRootDirectory, Path nodeLogDirectory) throws WorkspaceException {
+    private Map<String, String> createLogDirectories(Node node, Path nodeLogDirectory) throws WorkspaceException {
         Map<String, String> logDirectoriesMap = new HashMap<>();
 
-        for (String path: getNodeLogDirectories(node, nodeRootDirectory)) {
+        for (String path: getNodeLogDirectories(node)) {
             Path logDirectory = nodeLogDirectory.resolve(pathToStringWithoutSlashes(path));
             try {
                 Files.createDirectory(logDirectory);
-                logDirectoriesMap.put(logDirectory.toString(), FilenameUtils.normalize(path));
+                logDirectoriesMap.put(logDirectory.toString(), path);
             } catch (IOException e) {
                 logger.error("Error while creating log directory {}", logDirectory, e);
                 throw new WorkspaceException("Error while creating log directory " + logDirectory);
@@ -188,38 +238,39 @@ public class WorkspaceManager {
         return logDirectoriesMap;
     }
 
-    protected Set<String> getNodeLogFiles(Node node, Path nodeRootDirectory) {
+    protected Set<String> getNodeLogFiles(Node node) {
         Set<String> logFiles = new HashSet<>(deployment.getService(node.getServiceName()).getLogFiles());
         logFiles.addAll(node.getLogFiles());
-        logFiles = logFiles.stream().map(logFile -> improveNodeAddress(logFile, nodeRootDirectory)).collect(Collectors.toSet());
         return logFiles;
     }
 
-    protected Set<String> getNodeLogDirectories(Node node, Path nodeRootDirectory) {
+    protected Set<String> getNodeLogDirectories(Node node) {
         Set<String> logDirectories = new HashSet<>(deployment.getService(node.getServiceName()).getLogDirectories());
         logDirectories.addAll(node.getLogDirectories());
-        logDirectories = logDirectories.stream().map(logDirectory -> improveNodeAddress(logDirectory, nodeRootDirectory)).collect(Collectors.toSet());
         return logDirectories;
     }
 
-    protected String improveNodeAddress(String address, Path nodeRootDirectory) {
-        return address.replace("{{APP_HOME}}", nodeRootDirectory.toString());
-    }
-
-    private String getNodeLibPaths(Service nodeService, Path nodeRootDirectory) {
+    private String getNodeLibPaths(Service nodeService, List<NodeWorkspace.PathMappingEntry> pathMappingList) {
         StringBuilder libPathsBuilder = new StringBuilder();
         Set<String> libPaths = new HashSet<>();
 
         // Adds application paths that are library to the set
         for (PathEntry pathEntry: nodeService.getApplicationPaths().values()) {
             if (pathEntry.isLibrary()) {
-                libPaths.add(pathEntryToLibPath(pathEntry, nodeRootDirectory));
+                String localLibPath = getLocalPathFromNodeTargetPath(pathMappingList, pathEntry.getTargetPath(),
+                        false);
+                if (localLibPath != null) {
+                    libPaths.add(localLibPath);
+                }
             }
         }
 
-        // Adds marked relative library paths
+        // Adds marked library paths
         for (String libPath: nodeService.getLibraryPaths()) {
-            libPaths.add(nodeRootDirectory.resolve(libPath).normalize().toString());
+            String localLibPath = getLocalPathFromNodeTargetPath(pathMappingList, libPath, false);
+            if (localLibPath != null) {
+                libPaths.add(localLibPath);
+            }
         }
 
         for (String libPath: libPaths) {
@@ -229,30 +280,45 @@ public class WorkspaceManager {
         return libPathsBuilder.toString();
     }
 
-    private String pathEntryToLibPath(PathEntry pathEntry, Path nodeRootDirectory) {
-        if (!pathEntry.shouldCopyOverToWorkspace()) {
-            return pathEntry.getTargetPath();
-        } else {
-            return nodeRootDirectory.resolve(pathEntry.getTargetPath()).normalize().toString();
+    private String getLocalPathFromNodeTargetPath(List<NodeWorkspace.PathMappingEntry> pathMappingList, String path,
+                                                  Boolean mustBeWritable) {
+        for (int i=pathMappingList.size()-1; i>=0; i--) {
+            NodeWorkspace.PathMappingEntry entry = pathMappingList.get(i);
+            if (path.startsWith(entry.getDestination())) {
+                if (!mustBeWritable || !entry.isReadOnly()) {
+                    return path.replace(entry.getDestination(), entry.getSource());
+                }
+            }
         }
+
+        return null;
     }
 
-    private void copyOverNodePaths(Node node, Service nodeService, Path nodeRootDirectory) throws WorkspaceException {
+    private List<NodeWorkspace.PathMappingEntry> copyOverNodePathsAndMakePathMappingList(Node node, Service nodeService,
+                     Path nodeRootDirectory, Map<String, String> compressedToDecompressedMap) throws WorkspaceException {
+        List<NodeWorkspace.PathMappingEntry> pathMap = new ArrayList<>();
         try {
             // Copies over node's service paths based on their entry path order
             for (PathEntry pathEntry : nodeService.getApplicationPaths().values().stream()
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
+                Path sourcePath = Paths.get(pathEntry.shouldBeDecompressed()?
+                        compressedToDecompressedMap.get(pathEntry.getPath()):pathEntry.getPath());
+
                 if (pathEntry.shouldCopyOverToWorkspace()) {
-                    if (new File(pathEntry.getPath()).isDirectory()) {
-                        FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
-                                nodeRootDirectory.resolve(pathEntry.getTargetPath()));
+                    Path destPath = nodeRootDirectory.resolve(pathToStringWithoutSlashes(pathEntry.getPath()));
+                    if (sourcePath.toFile().isDirectory()) {
+                        FileUtil.copyDirectory(sourcePath, destPath);
                     } else {
-                        nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
-                        Files.copy(Paths.get(pathEntry.getPath()),
-                                nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
-                                StandardCopyOption.REPLACE_EXISTING);
+                        Files.copy(sourcePath, destPath,
+                                StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
                     }
+                    pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), pathEntry.getTargetPath(),
+                            false));
+                } else {
+                    pathMap.add(new NodeWorkspace.PathMappingEntry(sourcePath.toString(), pathEntry.getTargetPath(),
+                            true));
+
                 }
             }
 
@@ -261,17 +327,23 @@ public class WorkspaceManager {
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
                 if (pathEntry.shouldCopyOverToWorkspace()) {
-                    if (new File(pathEntry.getPath()).isDirectory()) {
-                        FileUtil.copyDirectory(Paths.get(pathEntry.getPath()),
-                                nodeRootDirectory.resolve(pathEntry.getTargetPath()));
+                    Path sourcePath = Paths.get(pathEntry.getPath());
+                    Path destPath = nodeRootDirectory.resolve(pathToStringWithoutSlashes(pathEntry.getPath()));
+                    if (sourcePath.toFile().isDirectory()) {
+                        FileUtil.copyDirectory(sourcePath, destPath);
                     } else {
-                        nodeRootDirectory.resolve(pathEntry.getTargetPath()).toFile().mkdirs();
-                        Files.copy(Paths.get(pathEntry.getPath()),
-                                nodeRootDirectory.resolve(pathEntry.getTargetPath()), StandardCopyOption.COPY_ATTRIBUTES,
-                                StandardCopyOption.REPLACE_EXISTING);
+                        Files.copy(sourcePath, destPath,
+                                StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
                     }
+                    pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), pathEntry.getTargetPath(),
+                            false));
+                } else {
+                    pathMap.add(new NodeWorkspace.PathMappingEntry(pathEntry.getPath(), pathEntry.getTargetPath(),
+                            true));
                 }
             }
+
+            return pathMap;
         } catch (IOException e) {
             logger.error("Error in copying over node {} binaries to its workspace!", node.getName(), e);
             throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!");

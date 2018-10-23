@@ -35,7 +35,6 @@ import com.spotify.docker.client.messages.*;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
-import me.arminb.spidersilk.dsl.entities.PathEntry;
 import me.arminb.spidersilk.dsl.entities.Service;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.RuntimeEngine;
@@ -170,9 +169,9 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
     }
 
+    // This should only work for linux containers
     private void createNodeContainer(Node node) throws RuntimeEngineException {
         // TODO Add Tini init to avoid zombie processes
-        // TODO is this cross-platform?
         Service nodeService = deployment.getService(node.getServiceName());
         NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(node.getName());
         String newIpAddress = networkManager.getNewIpAddress();
@@ -189,8 +188,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             envList.add(envEntry.getKey() + "=" + envEntry.getValue());
         }
         containerConfigBuilder.env(envList);
-        // Adds wrapper script to the node's root directory
+        // Creates the wrapper script and adds a bind mount for it
         String wrapperScriptAddress = createWrapperScriptForNode(node);
+        hostConfigBuilder.appendBinds(HostConfig.Bind.from(wrapperScriptAddress)
+                .to("/spidersilk_wrapper_script").readOnly(true).build());
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
         hostConfigBuilder.capAdd("NET_ADMIN").networkMode(networkManager.dockerNetworkName());
         // Creates do init file in the workspace and adds a bind mount for it
@@ -201,26 +202,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
         hostConfigBuilder.appendBinds(HostConfig.Bind
                 .from(Paths.get(nodeWorkspace.getWorkingDirectory(), "spidersilk_do_init").toAbsolutePath().toString())
-                .to("/spidersilk_do_init").build());
-        // Adds workspace to the container and sets working directory
-        hostConfigBuilder.appendBinds(HostConfig.Bind.from(nodeWorkspace.getRootDirectory())
-                .to(nodeWorkspace.getRootDirectory()).readOnly(false).build());
-        containerConfigBuilder.workingDir(nodeWorkspace.getRootDirectory());
-        // Adds not copyOverToWorkspace application paths to the container
-        Map<String, PathEntry> allPaths = new HashMap(nodeService.getApplicationPaths());
-        allPaths.putAll(node.getApplicationPaths());
-        for (PathEntry pathEntry: allPaths.values()) {
-            if (!pathEntry.shouldCopyOverToWorkspace()) {
-                String targetPath;
-                if (new File(pathEntry.getTargetPath()).isAbsolute()) {
-                    targetPath = pathEntry.getTargetPath();
-                } else {
-                    targetPath = Paths.get(nodeWorkspace.getRootDirectory(), pathEntry.getTargetPath()).toAbsolutePath()
-                            .normalize().toString();
-                }
-                hostConfigBuilder.appendBinds(HostConfig.Bind.from(pathEntry.getPath())
-                        .to(targetPath).readOnly(true).build());
-            }
+                .to("/spidersilk_do_init").readOnly(false).build());
+        // Adds all of the path mappings to the container
+        for (NodeWorkspace.PathMappingEntry pathMappingEntry: nodeWorkspace.getPathMappingList()) {
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(pathMappingEntry.getSource())
+                    .to(pathMappingEntry.getDestination()).readOnly(pathMappingEntry.isReadOnly()).build());
         }
         // Sets the network alias and hostname
         containerConfigBuilder.hostname(node.getName());
@@ -254,7 +240,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     .get(localLogFile)).readOnly(false).build());
         }
         // Sets the wrapper script as the starting command
-        containerConfigBuilder.cmd("/bin/sh", "-c", wrapperScriptAddress + " >> /spidersilk_out_err 2>&1");
+        containerConfigBuilder.cmd("/bin/sh", "-c", "/spidersilk_wrapper_script >> /spidersilk_out_err 2>&1");
         // Finalizing host config
         containerConfigBuilder.hostConfig(hostConfigBuilder.build());
         // Creates the container

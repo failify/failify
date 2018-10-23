@@ -140,46 +140,22 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName, Map<String, String> environment) {
         Node node = deployment.getNode(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
-        NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(nodeName);
 
         for (Map.Entry<String, String> entry: nodeService.getEnvironmentVariables().entrySet()) {
-            environment.put(entry.getKey(), improveEnvironmentVariable(nodeName, entry.getValue()));
+            environment.put(entry.getKey(), entry.getValue());
         }
 
         for (Map.Entry<String, String> entry: node.getEnvironmentVariables().entrySet()) {
-            environment.put(entry.getKey(), improveEnvironmentVariable(nodeName, entry.getValue()));
+            environment.put(entry.getKey(), entry.getValue());
         }
-
-        environment.put(getNodeAppHomeEnvVar(nodeName), nodeWorkspace.getRootDirectory());
 
         return environment;
-    }
-
-    private String getNodeAppHomeEnvVar(String nodeName) {
-        Node node = deployment.getNode(nodeName);
-        Service nodeService = deployment.getService(node.getServiceName());
-
-        String envVar = deployment.getAppHomeEnvVar();
-
-        if (nodeService.getAppHomeEnvVar() != null) {
-            envVar = nodeService.getAppHomeEnvVar();
-        }
-
-        if (node.getAppHomeEnvVar() != null) {
-            envVar = node.getAppHomeEnvVar();
-        }
-
-        return envVar;
     }
 
     protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName) {
         Map<String, String> retMap = new HashMap<>();
         getNodeEnvironmentVariablesMap(nodeName, retMap);
         return retMap;
-    }
-
-    protected String improveEnvironmentVariable(String nodeName, String address) {
-        return address.replace("{{APP_HOME}}", nodeWorkspaceMap.get(nodeName).getRootDirectory());
     }
 
     protected String getNodeInitCommand(String nodeName) {

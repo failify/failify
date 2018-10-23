@@ -33,10 +33,13 @@ import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.dsl.events.internal.StackTraceEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 import me.arminb.spidersilk.exceptions.PathNotFoundException;
+import me.arminb.spidersilk.util.FileUtil;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.nio.file.Paths;
 import java.util.*;
 
 /**
@@ -54,7 +57,6 @@ public class Node extends ReferableDeploymentEntity {
     private final Map<String, InternalEvent> internalEvents;
     private final Boolean offOnStartup;
     private final Integer pathOrderCounter;
-    private final String appHomeEnvVar;
 
     private Node(NodeBuilder builder) {
         super(builder.getName());
@@ -69,7 +71,6 @@ public class Node extends ReferableDeploymentEntity {
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
         pathOrderCounter = builder.pathOrderCounter;
-        appHomeEnvVar = builder.appHomeEnvVar;
     }
 
     public String getServiceName() {
@@ -116,10 +117,6 @@ public class Node extends ReferableDeploymentEntity {
         return applicationPaths;
     }
 
-    public String getAppHomeEnvVar() {
-        return appHomeEnvVar;
-    }
-
     public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
         private static Logger logger = LoggerFactory.getLogger(NodeBuilder.class);
 
@@ -134,7 +131,6 @@ public class Node extends ReferableDeploymentEntity {
         private Map<String, InternalEvent> internalEvents;
         private Boolean offOnStartup;
         private Integer pathOrderCounter;
-        private String appHomeEnvVar;
 
         public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name, String serviceName) {
             super(parentBuilder, name);
@@ -146,7 +142,6 @@ public class Node extends ReferableDeploymentEntity {
             logFiles = new HashSet<>();
             logDirectories = new HashSet<>();
             pathOrderCounter = 0;
-            appHomeEnvVar = null;
         }
 
         public NodeBuilder(String name, String serviceName) {
@@ -166,7 +161,6 @@ public class Node extends ReferableDeploymentEntity {
             logFiles = new HashSet<>(instance.logFiles);
             logDirectories = new HashSet<>(instance.logDirectories);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
-            appHomeEnvVar = new String(instance.appHomeEnvVar);
         }
 
         public NodeBuilder(Node instance) {
@@ -282,16 +276,6 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
-        public NodeBuilder applicationPath(String path) {
-            applicationPath(path, path, false);
-            return this;
-        }
-
-        public NodeBuilder applicationPath(String path, Boolean willBeChanged) {
-            applicationPath(path, path, willBeChanged);
-            return this;
-        }
-
         public NodeBuilder applicationPath(String path, String targetPath) {
             applicationPath(path, targetPath, false);
             return this;
@@ -299,7 +283,7 @@ public class Node extends ReferableDeploymentEntity {
 
         public NodeBuilder applicationPath(String path, String targetPath, Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
-                    path, targetPath, false, willBeChanged, pathOrderCounter++)); // TODO Make this thread-safe
+                    path, targetPath, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 
@@ -309,17 +293,18 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         public NodeBuilder logFile(String path) {
-            logFiles.add(path);
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log file `" + path + "` path is not absolute!");
+            }
+            logFiles.add(FilenameUtils.normalizeNoEndSeparator(path, true));
             return this;
         }
 
         public NodeBuilder logDirectory(String path) {
-            this.logDirectories.add(path);
-            return this;
-        }
-
-        public NodeBuilder exposeAppHomeDirectoryAs(String appHomeEnvVar) {
-            this.appHomeEnvVar = appHomeEnvVar;
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
+            }
+            this.logDirectories.add(FilenameUtils.normalizeNoEndSeparator(path, true));
             return this;
         }
 

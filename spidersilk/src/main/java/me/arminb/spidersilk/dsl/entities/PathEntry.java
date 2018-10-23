@@ -1,6 +1,8 @@
 package me.arminb.spidersilk.dsl.entities;
 
 import me.arminb.spidersilk.exceptions.PathNotFoundException;
+import me.arminb.spidersilk.util.FileUtil;
+import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.nio.file.Paths;
@@ -10,9 +12,11 @@ public class PathEntry {
     private final String targetPath; // this should be a relative path if this is a copyOverToWorkspace path entry
     private final Boolean library;
     private final Boolean copyOverToWorkspace; // if copyOverToWorkspace the path will be copied over to the node's workspace
+    private final Boolean shouldBeDecompressed;
     private final Integer order;
 
-    public PathEntry(String path, String targetPath, Boolean library, Boolean copyOverToWorkspace, Integer order) {
+    public PathEntry(String path, String targetPath, Boolean library, Boolean copyOverToWorkspace, Boolean shouldBeDecompressed,
+                     Integer order) {
         if (!new File(path).exists()) {
             throw new PathNotFoundException(path);
         }
@@ -20,9 +24,17 @@ public class PathEntry {
         path = Paths.get(path).toAbsolutePath().normalize().toString();
 
         this.path = path;
+
+        if (!FileUtil.isPathAbsoluteInUnix(targetPath)) {
+            throw new RuntimeException("The target path `" + path + "` is not absolute!");
+        }
+
+        targetPath = FilenameUtils.normalizeNoEndSeparator(targetPath, true);
+
         this.targetPath = targetPath;
         this.library = library;
         this.copyOverToWorkspace = copyOverToWorkspace;
+        this.shouldBeDecompressed = shouldBeDecompressed;
         this.order = order;
     }
 
@@ -44,6 +56,10 @@ public class PathEntry {
 
     public Boolean shouldCopyOverToWorkspace() {
         return copyOverToWorkspace;
+    }
+
+    public Boolean shouldBeDecompressed() {
+        return shouldBeDecompressed;
     }
 
     @Override

@@ -41,8 +41,7 @@ public class MultithreadTest {
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
         Deployment deployment = new Deployment.DeploymentBuilder("sample-multithread")
                 // Service Definitions
-                .withServiceFromJavaClasspath("s1", "target/classes")
-                    .relativeInstrumentableAddress("lib/classes")
+                .withServiceFromJavaClasspath("s1", "target/classes", "/var/lib/sample-multithread/target/classes")
                     .startCommand("java -cp ${SPIDERSILK_JAVA_CLASSPATH} me.arminb.spidersilk.samples.multithread.Main")
                     .dockerImage("spidersilk/sample-multithread")
                     .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)

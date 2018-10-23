@@ -28,6 +28,8 @@ package me.arminb.spidersilk.dsl.entities;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.exceptions.PathNotFoundException;
+import me.arminb.spidersilk.util.FileUtil;
+import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,6 @@ public class Service extends DeploymentEntity {
     // is not a library. But for instrumentation purposes a sub-path inside this path needs to be marked as a library path
     private final Set<String> libraryPaths;
     private final Set<String> logFiles;
-    // TODO it should be possible to have multiple log directories
     private final Set<String> logDirectories;
     private final Map<String, String> environmentVariables;
     private final String dockerImage;
@@ -56,7 +57,6 @@ public class Service extends DeploymentEntity {
     private final String stopCommand;
     private final ServiceType serviceType;
     private Integer pathOrderCounter;
-    private final String appHomeEnvVar;
 
     private Service(ServiceBuilder builder) {
         super(builder.getName());
@@ -74,7 +74,6 @@ public class Service extends DeploymentEntity {
         logDirectories = builder.logDirectories;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         pathOrderCounter = builder.pathOrderCounter;
-        appHomeEnvVar = builder.appHomeEnvVar;
     }
 
     public String getDockerImage() {
@@ -129,10 +128,6 @@ public class Service extends DeploymentEntity {
         return environmentVariables;
     }
 
-    public String getAppHomeEnvVar() {
-        return appHomeEnvVar;
-    }
-
     public static class ServiceBuilder extends DeploymentBuilderBase<Service, Deployment.DeploymentBuilder> {
         private static Logger logger = LoggerFactory.getLogger(ServiceBuilder.class);
 
@@ -150,8 +145,6 @@ public class Service extends DeploymentEntity {
         private String stopCommand;
         private ServiceType serviceType;
         private Integer pathOrderCounter;
-        private String appHomeEnvVar;
-
 
         public ServiceBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
             super(parentBuilder, name);
@@ -164,7 +157,6 @@ public class Service extends DeploymentEntity {
             dockerImageForceBuild = false;
             dockerFileAddress = "Dockerfile-" + name;
             pathOrderCounter = 0;
-            appHomeEnvVar = null;
         }
 
         public ServiceBuilder(String name) {
@@ -187,7 +179,6 @@ public class Service extends DeploymentEntity {
             logDirectories = new HashSet<>(instance.logDirectories);
             environmentVariables = new HashMap<>(instance.environmentVariables);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
-            appHomeEnvVar = new String(instance.appHomeEnvVar);
         }
 
         public ServiceBuilder(Service instance) {
@@ -205,8 +196,11 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder relativeInstrumentableAddress(String instrumentableAddress) {
-            this.instrumentableAddress = instrumentableAddress;
+        public ServiceBuilder instrumentableAddress(String instrumentableAddress) {
+            if (!FileUtil.isPathAbsoluteInUnix(instrumentableAddress)) {
+                throw new RuntimeException("The instrumentable address `" + instrumentableAddress + "` is not absolute!");
+            }
+            this.instrumentableAddress = Paths.get(instrumentableAddress).normalize().toString();
             return this;
         }
 
@@ -230,54 +224,49 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder applicationPath(String path) {
-            applicationPath(path, path, false, false);
-            return this;
-        }
-
         public ServiceBuilder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, false, false);
-            return this;
-        }
-
-        public ServiceBuilder applicationPath(String path, Boolean isLibrary) {
-            applicationPath(path, path, isLibrary, false);
+            applicationPath(path, targetPath, false, false, false);
             return this;
         }
 
         public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary) {
-            applicationPath(path, targetPath, isLibrary, false);
+            applicationPath(path, targetPath, isLibrary, false, false);
             return this;
         }
 
-        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean willBeChanged) {
+        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean shouldBeDecompressed,
+                                              Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
-                        path, targetPath, isLibrary, willBeChanged, pathOrderCounter++)); // TODO Make this thread-safe
+                        path, targetPath, isLibrary, willBeChanged, shouldBeDecompressed, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 
-        public ServiceBuilder relativeLibraryPath(String path) {
-            libraryPaths.add(path);
+        public ServiceBuilder libraryPath(String path) {
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The library path `" + path + "` is not absolute!");
+            }
+            libraryPaths.add(FilenameUtils.normalizeNoEndSeparator(path, true));
             return this;
         }
 
         public ServiceBuilder logFile(String path) {
-            logFiles.add(path);
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log file `" + path + "` path is not absolute!");
+            }
+            logFiles.add(FilenameUtils.normalizeNoEndSeparator(path, true));
             return this;
         }
 
         public ServiceBuilder logDirectory(String path) {
-            this.logDirectories.add(path);
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
+            }
+            this.logDirectories.add(FilenameUtils.normalizeNoEndSeparator(path, true));
             return this;
         }
 
         public ServiceBuilder environmentVariable(String name, String value) {
             this.environmentVariables.put(name, value);
-            return this;
-        }
-
-        public ServiceBuilder exposeAppHomeDirectoryAs(String appHomeEnvVar) {
-            this.appHomeEnvVar = appHomeEnvVar;
             return this;
         }
 

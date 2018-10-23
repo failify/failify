@@ -128,4 +128,11 @@ public class FileUtil {
                     }
                 });
     }
+
+    public static boolean isPathAbsoluteInUnix(String path) {
+        if (path.length() > 0 && path.startsWith("/")) {
+            return true;
+        }
+        return false;
+    }
 }

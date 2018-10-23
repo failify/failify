@@ -1,8 +1,34 @@
 package me.arminb.spidersilk.workspace;
 
+import java.util.List;
 import java.util.Map;
 
 public class NodeWorkspace {
+
+    public static class PathMappingEntry {
+        private final String source;
+        private final String destination;
+        private final Boolean readOnly;
+
+        public PathMappingEntry(String source, String destination, Boolean readOnly) {
+            this.source = source;
+            this.destination = destination;
+            this.readOnly = readOnly;
+        }
+
+        public String getSource() {
+            return source;
+        }
+
+        public String getDestination() {
+            return destination;
+        }
+
+        public Boolean isReadOnly() {
+            return readOnly;
+        }
+    }
+
     private final String instrumentableAddress;
     private final String libraryPaths;
     private final String workingDirectory;
@@ -11,9 +37,13 @@ public class NodeWorkspace {
     private final Map<String, String> logDirectoriesMap;
     private final Map<String, String> logFilesMap;
     private final Map<String, String> sharedDirectoriesMap;
+    private final List<PathMappingEntry> pathMappingList;
+
 
     public NodeWorkspace(String instrumentableAddress, String libraryPaths, String workingDirectory,
-                         String rootDirectory, String logDirectory, Map<String, String> logDirectoriesMap, Map<String, String> logFilesMap, Map<String, String> sharedDirectoriesMap) {
+                         String rootDirectory, String logDirectory, Map<String, String> logDirectoriesMap,
+                         Map<String, String> logFilesMap, Map<String, String> sharedDirectoriesMap,
+                         List<PathMappingEntry> pathMappingList) {
         this.instrumentableAddress = instrumentableAddress;
         this.libraryPaths = libraryPaths;
         this.workingDirectory = workingDirectory;
@@ -22,6 +52,7 @@ public class NodeWorkspace {
         this.logDirectoriesMap = logDirectoriesMap;
         this.logFilesMap = logFilesMap;
         this.sharedDirectoriesMap = sharedDirectoriesMap;
+        this.pathMappingList = pathMappingList;
     }
 
     public String getInstrumentableAddress() {
@@ -54,5 +85,9 @@ public class NodeWorkspace {
 
     public Map<String, String> getSharedDirectoriesMap() {
         return sharedDirectoriesMap;
+    }
+
+    public List<PathMappingEntry> getPathMappingList() {
+        return pathMappingList;
     }
 }
