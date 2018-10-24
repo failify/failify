@@ -121,12 +121,17 @@ public class SpiderSilkRunner {
 
             // Setup the nodes' workspaces
             logger.info("Creating the nodes' workspaces ...");
-            Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);;
+            Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);
+
+            // Starting the Event Server to get the port number for instrumentation
+            logger.info("Starting event server ...");
+            runtimeEngine.startEventServer();
+            logger.info("Event server is started at port " + runtimeEngine.getEventServerPortNumber());
 
             // Instrument the nodes binaries. This shouldn't change any of the application paths
             logger.info("Starting the instrumentation process ...");
             instrumentationEngine = new InstrumentationEngine(deployment, nodeWorkspaceMap);
-            instrumentationEngine.instrumentNodes();
+            instrumentationEngine.instrumentNodes(runtimeEngine.getEventServerPortNumber());
             logger.info("Instrumentation process is completed!");
 
             // Starting the runtime engine

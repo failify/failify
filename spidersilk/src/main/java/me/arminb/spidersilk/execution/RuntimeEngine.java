@@ -65,7 +65,10 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     public void start(SpiderSilkRunner spiderSilkRunner) throws RuntimeEngineException {
         // Configure local SpiderSilk runtime
         try {
-            SpiderSilk.configure(HostUtil.getLocalIpAddress(), deployment.getEventServerPortNumber().toString());
+            if (eventServer.getPortNumber() == null) {
+                throw new RuntimeEngineException("The event server's port number is not known since the event server is not started yet!");
+            }
+            SpiderSilk.configure(HostUtil.getLocalIpAddress(), String.valueOf(eventServer.getPortNumber()));
         } catch (UnknownHostException e) {
             throw new RuntimeEngineException("Cannot get the local IP address to configure the local SpiderSilk runtime!");
         }
@@ -79,8 +82,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             logger.info("Starting file sharing service ...");
             startFileSharingService();
         }
-        logger.info("Starting event server ...");
-        startEventServer();
         logger.info("Starting external events ...");
         startExternalEvents(spiderSilkRunner);
 
@@ -108,7 +109,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         }
     }
 
-    protected void startEventServer() throws RuntimeEngineException {
+    public void startEventServer() throws RuntimeEngineException {
         eventServer.start();
     }
 
@@ -251,5 +252,9 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
 
     public void setNodeWorkspaceMap(Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.nodeWorkspaceMap = Collections.unmodifiableMap(nodeWorkspaceMap);
+    }
+
+    public Integer getEventServerPortNumber() {
+        return eventServer.getPortNumber();
     }
 }

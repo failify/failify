@@ -5,10 +5,10 @@ import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.entities.PathEntry;
 import me.arminb.spidersilk.dsl.entities.Service;
+import me.arminb.spidersilk.exceptions.OsNotSupportedException;
 import me.arminb.spidersilk.exceptions.WorkspaceException;
 import me.arminb.spidersilk.util.FileUtil;
-import net.lingala.zip4j.core.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
+import me.arminb.spidersilk.util.ZipUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +73,7 @@ public class WorkspaceManager {
      * @return the given path with replaced slashes
      */
     private String pathToStringWithoutSlashes(String path) {
-        return path.replace("/", "_-");
+        return path.replaceAll("[\\\\/]", "_-");
     }
 
     private Map<String, String> createSharedDirectories() throws WorkspaceException {
@@ -120,17 +120,22 @@ public class WorkspaceManager {
             for (PathEntry pathEntry: service.getApplicationPaths().values()) {
                 if (pathEntry.shouldBeDecompressed()) {
                     if (pathEntry.getPath().endsWith(".zip")) {
+                        File targetDir = decompressedDirectory.resolve(service.getName())
+                                .resolve(pathToStringWithoutSlashes(pathEntry.getPath())).toFile();
+
                         try {
-                            ZipFile zipFile = new ZipFile(pathEntry.getPath());
-                            Path targetPath = decompressedDirectory.resolve(service.getName())
-                                    .resolve(pathToStringWithoutSlashes(pathEntry.getPath()));
-                            zipFile.extractAll(targetPath.toString());
-                            retMap.get(service.getName()).put(pathEntry.getPath(), targetPath.toString());
-                        } catch (ZipException e) {
+                            ZipUtil.unzip(pathEntry.getPath(), targetDir.toString());
+                        } catch (IOException e) {
                             logger.error("Error while unzipping {}", pathEntry.getPath(), e);
                             throw new WorkspaceException("Error while unzipping " + pathEntry.getPath());
+                        } catch (InterruptedException e) {
+                            logger.error("Error while unzipping {}", pathEntry.getPath(), e);
+                            throw new WorkspaceException("Error while unzipping " + pathEntry.getPath());
+                        } catch (OsNotSupportedException e) {
+                            logger.error(e.getMessage(), pathEntry.getPath(), e);
+                            throw new WorkspaceException(e.getMessage());
                         }
-
+                        retMap.get(service.getName()).put(pathEntry.getPath(), targetDir.toString());
                     } else {
                         throw new WorkspaceException("Decompression is only supported for zip files!"
                                 + pathEntry.getPath() + " is not a zip file.");
@@ -187,11 +192,6 @@ public class WorkspaceManager {
         if (instrumentableAddress != null) {
             instrumentableAddress = getLocalPathFromNodeTargetPath(pathMappingList,
                     nodeService.getInstrumentableAddress(), true);
-
-            if (instrumentableAddress == null || !new File(instrumentableAddress).exists()) {
-                throw new WorkspaceException("The marked instrumentable address `" + nodeService.getInstrumentableAddress() +
-                        "` does not exist!");
-            }
         }
 
         // Creates the node workspace object
@@ -286,7 +286,7 @@ public class WorkspaceManager {
             NodeWorkspace.PathMappingEntry entry = pathMappingList.get(i);
             if (path.startsWith(entry.getDestination())) {
                 if (!mustBeWritable || !entry.isReadOnly()) {
-                    return path.replace(entry.getDestination(), entry.getSource());
+                    return path.replaceFirst(entry.getDestination(), entry.getSource());
                 }
             }
         }
@@ -341,6 +341,33 @@ public class WorkspaceManager {
                     pathMap.add(new NodeWorkspace.PathMappingEntry(pathEntry.getPath(), pathEntry.getTargetPath(),
                             true));
                 }
+            }
+
+            // Copies over instrumentable address if it is not marked as willBeChanged and updates path mapping
+            String localInstrumentableAddress = getLocalPathFromNodeTargetPath(pathMap,
+                    nodeService.getInstrumentableAddress(), true);
+
+            if (localInstrumentableAddress == null) {
+                localInstrumentableAddress = getLocalPathFromNodeTargetPath(pathMap,
+                        nodeService.getInstrumentableAddress(), false);
+
+                if (localInstrumentableAddress == null || !new File(localInstrumentableAddress).exists()) {
+                    throw new WorkspaceException("The marked instrumentable address `" + nodeService.getInstrumentableAddress() +
+                            "` is not marked as willBeChanged or does not exist!");
+                }
+
+                Path localInstrumentablePath = Paths.get(localInstrumentableAddress);
+
+                Path destPath = nodeRootDirectory.resolve("Instrumentable_" + pathToStringWithoutSlashes(
+                        nodeService.getInstrumentableAddress()));
+                if (new File(localInstrumentableAddress).isDirectory()) {
+                    FileUtil.copyDirectory(localInstrumentablePath, destPath);
+                } else {
+                    Files.copy(localInstrumentablePath, destPath,
+                            StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
+                }
+                pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), nodeService.getInstrumentableAddress(),
+                        false));
             }
 
             return pathMap;

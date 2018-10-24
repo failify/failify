@@ -16,7 +16,7 @@ public interface LimitedRuntimeEngine {
     void networkPartition(String nodePartitions) throws RuntimeEngineException;
     void removeNetworkPartition() throws RuntimeEngineException;
     // TODO Change int to ProcessResults
-    int runCommandInNode(String nodeName, String command) throws RuntimeEngineException;
+    long runCommandInNode(String nodeName, String command) throws RuntimeEngineException;
 
     // Runtime Info
     Set<String> nodeNames();

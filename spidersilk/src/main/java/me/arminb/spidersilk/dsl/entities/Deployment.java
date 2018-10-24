@@ -66,7 +66,6 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, DeploymentEntity> deploymentEntities;
     private final Map<String, BlockingEvent> blockingEvents;
     private final Map<String, SchedulingEvent> blockingSchedulingEvents;
-    private final Integer eventServerPortNumber;
     private final Integer secondsToWaitForCompletion;
     private final String runSequence;
     private final Integer secondsUntilForcedStop;
@@ -75,7 +74,6 @@ public class Deployment extends DeploymentEntity {
     private Deployment(DeploymentBuilder builder) {
         super(builder.getName());
         runSequence = builder.runSequence;
-        eventServerPortNumber = new Integer(builder.eventServerPortNumber);
         secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
@@ -232,10 +230,6 @@ public class Deployment extends DeploymentEntity {
         return deploymentEntities;
     }
 
-    public Integer getEventServerPortNumber() {
-        return eventServerPortNumber;
-    }
-
     public Integer getSecondsToWaitForCompletion() {
         return secondsToWaitForCompletion;
     }
@@ -266,7 +260,6 @@ public class Deployment extends DeploymentEntity {
         private Set<String> sharedDorectories;
         private Map<String, WorkloadEvent> workloadEvents;
         private Map<String, ExternalEvent> externalEvents;
-        private Integer eventServerPortNumber;
         private Integer secondsToWaitForCompletion;
         private Integer secondsUntilForcedStop;
         private Integer nextEventReceiptTimeout;
@@ -279,7 +272,6 @@ public class Deployment extends DeploymentEntity {
             externalEvents = new HashMap<>();
             workloadEvents = new HashMap<>();
             runSequence = "";
-            eventServerPortNumber = 8765; // Default port number for the event server
             secondsToWaitForCompletion = 5;
             secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
             nextEventReceiptTimeout = null;
@@ -293,7 +285,6 @@ public class Deployment extends DeploymentEntity {
             externalEvents = new HashMap<>(instance.externalEvents);
             workloadEvents = new HashMap<>(instance.workloadEvents);
             runSequence =  new String(instance.runSequence);
-            eventServerPortNumber = new Integer(instance.eventServerPortNumber);
             secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
             secondsUntilForcedStop = new Integer(instance.secondsUntilForcedStop);
             nextEventReceiptTimeout = new Integer(instance.nextEventReceiptTimeout);
@@ -473,11 +464,6 @@ public class Deployment extends DeploymentEntity {
             return withNetworkOperationEvent(eventName)
                     .networkOperation(NetworkOperation.LINK_UP)
                     .nodePartitions(node1 + "," + node2).and();
-        }
-
-        public DeploymentBuilder eventServerPortNumber(Integer eventServerPortNumber) {
-            this.eventServerPortNumber = eventServerPortNumber;
-            return this;
         }
 
         public DeploymentBuilder runSequence(String sequence) {

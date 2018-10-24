@@ -25,7 +25,7 @@
 
 package me.arminb.spidersilk.execution.single_node;
 
-import com.google.common.collect.ImmutableList;
+import com.spotify.docker.client.shaded.com.google.common.collect.ImmutableList;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
 import com.spotify.docker.client.LoggingBuildHandler;
@@ -109,7 +109,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         nodeToContainerInfoMap = Collections.unmodifiableMap(nodeToContainerInfoMap);
     }
 
-    public int runCommandInNode(String nodeName, String command) throws RuntimeEngineException{
+    public long runCommandInNode(String nodeName, String command) throws RuntimeEngineException{
         if (!nodeToContainerInfoMap.containsKey(nodeName)) {
             logger.error("Node {} does not have a running container to run command {}!", nodeName, command);
             return -1;
@@ -122,9 +122,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     command.split("\\s+"));
             dockerClient.execStart(execCreation.id());
         } catch (InterruptedException e) {
+            logger.error("Error while trying to run command {} in node {} !", command, nodeName, e);
             throw new RuntimeEngineException("Error while trying to run command " + command + " in node "
                     + nodeName + "!");
         } catch (DockerException e) {
+            logger.error("Error while trying to run command {} in node {} !", command, nodeName, e);
             throw new RuntimeEngineException("Error while trying to run command " + command + " in node "
                     + nodeName + "!");
         }
@@ -160,10 +162,13 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                             DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
                 }
             } catch (DockerException e) {
+                logger.error("Error while building docker image for service {}!", service.getName(), e);
                 throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
             } catch (InterruptedException e) {
+                logger.error("Error while building docker image for service {}!", service.getName(), e);
                 throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
             } catch (IOException e) {
+                logger.error("Error while building docker image for service {}!", service.getName(), e);
                 throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
             }
         }
@@ -205,8 +210,9 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 .to("/spidersilk_do_init").readOnly(false).build());
         // Adds all of the path mappings to the container
         for (NodeWorkspace.PathMappingEntry pathMappingEntry: nodeWorkspace.getPathMappingList()) {
+            // TODO The readonly should come from path mapping. Right now docker wouldn't work with sub-path that are not readonly
             hostConfigBuilder.appendBinds(HostConfig.Bind.from(pathMappingEntry.getSource())
-                    .to(pathMappingEntry.getDestination()).readOnly(pathMappingEntry.isReadOnly()).build());
+                    .to(pathMappingEntry.getDestination()).readOnly(false).build());
         }
         // Sets the network alias and hostname
         containerConfigBuilder.hostname(node.getName());
@@ -305,9 +311,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
         // deletes the created docker network
         try {
-            logger.info("Deleting docker network {} ...", networkManager.dockerNetworkId());
-            networkManager.deleteDockerNetwork();
-            logger.info("Docker network is deleted successfully!");
+            if (networkManager != null) {
+                logger.info("Deleting docker network {} ...", networkManager.dockerNetworkId());
+                networkManager.deleteDockerNetwork();
+                logger.info("Docker network is deleted successfully!");
+            }
         } catch (RuntimeEngineException e) {
             logger.error(e.getMessage());
         }
@@ -361,8 +369,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 networkManager.reApplyIptablesRules(nodeName);
                 logger.info("Container {} for node {} is started!", nodeToContainerInfoMap.get(nodeName).containerId(), nodeName);
             } catch (DockerException e) {
+                logger.error("Error while trying to start the container for node {}!", nodeName, e);
                 throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!");
             } catch (InterruptedException e) {
+                logger.error("Error while trying to start the container for node {}!", nodeName, e);
                 throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!");
             }
             // Prevents the init command to be executed in the next run of this node

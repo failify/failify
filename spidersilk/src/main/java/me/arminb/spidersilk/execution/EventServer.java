@@ -12,13 +12,15 @@ public class EventServer {
     private final static Logger logger = LoggerFactory.getLogger(EventServer.class);
     private final Deployment deployment;
     private Server jettyServer;
+    private Integer portNumber;
+    private Boolean stopped;
 
     public EventServer(Deployment deployment) {
         this.deployment = deployment;
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
 
-        jettyServer = new Server(deployment.getEventServerPortNumber());
+        jettyServer = new Server(0);
         jettyServer.setHandler(context);
 
         ServletHolder jerseyServlet = context.addServlet(
@@ -28,22 +30,30 @@ public class EventServer {
         jerseyServlet.setInitParameter(
                 "jersey.config.server.provider.classnames",
                 JerseyEndPoint.class.getCanonicalName());
+        stopped = true;
     }
 
     public void start() throws RuntimeEngineException {
-        try {
-            jettyServer.start();
-        } catch (Exception e) {
-            throw new RuntimeEngineException("Cannot start Jetty Server on port " + deployment.getEventServerPortNumber() + "!");
+        if (stopped) {
+            try {
+                jettyServer.start();
+                portNumber = jettyServer.getURI().getPort();
+                stopped = false;
+            } catch (Exception e) {
+                throw new RuntimeEngineException("Cannot start Jetty Server on port " + jettyServer.getURI().getPort() + "!");
+            }
         }
     }
 
     public void stop() {
-        try {
-            jettyServer.stop();
-            jettyServer.destroy();
-        } catch (Exception e) {
-            logger.error("Unable to stop Jetty Server!", e);
+        if (!stopped) {
+            try {
+                jettyServer.stop();
+                jettyServer.destroy();
+                stopped = true;
+            } catch (Exception e) {
+                logger.error("Unable to stop Jetty Server!", e);
+            }
         }
     }
 
@@ -55,6 +65,9 @@ public class EventServer {
         }
     }
 
+    public Integer getPortNumber() {
+        return portNumber;
+    }
 
     public Deployment getDeployment() {
         return deployment;
