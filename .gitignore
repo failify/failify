@@ -16,3 +16,8 @@ out/
 # Maven
 log/
 target/
+
+.SpiderSilk*
+.spidersilk*
+
+dependency-reduced-pom.xml
