@@ -47,6 +47,7 @@ public class Service extends DeploymentEntity {
     private final Set<String> libraryPaths;
     private final Set<String> logFiles;
     private final Set<String> logDirectories;
+    private final Set<ExposedPortDefinition> exposedPorts;
     private final Map<String, String> environmentVariables;
     private final String dockerImage;
     private final String dockerFileAddress;
@@ -72,6 +73,7 @@ public class Service extends DeploymentEntity {
         libraryPaths = Collections.unmodifiableSet(builder.libraryPaths);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
+        exposedPorts = builder.exposedPorts;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         pathOrderCounter = builder.pathOrderCounter;
     }
@@ -128,6 +130,10 @@ public class Service extends DeploymentEntity {
         return environmentVariables;
     }
 
+    public Set<ExposedPortDefinition> getExposedPorts() {
+        return exposedPorts;
+    }
+
     public static class ServiceBuilder extends DeploymentBuilderBase<Service, Deployment.DeploymentBuilder> {
         private static Logger logger = LoggerFactory.getLogger(ServiceBuilder.class);
 
@@ -135,6 +141,7 @@ public class Service extends DeploymentEntity {
         private Set<String> libraryPaths;
         private Set<String> logFiles;
         private Set<String> logDirectories;
+        private Set<ExposedPortDefinition> exposedPorts;
         private Map<String, String> environmentVariables;
         private String dockerImage;
         private String dockerFileAddress;
@@ -152,6 +159,7 @@ public class Service extends DeploymentEntity {
             libraryPaths = new HashSet<>();
             logFiles = new HashSet<>();
             logDirectories = new HashSet<>();
+            exposedPorts = new HashSet<>();
             environmentVariables = new HashMap<>();
             dockerImage = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
             dockerImageForceBuild = false;
@@ -177,6 +185,7 @@ public class Service extends DeploymentEntity {
             libraryPaths = new HashSet<>(instance.libraryPaths);
             logFiles = new HashSet<>(instance.logFiles);
             logDirectories = new HashSet<>(instance.logDirectories);
+            exposedPorts = new HashSet<>(instance.exposedPorts);
             environmentVariables = new HashMap<>(instance.environmentVariables);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
         }
@@ -267,6 +276,21 @@ public class Service extends DeploymentEntity {
 
         public ServiceBuilder environmentVariable(String name, String value) {
             this.environmentVariables.put(name, value);
+            return this;
+        }
+
+        public ServiceBuilder tcpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
+            }
+            return this;
+        }
+
+
+        public ServiceBuilder udpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.UDP));
+            }
             return this;
         }
 

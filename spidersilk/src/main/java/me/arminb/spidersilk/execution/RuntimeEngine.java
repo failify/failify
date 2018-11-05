@@ -27,6 +27,7 @@ package me.arminb.spidersilk.execution;
 
 import me.arminb.spidersilk.SpiderSilkRunner;
 import me.arminb.spidersilk.dsl.entities.Deployment;
+import me.arminb.spidersilk.dsl.entities.ExposedPortDefinition;
 import me.arminb.spidersilk.dsl.entities.Node;
 import me.arminb.spidersilk.dsl.entities.Service;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
@@ -157,6 +158,15 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         Map<String, String> retMap = new HashMap<>();
         getNodeEnvironmentVariablesMap(nodeName, retMap);
         return retMap;
+    }
+
+    protected Set<ExposedPortDefinition> getNodeExposedPorts(String nodeName) {
+        Node node = deployment.getNode(nodeName);
+        Service nodeService = deployment.getService(node.getServiceName());
+
+        Set<ExposedPortDefinition> ports = new HashSet<>(nodeService.getExposedPorts());
+        ports.addAll(node.getExposedPorts());
+        return ports;
     }
 
     protected String getNodeInitCommand(String nodeName) {
