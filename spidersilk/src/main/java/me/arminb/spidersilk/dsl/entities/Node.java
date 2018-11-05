@@ -47,6 +47,7 @@ import java.util.*;
  */
 public class Node extends ReferableDeploymentEntity {
     private final Map<String, PathEntry> applicationPaths;
+    private final Set<ExposedPortDefinition> exposedPorts;
     private final Map<String, String> environmentVariables;
     private final Set<String> logFiles;
     private final Set<String> logDirectories;
@@ -67,6 +68,7 @@ public class Node extends ReferableDeploymentEntity {
         internalEvents = Collections.unmodifiableMap(builder.internalEvents);
         offOnStartup = builder.offOnStartup;
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
+        exposedPorts = builder.exposedPorts;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
@@ -117,10 +119,15 @@ public class Node extends ReferableDeploymentEntity {
         return applicationPaths;
     }
 
+    public Set<ExposedPortDefinition> getExposedPorts() {
+        return exposedPorts;
+    }
+
     public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
         private static Logger logger = LoggerFactory.getLogger(NodeBuilder.class);
 
         private Map<String, PathEntry> applicationPaths;
+        private Set<ExposedPortDefinition> exposedPorts;
         private Map<String, String> environmentVariables;
         private Set<String> logFiles;
         private Set<String> logDirectories;
@@ -138,6 +145,7 @@ public class Node extends ReferableDeploymentEntity {
             offOnStartup = false;
             internalEvents = new HashMap<>();
             applicationPaths = new HashMap<>();
+            exposedPorts = new HashSet<>();
             environmentVariables = new HashMap<>();
             logFiles = new HashSet<>();
             logDirectories = new HashSet<>();
@@ -157,6 +165,7 @@ public class Node extends ReferableDeploymentEntity {
             offOnStartup = new Boolean(instance.offOnStartup);
             internalEvents = new HashMap<>(instance.internalEvents);
             applicationPaths = new HashMap<>(instance.applicationPaths);
+            exposedPorts = new HashSet<>(instance.exposedPorts);
             environmentVariables = new HashMap<>(instance.environmentVariables);
             logFiles = new HashSet<>(instance.logFiles);
             logDirectories = new HashSet<>(instance.logDirectories);
@@ -291,7 +300,20 @@ public class Node extends ReferableDeploymentEntity {
             this.environmentVariables.put(name, value);
             return this;
         }
+        public NodeBuilder tcpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
+            }
+            return this;
+        }
 
+
+        public NodeBuilder udpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.UDP));
+            }
+            return this;
+        }
         public NodeBuilder logFile(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log file `" + path + "` path is not absolute!");

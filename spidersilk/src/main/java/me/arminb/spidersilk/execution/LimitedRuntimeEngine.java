@@ -1,5 +1,6 @@
 package me.arminb.spidersilk.execution;
 
+import me.arminb.spidersilk.dsl.entities.PortType;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 
 import java.util.Set;
@@ -21,6 +22,7 @@ public interface LimitedRuntimeEngine {
     // Runtime Info
     Set<String> nodeNames();
     String ip(String nodeName);
+    Integer portMapping(String nodeName, Integer portNumber, PortType portType);
 
     // Events
     void waitFor(String eventName) throws RuntimeEngineException;

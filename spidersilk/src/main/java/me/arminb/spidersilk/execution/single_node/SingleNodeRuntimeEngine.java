@@ -32,12 +32,12 @@ import com.spotify.docker.client.LoggingBuildHandler;
 import com.spotify.docker.client.exceptions.DockerCertificateException;
 import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.*;
+import com.spotify.docker.client.shaded.com.google.common.collect.ImmutableMap;
 import me.arminb.spidersilk.Constants;
-import me.arminb.spidersilk.dsl.entities.Deployment;
-import me.arminb.spidersilk.dsl.entities.Node;
-import me.arminb.spidersilk.dsl.entities.Service;
+import me.arminb.spidersilk.dsl.entities.*;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.RuntimeEngine;
+import me.arminb.spidersilk.util.OsUtil;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
@@ -52,6 +52,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class SingleNodeRuntimeEngine extends RuntimeEngine {
     private static Logger logger = LoggerFactory.getLogger(SingleNodeRuntimeEngine.class);
@@ -66,7 +67,20 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     public String ip(String nodeName) {
-        return nodeToContainerInfoMap.get(nodeName).ip();
+        if (OsUtil.getOS() == OsUtil.OS.LINUX) {
+            return nodeToContainerInfoMap.get(nodeName).ip();
+        } else {
+            return "127.0.0.1";
+        }
+    }
+
+    @Override
+    public Integer portMapping(String nodeName, Integer portNumber, PortType portType) {
+        if (OsUtil.getOS() == OsUtil.OS.LINUX) {
+            return portNumber;
+        } else {
+            return nodeToContainerInfoMap.get(nodeName).getPortMapping(new ExposedPortDefinition(portNumber, portType));
+        }
     }
 
     public String getNodeContainerId(String nodeName) {
@@ -221,6 +235,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 .ipAddress(newIpAddress) // static ip address for containers
                 .aliases(ImmutableList.<String>builder().add(node.getName()).build()).build());
         containerConfigBuilder.networkingConfig(ContainerConfig.NetworkingConfig.create(endpointConfigMap));
+        // Sets exposed ports
+        containerConfigBuilder.exposedPorts(
+                getNodeExposedPorts(node.getName()).stream().map(portDef -> portDef.toString()).collect(Collectors.toSet()));
+        hostConfigBuilder.publishAllPorts(true);
         // Adds bind mount for console output
         // TODO file creation should be moved to WorkspaceManager
         String localConsoleFile = Paths.get(nodeWorkspace.getLogDirectory(), "spidersilk_out_err").toAbsolutePath().toString();
@@ -360,14 +378,37 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
     }
 
+    private void updateContainerPortMapping(String nodeName) throws RuntimeEngineException {
+        ContainerInfo containerInfo;
+        try {
+            containerInfo = dockerClient.inspectContainer(nodeToContainerInfoMap.get(nodeName).containerId());
+        } catch (InterruptedException e) {
+            logger.error("Error while trying to inspect the status of node {}!", nodeName, e);
+            throw new RuntimeEngineException("Error while trying to inspect the status of node " + nodeName + "!");
+        } catch (DockerException e) {
+            logger.error("Error while trying to inspect the status of node {}!", nodeName, e);
+            throw new RuntimeEngineException("Error while trying to inspect the status of node " + nodeName + "!");
+        }
+
+        Map<ExposedPortDefinition, Integer> portMapping = new HashMap<>();
+        ImmutableMap<String, List<PortBinding>> ports = containerInfo.networkSettings().ports();
+        for (String containerPort: ports.keySet()) {
+            portMapping.put(ExposedPortDefinition.fromString(containerPort),
+                    Integer.parseInt(ports.get(containerPort).get(0).hostPort()));
+        }
+        nodeToContainerInfoMap.get(nodeName).setPortMapping(portMapping);
+    }
+
     @Override
     public void startNode(String nodeName) throws RuntimeEngineException {
         if (nodeToContainerInfoMap.containsKey(nodeName)) {
             logger.info("Starting node {} ...", nodeName);
+
+            String containerId = nodeToContainerInfoMap.get(nodeName).containerId();
+
             try {
-                dockerClient.startContainer(nodeToContainerInfoMap.get(nodeName).containerId());
+                dockerClient.startContainer(containerId);
                 networkManager.reApplyIptablesRules(nodeName);
-                logger.info("Container {} for node {} is started!", nodeToContainerInfoMap.get(nodeName).containerId(), nodeName);
             } catch (DockerException e) {
                 logger.error("Error while trying to start the container for node {}!", nodeName, e);
                 throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!");
@@ -387,6 +428,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             } catch (IOException e) {
                 throw new RuntimeEngineException("Error while spidersilk do init file in node " + nodeName + " workspace!");
             }
+
+            updateContainerPortMapping(nodeName);
+
+            logger.info("Container {} for node {} is started!", containerId, nodeName);
         } else {
             logger.error("There is no container for node {} to be started!", nodeName);
         }
@@ -404,6 +449,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 }
                 dockerClient.restartContainer(nodeToContainerInfoMap.get(nodeName).containerId());
                 networkManager.reApplyIptablesRules(nodeName);
+                updateContainerPortMapping(nodeName);
                 logger.info("Container {} for node {} is restarted!", nodeToContainerInfoMap.get(nodeName).containerId(), nodeName);
             } catch (DockerException e) {
                 throw new RuntimeEngineException("Error while trying to restart the container for node " + nodeName + "!");
