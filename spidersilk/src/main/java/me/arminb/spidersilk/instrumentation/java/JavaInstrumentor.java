@@ -30,7 +30,6 @@ import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 import me.arminb.spidersilk.instrumentation.Instrumentor;
 import me.arminb.spidersilk.util.JarUtil;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
-import me.arminb.spidersilk.util.ShellUtil;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
@@ -71,22 +70,17 @@ public class JavaInstrumentor implements Instrumentor {
         }
 
         try {
-            String currentShell = ShellUtil.getCurrentShellAddress();
-            if (currentShell == null) {
-                throw new InstrumentationException("Cannot find the current system shell to run the instrumentor!");
-            }
-
             String classPathString = "";
             if (nodeWorkspace.getLibraryPaths() != null) {
-                classPathString = " -cp \"" + nodeWorkspace.getLibraryPaths() + "\"";
+                classPathString = "\"" + nodeWorkspace.getLibraryPaths() + "\"";
             }
 
             // TODO this is not a cross-platform way of doing this and only works on unix and linux based systems
             Process ajcProcess = new ProcessBuilder().command(
-                    currentShell, "-c" ,"ajc -inpath " + nodeWorkspace.getInstrumentableAddress() +
-                    " @" + Paths.get(nodeWorkspace.getRootDirectory(), "argfile").toString() +
-                    classPathString +
-                    " -outjar " + Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toString())
+                    "ajc", "-inpath", nodeWorkspace.getInstrumentableAddress(),
+                    "@" + Paths.get(nodeWorkspace.getRootDirectory(), "argfile").toString(),
+                    "-cp", classPathString,
+                    "-outjar", Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toString())
                     .redirectError(Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toFile())
                     .redirectOutput(Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toFile())
                     .start();
