@@ -187,16 +187,15 @@ public class WorkspaceManager {
         List<NodeWorkspace.PathMappingEntry> pathMappingList = copyOverNodePathsAndMakePathMappingList(node, nodeService,
                 nodeRootDirectory, compressedToDecompressedMap);
 
-        // Determines the instrumentable address
-        String instrumentableAddress = nodeService.getInstrumentableAddress();
-        if (instrumentableAddress != null) {
-            instrumentableAddress = getLocalPathFromNodeTargetPath(pathMappingList,
-                    nodeService.getInstrumentableAddress(), true);
+        // Determines the instrumentable paths
+        Set<String> instrumentablePaths = new HashSet<>();
+        for (String instrumentablePath: nodeService.getInstrumentablePaths()) {
+            instrumentablePaths.add(getLocalPathFromNodeTargetPath(pathMappingList, instrumentablePath, true));
         }
 
         // Creates the node workspace object
         return new NodeWorkspace(
-                instrumentableAddress,
+                instrumentablePaths,
                 getNodeLibPaths(nodeService, pathMappingList),
                 nodeWorkingDirectory.toString(),
                 nodeRootDirectory.toString(),
@@ -250,34 +249,39 @@ public class WorkspaceManager {
         return logDirectories;
     }
 
-    private String getNodeLibPaths(Service nodeService, List<NodeWorkspace.PathMappingEntry> pathMappingList) {
-        StringBuilder libPathsBuilder = new StringBuilder();
+    private Set<String> getNodeLibPaths(Service nodeService, List<NodeWorkspace.PathMappingEntry> pathMappingList) throws WorkspaceException {
         Set<String> libPaths = new HashSet<>();
 
         // Adds application paths that are library to the set
-        for (PathEntry pathEntry: nodeService.getApplicationPaths().values()) {
+        for (PathEntry pathEntry : nodeService.getApplicationPaths().values()) {
             if (pathEntry.isLibrary()) {
                 String localLibPath = getLocalPathFromNodeTargetPath(pathMappingList, pathEntry.getTargetPath(),
                         false);
                 if (localLibPath != null) {
-                    libPaths.add(localLibPath);
+                    try {
+                        libPaths.addAll(FileUtil.findAllMatchingPaths(localLibPath));
+                    } catch (IOException e) {
+                        logger.error("Error while trying to expand lib path {}", pathEntry.getTargetPath(), e);
+                        throw new WorkspaceException("Error while trying to expand lib path " + pathEntry.getTargetPath());
+                    }
                 }
             }
         }
 
         // Adds marked library paths
-        for (String libPath: nodeService.getLibraryPaths()) {
+        for (String libPath : nodeService.getLibraryPaths()) {
             String localLibPath = getLocalPathFromNodeTargetPath(pathMappingList, libPath, false);
             if (localLibPath != null) {
-                libPaths.add(localLibPath);
+                try {
+                    libPaths.addAll(FileUtil.findAllMatchingPaths(localLibPath));
+                } catch (IOException e) {
+                    logger.error("Error while trying to expand lib path {}", libPath, e);
+                    throw new WorkspaceException("Error while trying to expand lib path " + libPath);
+                }
             }
         }
 
-        for (String libPath: libPaths) {
-            libPathsBuilder.append(libPath).append(nodeService.getServiceType().getLibraryPathSeparator());
-        }
-
-        return libPathsBuilder.toString();
+        return libPaths;
     }
 
     private String getLocalPathFromNodeTargetPath(List<NodeWorkspace.PathMappingEntry> pathMappingList, String path,
@@ -343,31 +347,33 @@ public class WorkspaceManager {
                 }
             }
 
-            // Copies over instrumentable address if it is not marked as willBeChanged and updates path mapping
-            String localInstrumentableAddress = getLocalPathFromNodeTargetPath(pathMap,
-                    nodeService.getInstrumentableAddress(), true);
+            for (String instrumentablePath: nodeService.getInstrumentablePaths()) {
+                // Copies over instrumentable paths if it is not marked as willBeChanged and updates path mapping
+                String localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMap,
+                        instrumentablePath, true);
 
-            if (localInstrumentableAddress == null) {
-                localInstrumentableAddress = getLocalPathFromNodeTargetPath(pathMap,
-                        nodeService.getInstrumentableAddress(), false);
+                if (localInstrumentablePath == null) {
+                    localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMap,
+                            instrumentablePath, false);
 
-                if (localInstrumentableAddress == null || !new File(localInstrumentableAddress).exists()) {
-                    throw new WorkspaceException("The marked instrumentable address `" + nodeService.getInstrumentableAddress() +
-                            "` is not marked as willBeChanged or does not exist!");
+                    if (localInstrumentablePath == null || !new File(localInstrumentablePath).exists()) {
+                        throw new WorkspaceException("The marked instrumentable path `" + nodeService.getInstrumentablePaths() +
+                                "` is not marked as willBeChanged or does not exist!");
+                    }
+
+                    Path localInstrumentablePathObj = Paths.get(localInstrumentablePath);
+
+                    Path destPath = nodeRootDirectory.resolve("Instrumentable_" + pathToStringWithoutSlashes(
+                            instrumentablePath));
+                    if (new File(localInstrumentablePath).isDirectory()) {
+                        FileUtil.copyDirectory(localInstrumentablePathObj, destPath);
+                    } else {
+                        Files.copy(localInstrumentablePathObj, destPath,
+                                StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), instrumentablePath,
+                            false));
                 }
-
-                Path localInstrumentablePath = Paths.get(localInstrumentableAddress);
-
-                Path destPath = nodeRootDirectory.resolve("Instrumentable_" + pathToStringWithoutSlashes(
-                        nodeService.getInstrumentableAddress()));
-                if (new File(localInstrumentableAddress).isDirectory()) {
-                    FileUtil.copyDirectory(localInstrumentablePath, destPath);
-                } else {
-                    Files.copy(localInstrumentablePath, destPath,
-                            StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
-                }
-                pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), nodeService.getInstrumentableAddress(),
-                        false));
             }
 
             return pathMap;

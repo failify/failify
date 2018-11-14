@@ -41,8 +41,8 @@ public class MultithreadTest {
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
         Deployment deployment = new Deployment.DeploymentBuilder("sample-multithread")
                 // Service Definitions
-                .withServiceFromJavaClasspath("s1", "target/classes", "/var/lib/sample-multithread/target/classes")
-                    .startCommand("java -cp ${SPIDERSILK_JAVA_CLASSPATH} me.arminb.spidersilk.samples.multithread.Main")
+                .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
+                    .startCommand("java -cp ${SPIDERSILK_JVM_CLASSPATH} me.arminb.spidersilk.samples.multithread.Main")
                     .dockerImage("spidersilk/sample-multithread")
                     .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)
                     .logFile("/var/log/sample1")
@@ -53,6 +53,7 @@ public class MultithreadTest {
                     .stackTrace("e1", "me.arminb.spidersilk.samples.multithread.Main.helloWorld1")
                     .stackTrace("e2", "me.arminb.spidersilk.samples.multithread.Main.helloWorld2")
                     .stackTrace("e3", "me.arminb.spidersilk.samples.multithread.Main.helloWorld3")
+                    .stackTrace("e4", "org.apache.commons.io.FilenameUtils.normalize")
                     .blockBefore("bbe2", "e2")
                     .unblockBefore("ubbe2", "e2")
                     .garbageCollection("g1")
@@ -60,21 +61,23 @@ public class MultithreadTest {
                 .withNode("n2", "s1").offOnStartup()
                 .and()
                 // Workload Events
-                .workloadEvents("we1,we2,we3")
+                .workloadEvents("we1", "we2")
                 // External Events Definitions
                 .startNode("x1", "n2")
                 .restartNode("x2", "n2")
-                .networkPartition("net1", "n1,n2")
-                .removeNetworkPartition("net2")
                 // Run Sequence Definition
-                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * net1 * e3 * net2 * x2")
+                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * e3 * we2 * x2 * e4")
                 .secondsToWaitForCompletion(5)
                 .sharedDirectory("/spidersilk")
                 .build();
 
         SpiderSilkRunner runner = SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
+        // Injecting network partition in a specific time in the test case
         runner.runtime().waitFor("x1");
-        runner.runtime().enforceOrder("we1");
+        runner.runtime().networkPartition("n1,n2");
+        runner.runtime().sendEvent("we1");
+        // Removing network partition in a specific time in the test case
+        runner.runtime().enforceOrder("we2", () -> runner.runtime().removeNetworkPartition());
         runner.waitForRunSequenceCompletion(true);
     }
 }

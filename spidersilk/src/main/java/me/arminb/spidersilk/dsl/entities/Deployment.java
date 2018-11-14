@@ -46,9 +46,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * The container class for the whole distributed system deployment definition. The builder class is the entry point for building
@@ -328,37 +328,44 @@ public class Deployment extends DeploymentEntity {
             return new Service.ServiceBuilder(this, name);
         }
 
-        public Service.ServiceBuilder withServiceFromJavaClasspath(String name, String instrumentableAddress, String instrumentableTargetPath) {
+        public Service.ServiceBuilder withServiceFromJvmClasspath(String name, String... instrumentablePaths) {
+            Set<String> instrumentablePathSet = new HashSet<>();
             Service.ServiceBuilder serviceBuilder = new Service.ServiceBuilder(this, name);
 
+            List<String> classPathList = Arrays.asList(System.getProperty("java.class.path").split(":"));
 
-            if (!FileUtil.isPathAbsoluteInUnix(instrumentableTargetPath)) {
-                throw new RuntimeException("The instrumentable target path `" + instrumentableTargetPath + "` is not absolute!");
-            }
-
-            instrumentableAddress = Paths.get(instrumentableAddress).toAbsolutePath().normalize().toString();
-            instrumentableTargetPath = FilenameUtils.normalizeNoEndSeparator(instrumentableTargetPath, true);
-
-            StringBuilder newClassPath = new StringBuilder();
-            for (String path: System.getProperty("java.class.path").split(":")) {
-                if (Paths.get(path).toAbsolutePath().normalize().toString().equals(instrumentableAddress)) {
-                    serviceBuilder.applicationPath(instrumentableAddress, instrumentableTargetPath, false, false, true);
-                    serviceBuilder.instrumentableAddress(instrumentableTargetPath);
-                    newClassPath.append(instrumentableTargetPath);
-                    newClassPath.append(":");
+            for (String instrumentablePathPattern: instrumentablePaths) {
+                if (new File(instrumentablePathPattern).exists()) {
+                    instrumentablePathSet.add(Paths.get(instrumentablePathPattern).toAbsolutePath().normalize().toString());
                 } else {
-                    // target path should be in linux format, but path may come from windows
-                    String newTargetPath = "/" + path.replaceAll("\\W", "");
-                    if (path.endsWith(".jar")) {
-                        newTargetPath = newTargetPath + ".jar";
+                    try {
+                        for (String instrumentablePath : FileUtil.findAllMatchingPaths(instrumentablePathPattern, classPathList)) {
+                            instrumentablePathSet.add(Paths.get(instrumentablePath).toAbsolutePath().normalize().toString());
+                        }
+                    } catch (IOException e) {
+                        logger.error("Error while trying to expand instrumentable path {}", instrumentablePathPattern, e);
+                        throw new RuntimeException("Error while trying to expand instrumentable path " + instrumentablePathPattern);
                     }
-                    serviceBuilder.applicationPath(path, newTargetPath, true);
-                    newClassPath.append(newTargetPath);
-                    newClassPath.append(":");
                 }
             }
-            serviceBuilder.environmentVariable(Constants.JAVA_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
-            serviceBuilder.serviceType(ServiceType.JAVA);
+
+            StringJoiner newClassPath = new StringJoiner(":");
+            for (String path: classPathList) {
+                // target path should be in linux format, but path may come from windows
+                String newTargetPath = "/" + path.replaceAll("\\W", "");
+                if (path.endsWith(".jar")) {
+                    newTargetPath = newTargetPath + ".jar";
+                }
+
+                if (instrumentablePathSet.contains(Paths.get(path).toAbsolutePath().normalize().toString())) {
+                    serviceBuilder.applicationPath(path, newTargetPath, false, false, true);
+                    serviceBuilder.instrumentablePath(newTargetPath);
+                } else {
+                    serviceBuilder.applicationPath(path, newTargetPath, true);
+                }
+                newClassPath.add(newTargetPath);
+            }
+            serviceBuilder.environmentVariable(Constants.JVM_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
             return serviceBuilder;
         }
 
@@ -375,8 +382,8 @@ public class Deployment extends DeploymentEntity {
             return new NodeOperationEvent.NodeOperationEventBuilder(this, name);
         }
 
-        public DeploymentBuilder workloadEvents(String events) {
-            for (String event: events.trim().split(",")) {
+        public DeploymentBuilder workloadEvents(String... events) {
+            for (String event: events) {
                 workloadEvents.put(event.trim(), new WorkloadEvent(event.trim()));
             }
             return this;

@@ -2,6 +2,7 @@ package me.arminb.spidersilk.workspace;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class NodeWorkspace {
 
@@ -29,8 +30,8 @@ public class NodeWorkspace {
         }
     }
 
-    private final String instrumentableAddress;
-    private final String libraryPaths;
+    private final Set<String> instrumentablePaths;
+    private final Set<String> libraryPaths;
     private final String workingDirectory;
     private final String rootDirectory;
     private final String logDirectory;
@@ -40,11 +41,11 @@ public class NodeWorkspace {
     private final List<PathMappingEntry> pathMappingList;
 
 
-    public NodeWorkspace(String instrumentableAddress, String libraryPaths, String workingDirectory,
+    public NodeWorkspace(Set<String> instrumentablePaths, Set<String> libraryPaths, String workingDirectory,
                          String rootDirectory, String logDirectory, Map<String, String> logDirectoriesMap,
                          Map<String, String> logFilesMap, Map<String, String> sharedDirectoriesMap,
                          List<PathMappingEntry> pathMappingList) {
-        this.instrumentableAddress = instrumentableAddress;
+        this.instrumentablePaths = instrumentablePaths;
         this.libraryPaths = libraryPaths;
         this.workingDirectory = workingDirectory;
         this.rootDirectory = rootDirectory;
@@ -55,11 +56,11 @@ public class NodeWorkspace {
         this.pathMappingList = pathMappingList;
     }
 
-    public String getInstrumentableAddress() {
-        return instrumentableAddress;
+    public Set<String> getInstrumentablePaths() {
+        return instrumentablePaths;
     }
 
-    public String getLibraryPaths() {
+    public Set<String> getLibraryPaths() {
         return libraryPaths;
     }
 

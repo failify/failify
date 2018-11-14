@@ -49,6 +49,8 @@
 
 package me.arminb.spidersilk.samples.multithread;
 
+import org.apache.commons.io.FilenameUtils;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -66,6 +68,7 @@ public class Main {
     }
 
     public void start() {
+        new Thread(()-> fileNameUtil()).start();
         new Thread(()-> helloWorld1()).start();
         new Thread(()-> helloWorld2()).start();
         new Thread(()-> helloWorld3()).start();
@@ -93,7 +96,7 @@ public class Main {
 
     public void helloWorld1() {
         try {
-            Thread.sleep(new Random().nextInt(10));
+            Thread.sleep(new Random().nextInt(50));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -103,7 +106,7 @@ public class Main {
 
     public void helloWorld2() {
         try {
-            Thread.sleep(new Random().nextInt(10));
+            Thread.sleep(new Random().nextInt(50));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -112,10 +115,14 @@ public class Main {
 
     public void helloWorld3() {
         try {
-            Thread.sleep(new Random().nextInt(10));
+            Thread.sleep(new Random().nextInt(50));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
         System.out.println("Hello World 3!");
+    }
+
+    public void fileNameUtil() {
+        System.out.println(FilenameUtils.normalize("/a/b/../c", true));
     }
 }

@@ -2,7 +2,7 @@ package me.arminb.spidersilk;
 
 public class Constants {
     // DSL
-    public static final String JAVA_CLASSPATH_ENVVAR_NAME = "SPIDERSILK_JAVA_CLASSPATH";
+    public static final String JVM_CLASSPATH_ENVVAR_NAME = "SPIDERSILK_JVM_CLASSPATH";
     public static final String INSTRUMENTATION_POINT_MAIN = "main";
     public static final String DEFAULT_BASE_DOCKER_IMAGE_NAME = "ubuntu";
 

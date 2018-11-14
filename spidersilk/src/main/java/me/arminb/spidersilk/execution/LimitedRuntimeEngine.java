@@ -26,6 +26,7 @@ public interface LimitedRuntimeEngine {
 
     // Events
     void waitFor(String eventName) throws RuntimeEngineException;
+    void waitFor(String eventName, Boolean includeEvent) throws RuntimeEngineException;
     void sendEvent(String eventName) throws RuntimeEngineException;
-    void enforceOrder(String eventName) throws RuntimeEngineException;
+    void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException;
 }
