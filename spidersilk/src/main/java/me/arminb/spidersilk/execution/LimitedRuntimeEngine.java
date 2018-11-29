@@ -11,7 +11,7 @@ public interface LimitedRuntimeEngine {
     void stopNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
     void startNode(String nodeName) throws RuntimeEngineException;
     void restartNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
-    void clockDrift(String nodeName) throws RuntimeEngineException;
+    void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException;
     void linkDown(String node1, String node2) throws RuntimeEngineException;
     void linkUp(String node1, String node2) throws RuntimeEngineException;
     void networkPartition(String nodePartitions) throws RuntimeEngineException;

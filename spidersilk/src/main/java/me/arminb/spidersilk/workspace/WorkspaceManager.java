@@ -57,11 +57,14 @@ public class WorkspaceManager {
         // Decompress compressed application paths in services
         Map<String, Map<String, String>> serviceToMapOfCompressedToDecompressedMap = decompressCompressedApplicationPaths();
 
+        // Copies over libfaketime binaries to the working directory
+        Map<String, String> fakeTimePathMap = copyOverLibFakeTime(workingDirectory);
+
         // Creates the nodes' workspaces
         for (Node node: deployment.getNodes().values()) {
             logger.info("Creating workspace for node {}", node.getName());
             retMap.put(node.getName(), createNodeWorkspace(node, sharedDirectoriesMap,
-                    serviceToMapOfCompressedToDecompressedMap.get(node.getServiceName())));
+                    serviceToMapOfCompressedToDecompressedMap.get(node.getServiceName()), fakeTimePathMap));
         }
 
         return Collections.unmodifiableMap(retMap);
@@ -146,8 +149,9 @@ public class WorkspaceManager {
         return retMap;
     }
 
-    private NodeWorkspace createNodeWorkspace(Node node, Map<String, String> sharedDirectoriesMap,
-                                              Map<String, String> compressedToDecompressedMap) throws WorkspaceException {
+    private NodeWorkspace createNodeWorkspace(Node node, Map<String, String> sharedDirectoriesMap
+            , Map<String, String> compressedToDecompressedMap, Map<String,String> fakeTimePathMap)
+            throws WorkspaceException {
         // Creates the node's working directory
         Path nodeWorkingDirectory = workingDirectory.resolve(node.getName());
         try {
@@ -186,6 +190,10 @@ public class WorkspaceManager {
         // Copies over the node paths to the node root directory
         List<NodeWorkspace.PathMappingEntry> pathMappingList = copyOverNodePathsAndMakePathMappingList(node, nodeService,
                 nodeRootDirectory, compressedToDecompressedMap);
+
+        // Adds fakeTimeLib paths to the path mapping
+        fakeTimePathMap.entrySet().stream().forEach(e -> pathMappingList.add(
+                new NodeWorkspace.PathMappingEntry(e.getKey(), e.getValue(), true)));
 
         // Determines the instrumentable paths
         Set<String> instrumentablePaths = new HashSet<>();
@@ -381,5 +389,34 @@ public class WorkspaceManager {
             logger.error("Error in copying over node {} binaries to its workspace!", node.getName(), e);
             throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!");
         }
+    }
+
+    private Map<String, String> copyOverLibFakeTime(Path workingDirectory) throws WorkspaceException {
+
+        Map<String,String> pathMap = new HashMap<>();
+
+        // Creates the faketime lib directory
+        Path fakeTimeLibDirectory = workingDirectory.resolve(Constants.FAKETIME_DIRECTORY_NAME);
+        try {
+            Files.createDirectory(fakeTimeLibDirectory);
+        } catch (IOException e) {
+            throw new WorkspaceException("Error in creating SpiderSilk faketime lib directory!");
+        }
+
+        String[] filesToBeCopied = {Constants.FAKETIME_LIB_FILE_NAME, Constants.FAKETIMEMT_LIB_FILE_NAME};
+
+        try {
+            for (String fileToBeCopied: filesToBeCopied) {
+                Path fakeTimePath = fakeTimeLibDirectory.resolve(fileToBeCopied);
+                Files.copy(Thread.currentThread().getContextClassLoader().getResourceAsStream(fileToBeCopied),
+                        fakeTimePath);
+                pathMap.put(fakeTimePath.toString(), Constants.FAKETIME_TARGET_BASE_PATH  + fileToBeCopied);
+            }
+        } catch (IOException e) {
+            logger.error("Error in copying over faketime lib binaries to the workspace!", e);
+            throw new WorkspaceException("Error in copying over faketime lib binaries to the workspace!");
+        }
+
+        return pathMap;
     }
 }

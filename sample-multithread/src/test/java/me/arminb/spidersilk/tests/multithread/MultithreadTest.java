@@ -67,14 +67,15 @@ public class MultithreadTest {
                 .restartNode("x2", "n2")
                 // Run Sequence Definition
                 .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * e3 * we2 * x2 * e4")
-                .secondsToWaitForCompletion(5)
                 .sharedDirectory("/spidersilk")
+                .nextEventReceiptTimeout(15)
                 .build();
 
         SpiderSilkRunner runner = SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
         // Injecting network partition in a specific time in the test case
         runner.runtime().waitFor("x1");
         runner.runtime().networkPartition("n1,n2");
+        runner.runtime().clockDrift("n1", -1000);
         runner.runtime().sendEvent("we1");
         // Removing network partition in a specific time in the test case
         runner.runtime().enforceOrder("we2", () -> runner.runtime().removeNetworkPartition());

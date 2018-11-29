@@ -57,10 +57,6 @@ public class NetworkOperationEvent extends ExternalEvent {
         }
     }
 
-    public String getNodePartitions() {
-        return nodePartitions;
-    }
-
     public static class NetworkOperationEventBuilder extends DeploymentBuilderBase<NetworkOperationEvent, Deployment.DeploymentBuilder> {
         private String nodePartitions;
         private NetworkOperation networkOperation;

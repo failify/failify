@@ -28,9 +28,7 @@ package me.arminb.spidersilk.dsl.entities;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.events.WorkloadEvent;
-import me.arminb.spidersilk.dsl.events.external.NetworkOperation;
-import me.arminb.spidersilk.dsl.events.external.NetworkOperationEvent;
-import me.arminb.spidersilk.dsl.events.external.NodeOperation;
+import me.arminb.spidersilk.dsl.events.external.*;
 import me.arminb.spidersilk.dsl.events.internal.BlockingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
@@ -38,7 +36,6 @@ import me.arminb.spidersilk.exceptions.DeploymentEntityNameConflictException;
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.events.InternalEvent;
-import me.arminb.spidersilk.dsl.events.external.NodeOperationEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
 import me.arminb.spidersilk.util.FileUtil;
 import org.apache.commons.io.FilenameUtils;
@@ -272,7 +269,7 @@ public class Deployment extends DeploymentEntity {
             externalEvents = new HashMap<>();
             workloadEvents = new HashMap<>();
             runSequence = "";
-            secondsToWaitForCompletion = 5;
+            secondsToWaitForCompletion = 0;
             secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
             nextEventReceiptTimeout = null;
         }
@@ -471,6 +468,33 @@ public class Deployment extends DeploymentEntity {
             return withNetworkOperationEvent(eventName)
                     .networkOperation(NetworkOperation.LINK_UP)
                     .nodePartitions(node1 + "," + node2).and();
+        }
+
+        public ClockDriftEvent.ClockDriftEventBuilder withClockDriftEvent(String name) {
+            return new ClockDriftEvent.ClockDriftEventBuilder(this, name);
+        }
+
+        public ClockDriftEvent.ClockDriftEventBuilder clockDriftEvent(String eventName) {
+            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof ClockDriftEvent)) {
+                throw new DeploymentEntityNotFound(eventName, "ClockDriftEvent");
+            }
+            return new ClockDriftEvent.ClockDriftEventBuilder(this,
+                    (ClockDriftEvent) externalEvents.get(eventName));
+        }
+
+        public DeploymentBuilder clockDriftEvent(ClockDriftEvent clockDriftEvent) {
+            if (externalEvents.containsKey(clockDriftEvent.getName())) {
+                logger.warn("The clock drift event " + clockDriftEvent.getName()
+                        + " is being redefined in the deployment definition!");
+            }
+            externalEvents.put(clockDriftEvent.getName(), clockDriftEvent);
+            return this;
+        }
+
+        public DeploymentBuilder clockDrift(String eventName, String nodeName, Integer amount) {
+            return withClockDriftEvent(eventName)
+                    .nodeName(nodeName)
+                    .amount(amount).and();
         }
 
         public DeploymentBuilder runSequence(String sequence) {

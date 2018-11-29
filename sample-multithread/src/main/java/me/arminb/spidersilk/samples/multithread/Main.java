@@ -55,6 +55,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Date;
 import java.util.Random;
 
 public class Main {
@@ -101,6 +102,7 @@ public class Main {
             e.printStackTrace();
         }
         System.out.println("Hello World 1!");
+        System.out.println(new Date());
     }
 
 
@@ -120,6 +122,7 @@ public class Main {
             e.printStackTrace();
         }
         System.out.println("Hello World 3!");
+        System.out.println(new Date());
     }
 
     public void fileNameUtil() {

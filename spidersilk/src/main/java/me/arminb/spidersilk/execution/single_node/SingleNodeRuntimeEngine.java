@@ -210,18 +210,18 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // Creates the wrapper script and adds a bind mount for it
         String wrapperScriptAddress = createWrapperScriptForNode(node);
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(wrapperScriptAddress)
-                .to("/spidersilk_wrapper_script").readOnly(true).build());
+                .to("/" + Constants.WRAPPER_SCRIPT_NAME).readOnly(true).build());
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
         hostConfigBuilder.capAdd("NET_ADMIN").networkMode(networkManager.dockerNetworkName());
         // Creates do init file in the workspace and adds a bind mount for it
         try {
-            Files.write(Paths.get(nodeWorkspace.getWorkingDirectory(), "spidersilk_do_init"), "1".getBytes());
+            Files.write(Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME), "1".getBytes());
         } catch (IOException e) {
             throw new RuntimeEngineException("Error while spidersilk do init file in node " + node.getName() + " workspace!");
         }
         hostConfigBuilder.appendBinds(HostConfig.Bind
-                .from(Paths.get(nodeWorkspace.getWorkingDirectory(), "spidersilk_do_init").toAbsolutePath().toString())
-                .to("/spidersilk_do_init").readOnly(false).build());
+                .from(Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME).toAbsolutePath().toString())
+                .to("/" + Constants.DO_INIT_FILE_NAME).readOnly(false).build());
         // Adds all of the path mappings to the container
         for (NodeWorkspace.PathMappingEntry pathMappingEntry: nodeWorkspace.getPathMappingList()) {
             // TODO The readonly should come from path mapping. Right now docker wouldn't work with sub-path that are not readonly
@@ -241,13 +241,13 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         hostConfigBuilder.publishAllPorts(true);
         // Adds bind mount for console output
         // TODO file creation should be moved to WorkspaceManager
-        String localConsoleFile = Paths.get(nodeWorkspace.getLogDirectory(), "spidersilk_out_err").toAbsolutePath().toString();
+        String localConsoleFile = Paths.get(nodeWorkspace.getLogDirectory(), Constants.CONSOLE_OUTERR_FILE_NAME).toAbsolutePath().toString();
         try {
             new File(localConsoleFile).createNewFile();
         } catch (IOException e) {
             throw new RuntimeEngineException("Error while creating initial console log file for node " + node.getName() + "!");
         }
-        hostConfigBuilder.appendBinds(HostConfig.Bind.from(localConsoleFile).to("/spidersilk_out_err").build());
+        hostConfigBuilder.appendBinds(HostConfig.Bind.from(localConsoleFile).to("/" + Constants.CONSOLE_OUTERR_FILE_NAME).build());
         // Adds bind mounts for shared directories
         for (String localSharedDirectory: nodeWorkspace.getSharedDirectoriesMap().keySet()) {
             hostConfigBuilder.appendBinds(HostConfig.Bind.from(localSharedDirectory).to(nodeWorkspace.getSharedDirectoriesMap()
@@ -263,8 +263,19 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLogFile).to(nodeWorkspace.getLogFilesMap()
                     .get(localLogFile)).readOnly(false).build());
         }
+        // Adds bind mount for libfaketime controller file
+        // TODO file creation should be moved to WorkspaceManager
+        String localLibFakeTimeFile = getLocalLibFakeTimeControllerFile(node.getName());
+        try {
+            new File(localLibFakeTimeFile).createNewFile();
+        } catch (IOException e) {
+            throw new RuntimeEngineException("Error while creating libfaketime controller file for node " + node.getName() + "!");
+        }
+        hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLibFakeTimeFile).to("/" + Constants.FAKETIME_CONTROLLER_FILE_NAME).build());
+
         // Sets the wrapper script as the starting command
-        containerConfigBuilder.cmd("/bin/sh", "-c", "/spidersilk_wrapper_script >> /spidersilk_out_err 2>&1");
+        containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
+                Constants.CONSOLE_OUTERR_FILE_NAME + " 2>&1");
         // Finalizing host config
         containerConfigBuilder.hostConfig(hostConfigBuilder.build());
         // Creates the container
@@ -279,6 +290,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         } catch (InterruptedException e) {
             throw new RuntimeEngineException("Error while trying to create the container for node " + node.getName() + "!");
         }
+    }
+
+    private String getLocalLibFakeTimeControllerFile(String nodeName) {
+        return Paths.get(nodeWorkspaceMap.get(nodeName).getWorkingDirectory(), Constants.FAKETIME_CONTROLLER_FILE_NAME)
+                .toAbsolutePath().toString();
     }
 
     /**
@@ -462,8 +478,34 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     @Override
-    public void clockDrift(String nodeName) throws RuntimeEngineException {
+    public void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException {
+        Path localLibFakeTimeFile = Paths.get(getLocalLibFakeTimeControllerFile(nodeName));
+        String stringAmount = amount.toString();
 
+        // Adds the missing + sign if necessary
+        if (!stringAmount.startsWith("-") && !stringAmount.startsWith("+")) {
+            stringAmount = "+" + stringAmount;
+        }
+
+        // Adds comma as the fraction delimiter. If necessary will add 0 to the right
+        // 1000 => +1,000 , 10 => +0,010 , -1 => -0,001
+        if (stringAmount.length() > 4) {
+            stringAmount = stringAmount.substring(0, stringAmount.length() - 3) + "," +
+                    stringAmount.substring(stringAmount.length() - 3);
+        } else {
+            String stringNumber = stringAmount.substring(1);
+            for (int i = 0; i < 4 - stringAmount.length(); i++) {
+                stringNumber = "0" + stringNumber;
+            }
+            stringAmount = stringAmount.charAt(0) + "0," + stringNumber;
+        }
+
+        try {
+            Files.write(localLibFakeTimeFile, (stringAmount + "\n").getBytes());
+        } catch (IOException e) {
+            logger.error("Error while writing into libfaketime controller file for node {}", nodeName, e);
+            throw new RuntimeEngineException("Error while writing into libfaketime controller file for node " + nodeName);
+        }
     }
 
     @Override

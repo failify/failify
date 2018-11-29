@@ -25,11 +25,9 @@
 
 package me.arminb.spidersilk.execution;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.SpiderSilkRunner;
-import me.arminb.spidersilk.dsl.entities.Deployment;
-import me.arminb.spidersilk.dsl.entities.ExposedPortDefinition;
-import me.arminb.spidersilk.dsl.entities.Node;
-import me.arminb.spidersilk.dsl.entities.Service;
+import me.arminb.spidersilk.dsl.entities.*;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.rt.SpiderSilk;
@@ -154,9 +152,24 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         return environment;
     }
 
+    protected Map<String, String> improveEnvironmentVariablesMap(String nodeName, Map<String, String> environment) {
+        // Adds preload for libfaketime
+        environment.put("LD_PRELOAD", Constants.FAKETIME_TARGET_BASE_PATH + Constants.FAKETIMEMT_LIB_FILE_NAME);
+        // Disables offset caching for libfaketime
+        environment.put("FAKETIME_NO_CACHE", "1");
+        // Adds additional libfaketime config for java
+        if (deployment.getService(deployment.getNode(nodeName).getServiceName()).getServiceType() == ServiceType.JAVA) {
+            environment.put("DONT_FAKE_MONOTONIC", "1");
+        }
+        // Adds controller file config for libfaketime
+        environment.put("FAKETIME_TIMESTAMP_FILE", "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME);
+        return environment;
+    }
+
     protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName) {
         Map<String, String> retMap = new HashMap<>();
-        getNodeEnvironmentVariablesMap(nodeName, retMap);
+        retMap = getNodeEnvironmentVariablesMap(nodeName, retMap);
+        retMap = improveEnvironmentVariablesMap(nodeName, retMap);
         return retMap;
     }
 
