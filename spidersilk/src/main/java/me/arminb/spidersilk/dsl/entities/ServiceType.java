@@ -26,16 +26,5 @@
 package me.arminb.spidersilk.dsl.entities;
 
 public enum ServiceType {
-    JAVA(":"),
-    CSHARP(";");
-
-    private String libraryPathSeparator;
-
-    ServiceType(String libraryPathSeparator) {
-        this.libraryPathSeparator = libraryPathSeparator;
-    }
-
-    public String getLibraryPathSeparator() {
-        return libraryPathSeparator;
-    }
+    JAVA
 }

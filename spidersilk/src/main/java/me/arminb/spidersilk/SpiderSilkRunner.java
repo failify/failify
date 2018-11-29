@@ -69,7 +69,8 @@ public class SpiderSilkRunner {
         spiderSilkRunner.start();
 
         // Starts last event receipt timeout checker
-        if (deployment.getNextEventReceiptTimeout() != null) {
+        if (deployment.getNextEventReceiptTimeout() != null && deployment.getRunSequence() != null
+                && !deployment.getRunSequence().isEmpty()) {
             logger.info("Starting next event receipt timeout checker thread with {} seconds timeout ..."
                     , deployment.getNextEventReceiptTimeout());
             new NextEventReceiptTimeoutCheckerThread(spiderSilkRunner).start();
@@ -86,12 +87,14 @@ public class SpiderSilkRunner {
         while (!isStopped()) {
             if (EventService.getInstance().isTheRunSequenceCompleted()) {
                 logger.info("The run sequence is completed!");
-                logger.info("Waiting for {} seconds before stopping the runner ...",
-                        deployment.getSecondsToWaitForCompletion());
-                try {
-                    Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
-                } catch (InterruptedException e) {
-                    logger.error("The SpiderSilkRunner wait for completion thread sleep has been interrupted!", e);
+                if (deployment.getSecondsToWaitForCompletion() > 0) {
+                    logger.info("Waiting for {} seconds before stopping the runner ...",
+                            deployment.getSecondsToWaitForCompletion());
+                    try {
+                        Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
+                    } catch (InterruptedException e) {
+                        logger.error("The SpiderSilkRunner wait for completion thread sleep has been interrupted!", e);
+                    }
                 }
                 if (stopAfter && !isStopped()) {
                     stop();

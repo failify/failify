@@ -25,11 +25,9 @@
 
 package me.arminb.spidersilk.execution;
 
+import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.SpiderSilkRunner;
-import me.arminb.spidersilk.dsl.entities.Deployment;
-import me.arminb.spidersilk.dsl.entities.ExposedPortDefinition;
-import me.arminb.spidersilk.dsl.entities.Node;
-import me.arminb.spidersilk.dsl.entities.Service;
+import me.arminb.spidersilk.dsl.entities.*;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.rt.SpiderSilk;
@@ -154,9 +152,24 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         return environment;
     }
 
+    protected Map<String, String> improveEnvironmentVariablesMap(String nodeName, Map<String, String> environment) {
+        // Adds preload for libfaketime
+        environment.put("LD_PRELOAD", Constants.FAKETIME_TARGET_BASE_PATH + Constants.FAKETIMEMT_LIB_FILE_NAME);
+        // Disables offset caching for libfaketime
+        environment.put("FAKETIME_NO_CACHE", "1");
+        // Adds additional libfaketime config for java
+        if (deployment.getService(deployment.getNode(nodeName).getServiceName()).getServiceType() == ServiceType.JAVA) {
+            environment.put("DONT_FAKE_MONOTONIC", "1");
+        }
+        // Adds controller file config for libfaketime
+        environment.put("FAKETIME_TIMESTAMP_FILE", "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME);
+        return environment;
+    }
+
     protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName) {
         Map<String, String> retMap = new HashMap<>();
-        getNodeEnvironmentVariablesMap(nodeName, retMap);
+        retMap = getNodeEnvironmentVariablesMap(nodeName, retMap);
+        retMap = improveEnvironmentVariablesMap(nodeName, retMap);
         return retMap;
     }
 
@@ -199,12 +212,16 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         return nodeService.getStopCommand();
     }
 
-
-
+    @Override
     public void waitFor(String eventName) throws RuntimeEngineException {
+        waitFor(eventName, false);
+    }
+
+    @Override
+    public void waitFor(String eventName, Boolean includeEvent) throws RuntimeEngineException {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Waiting for event {} in workload ...", eventName);
-            SpiderSilk.getInstance().blockAndPoll(eventName, true);
+            SpiderSilk.getInstance().blockAndPoll(eventName, includeEvent);
         } else {
             throw new RuntimeEngineException("Event " + eventName + " is not referred to in the run sequence. Thus," +
                     " its order cannot be enforced!");
@@ -212,24 +229,22 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     @Override
-    public void enforceOrder(String eventName) throws RuntimeEngineException {
+    public void sendEvent(String eventName) throws RuntimeEngineException {
         if (deployment.workloadEventExists(eventName) && deployment.isInRunSequence(eventName)) {
-            logger.info("Enforcing order for workload event {} ...", eventName);
+            logger.info("Sending workload event {} ...", eventName);
+            SpiderSilk.getInstance().allowBlocking();
             SpiderSilk.getInstance().enforceOrder(eventName, null);
         } else {
             throw new RuntimeEngineException("Event " + eventName + " is not a defined workload event or is not referred to" +
-                    " in the run sequence. Thus, its order cannot be enforced from the workload!");
+                    " in the run sequence. Thus, its order cannot be sent from the workload!");
         }
     }
 
     @Override
-    public void sendEvent(String eventName)throws RuntimeEngineException {
-        if (deployment.workloadEventExists(eventName)) {
-            SpiderSilk.getInstance().sendEvent(eventName);
-        } else {
-            throw new RuntimeEngineException("Event " + eventName + " is not a defined workload event and" +
-                    " cannot be sent from the workload!");
-        }
+    public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException {
+        waitFor(eventName, false);
+        action.run();
+        sendEvent(eventName);
     }
 
     /**

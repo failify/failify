@@ -31,6 +31,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 
+// TODO should some methods be synchronized ?
 public class SpiderSilk {
     private static SpiderSilk instance;
 
@@ -152,7 +153,7 @@ public class SpiderSilk {
                 if (connection.getResponseCode() == 200) {
                     break;
                 }
-                Thread.sleep(1);
+                Thread.sleep(5);
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             } catch (IOException e) {

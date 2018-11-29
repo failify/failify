@@ -24,11 +24,15 @@
 
 package me.arminb.spidersilk.util;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.*;
 import java.nio.file.attribute.*;
 import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 // Copied from https://stackoverflow.com/questions/17641706/how-to-copy-a-directory-with-its-attributes-permissions-from-one-location-to-ano/18691793#18691793
 // TODO find a better way to do this
@@ -134,5 +138,59 @@ public class FileUtil {
             return true;
         }
         return false;
+    }
+
+    public static Set<String> findAllMatchingPaths(String pattern) throws IOException {
+        Set<String> matched = new HashSet<>();
+
+        if (pattern == null) {
+            return matched;
+        }
+
+        // If pattern path exists, then it is not a pattern
+        if (new File(pattern).exists()) {
+            matched.add(pattern);
+            return matched;
+        }
+
+        String rootDirectory = pattern;
+        while (!rootDirectory.isEmpty() && !new File(rootDirectory).exists()) {
+            rootDirectory = rootDirectory.substring(0, rootDirectory.lastIndexOf(FileSystems.getDefault().getSeparator()));
+        }
+
+        if (rootDirectory.isEmpty()) {
+            return matched;
+        }
+
+        Files.walkFileTree(Paths.get(rootDirectory), new SimpleFileVisitor<Path>() {
+            private PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+
+            @Override
+            public FileVisitResult visitFile(Path path, BasicFileAttributes basicFileAttributes) throws IOException {
+                if (matcher.matches(path)) {
+                    matched.add(path.toAbsolutePath().normalize().toString());
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+
+        return matched;
+    }
+
+    public static Set<String> findAllMatchingPaths(String pattern, List<String> toBeMatched) throws IOException {
+        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+        Set<String> matched = new HashSet<>();
+
+        if (pattern == null) {
+            return matched;
+        }
+
+        for (String path: toBeMatched) {
+            if (matcher.matches(Paths.get(path))) {
+                matched.add(path);
+            }
+        }
+
+        return matched;
     }
 }

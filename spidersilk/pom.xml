@@ -32,7 +32,7 @@
     <parent>
         <groupId>me.arminb.spidersilk</groupId>
         <artifactId>spidersilk-parent</artifactId>
-        <version>0.2.0</version>
+        <version>0.3.0</version>
     </parent>
 
     <artifactId>spidersilk</artifactId>
@@ -41,7 +41,7 @@
     <url>https://github.com/arminbalalaie/SpiderSilk</url>
 
     <properties>
-        <jetty.version>9.2.3.v20140905</jetty.version>
+        <jetty.version>9.3.24.v20180605</jetty.version>
         <jersey.version>2.22.2</jersey.version>
     </properties>
 

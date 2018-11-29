@@ -27,13 +27,11 @@ package me.arminb.spidersilk.dsl.entities;
 
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.DeploymentEntity;
-import me.arminb.spidersilk.exceptions.PathNotFoundException;
 import me.arminb.spidersilk.util.FileUtil;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -52,7 +50,7 @@ public class Service extends DeploymentEntity {
     private final String dockerImage;
     private final String dockerFileAddress;
     private final Boolean dockerImageForceBuild;
-    private final String instrumentableAddress;
+    private final Set<String> instrumentablePaths;
     private final String initCommand;
     private final String startCommand;
     private final String stopCommand;
@@ -64,7 +62,7 @@ public class Service extends DeploymentEntity {
         dockerImage = builder.dockerImage;
         dockerFileAddress = builder.dockerFileAddress;
         dockerImageForceBuild = builder.dockerImageForceBuild;
-        instrumentableAddress = builder.instrumentableAddress;
+        instrumentablePaths = builder.instrumentablePaths;
         initCommand = builder.initCommand;
         startCommand = builder.startCommand;
         stopCommand = builder.stopCommand;
@@ -90,8 +88,8 @@ public class Service extends DeploymentEntity {
         return dockerFileAddress;
     }
 
-    public String getInstrumentableAddress() {
-        return instrumentableAddress;
+    public Set<String> getInstrumentablePaths() {
+        return instrumentablePaths;
     }
 
     public String getInitCommand() {
@@ -146,7 +144,7 @@ public class Service extends DeploymentEntity {
         private String dockerImage;
         private String dockerFileAddress;
         private Boolean dockerImageForceBuild;
-        private String instrumentableAddress;
+        private Set<String> instrumentablePaths;
         private String initCommand;
         private String startCommand;
         private String stopCommand;
@@ -156,6 +154,7 @@ public class Service extends DeploymentEntity {
         public ServiceBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
             super(parentBuilder, name);
             applicationPaths = new HashMap<>();
+            instrumentablePaths = new HashSet<>();
             libraryPaths = new HashSet<>();
             logFiles = new HashSet<>();
             logDirectories = new HashSet<>();
@@ -176,7 +175,7 @@ public class Service extends DeploymentEntity {
             dockerImage = new String(instance.dockerImage);
             dockerFileAddress = new String(instance.dockerFileAddress);
             dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
-            instrumentableAddress = new String(instance.instrumentableAddress);
+            instrumentablePaths = new HashSet<>(instance.instrumentablePaths);
             initCommand = new String(instance.initCommand);
             startCommand = new String(instance.startCommand);
             stopCommand = new String(instance.stopCommand);
@@ -205,11 +204,11 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder instrumentableAddress(String instrumentableAddress) {
-            if (!FileUtil.isPathAbsoluteInUnix(instrumentableAddress)) {
-                throw new RuntimeException("The instrumentable address `" + instrumentableAddress + "` is not absolute!");
+        public ServiceBuilder instrumentablePath(String instrumentablePath) {
+            if (!FileUtil.isPathAbsoluteInUnix(instrumentablePath)) {
+                throw new RuntimeException("The instrumentable path `" + instrumentablePath + "` is not absolute!");
             }
-            this.instrumentableAddress = Paths.get(instrumentableAddress).normalize().toString();
+            this.instrumentablePaths.add(Paths.get(instrumentablePath).normalize().toString());
             return this;
         }
 
