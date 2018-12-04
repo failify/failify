@@ -32,7 +32,7 @@
     <parent>
         <groupId>me.arminb.spidersilk</groupId>
         <artifactId>spidersilk-parent</artifactId>
-        <version>0.3.1</version>
+        <version>0.3.2-SNAPSHOT</version>
     </parent>
 
     <artifactId>spidersilkrt</artifactId>
