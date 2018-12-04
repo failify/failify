@@ -333,12 +333,16 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     @Override
-    protected void stopNodes() {
+    protected void stopNodes(Boolean kill) {
         // stops all of the running containers
         logger.info("Stopping containers ...");
         for (String nodeName: nodeToContainerInfoMap.keySet()) {
             try {
-                stopNode(nodeName, deployment.getSecondsUntilForcedStop());
+                if (kill) {
+                    killNode(nodeName);
+                } else {
+                    stopNode(nodeName, deployment.getSecondsUntilForcedStop());
+                }
             } catch (RuntimeEngineException e) {
                 logger.error("Error while trying to stop the container for node {}!", nodeName);
             }

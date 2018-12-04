@@ -117,7 +117,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         logger.info("Stopping external events ...");
         stopExternalEvents();
         logger.info("Stopping nodes ...");
-        stopNodes();
+        stopNodes(true);
         logger.info("Stopping event server ...");
         stopEventServer();
         if (!deployment.getSharedDirectories().isEmpty()) {
@@ -258,7 +258,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      * This method should stop all of the nodes and in case of a failure in stopping something it won't throw any exception, but
      * error logs the exception or a message. This method should only be called when stopping the runtime engine
      */
-    protected abstract void stopNodes();
+    protected abstract void stopNodes(Boolean kill);
 
     /**
      * This method should start the file sharing service (if any), create the defined shared directory in the deployment definition
