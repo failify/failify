@@ -67,19 +67,29 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     public String ip(String nodeName) {
-        if (OsUtil.getOS() == OsUtil.OS.LINUX) {
-            return nodeToContainerInfoMap.get(nodeName).ip();
+        if (OsUtil.isRunningInsideDocker()) {
+            return networkManager.getHostIpAddress();
         } else {
-            return "127.0.0.1";
+            if (OsUtil.getOS() == OsUtil.OS.LINUX) {
+                return nodeToContainerInfoMap.get(nodeName).ip();
+            } else {
+                return "127.0.0.1";
+            }
         }
     }
 
     @Override
     public Integer portMapping(String nodeName, Integer portNumber, PortType portType) {
-        if (OsUtil.getOS() == OsUtil.OS.LINUX) {
-            return portNumber;
+        if (OsUtil.isRunningInsideDocker()) {
+            return nodeToContainerInfoMap.get(nodeName)
+                    .getPortMapping(new ExposedPortDefinition(portNumber, portType));
         } else {
-            return nodeToContainerInfoMap.get(nodeName).getPortMapping(new ExposedPortDefinition(portNumber, portType));
+            if (OsUtil.getOS() == OsUtil.OS.LINUX) {
+                return portNumber;
+            } else {
+                return nodeToContainerInfoMap.get(nodeName)
+                        .getPortMapping(new ExposedPortDefinition(portNumber, portType));
+            }
         }
     }
 
@@ -483,6 +493,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     @Override
     public void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException {
+        logger.info("Applying clock drift {},{}", nodeName, amount);
         Path localLibFakeTimeFile = Paths.get(getLocalLibFakeTimeControllerFile(nodeName));
         String stringAmount = amount.toString();
 

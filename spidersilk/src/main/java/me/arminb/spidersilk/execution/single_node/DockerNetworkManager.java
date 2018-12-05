@@ -21,6 +21,7 @@ public class DockerNetworkManager {
     private final String dockerNetworkId;
     private final String dockerNetworkName;
     private final String ipPrefix;
+    private final String hostIp;
     private Integer currentIp;
     private Map<String, Set<String>> blockedNodesMap;
 
@@ -61,6 +62,7 @@ public class DockerNetworkManager {
         // Calculates ipPrefix and currentIp for future ip assignments
         try {
             String gateway = inspectDockerNetwork().ipam().config().get(0).gateway();
+            hostIp = gateway;
             ipPrefix = gateway.substring(0, gateway.lastIndexOf(".") + 1);
             currentIp = Integer.parseInt(gateway.substring(gateway.lastIndexOf(".") + 1, gateway.length())) + 1;
         } catch (RuntimeEngineException e) {
@@ -103,6 +105,10 @@ public class DockerNetworkManager {
         } catch (InterruptedException e) {
             throw new RuntimeEngineException("Error while trying to inspect docker network " + dockerNetworkId + "!");
         }
+    }
+
+    public String getHostIpAddress() {
+        return hostIp;
     }
 
     public String getNewIpAddress() {
