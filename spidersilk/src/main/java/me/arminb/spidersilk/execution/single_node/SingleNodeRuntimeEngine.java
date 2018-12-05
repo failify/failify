@@ -25,6 +25,7 @@
 
 package me.arminb.spidersilk.execution.single_node;
 
+import com.spotify.docker.client.exceptions.ContainerNotFoundException;
 import com.spotify.docker.client.shaded.com.google.common.collect.ImmutableList;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
@@ -35,6 +36,7 @@ import com.spotify.docker.client.messages.*;
 import com.spotify.docker.client.shaded.com.google.common.collect.ImmutableMap;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.entities.*;
+import me.arminb.spidersilk.exceptions.NodeIsNotRunningException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.RuntimeEngine;
 import me.arminb.spidersilk.util.OsUtil;
@@ -133,7 +135,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         nodeToContainerInfoMap = Collections.unmodifiableMap(nodeToContainerInfoMap);
     }
 
-    public long runCommandInNode(String nodeName, String command) throws RuntimeEngineException{
+    public long runCommandInNode(String nodeName, String command) throws RuntimeEngineException {
         if (!nodeToContainerInfoMap.containsKey(nodeName)) {
             logger.error("Node {} does not have a running container to run command {}!", nodeName, command);
             return -1;
@@ -147,8 +149,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             dockerClient.execStart(execCreation.id());
         } catch (InterruptedException e) {
             logger.error("Error while trying to run command {} in node {} !", command, nodeName, e);
-            throw new RuntimeEngineException("Error while trying to run command " + command + " in node "
-                    + nodeName + "!");
+            throw new RuntimeEngineException("Error while trying to run command " + command + " in node " + nodeName + "!");
+        } catch (ContainerNotFoundException e) {
+            logger.error("No running container for node {} has been found to execute command {}", nodeName, command);
+            throw new NodeIsNotRunningException("No running container for node " + nodeName + " has been found to execute command"
+                    + command);
         } catch (DockerException e) {
             logger.error("Error while trying to run command {} in node {} !", command, nodeName, e);
             throw new RuntimeEngineException("Error while trying to run command " + command + " in node "
@@ -165,6 +170,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         } catch (InterruptedException e) {
             throw new RuntimeEngineException("Error while trying to inspect the status of command " + command
                     + " in node " + nodeName + "!");
+        } catch (ContainerNotFoundException e) {
+            logger.error("No running container for node {} has been found to execute command {}", nodeName, command);
+            throw new NodeIsNotRunningException("No running container for node " + nodeName + " has been found to execute command"
+                    + command);
         } catch (DockerException e) {
             throw new RuntimeEngineException("Error while trying to inspect the status of command " + command
                     + " in node " + nodeName + "!");

@@ -5,6 +5,7 @@ import com.spotify.docker.client.exceptions.DockerException;
 import com.spotify.docker.client.messages.Network;
 import com.spotify.docker.client.messages.NetworkConfig;
 import me.arminb.spidersilk.Constants;
+import me.arminb.spidersilk.exceptions.NodeIsNotRunningException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import org.slf4j.Logger;
@@ -191,7 +192,7 @@ public class DockerNetworkManager {
             executeIpTablesBlockCommand(IpTablesCommand.DELETE, host, blockedNodes);
             blockedNodesMap.get(host).removeAll(blockedNodes);
         } else {
-            logger.warn("Node {} has no network blockage to be removed!", host);
+            logger.debug("Node {} has no network blockage to be removed!", host);
         }
     }
 
@@ -213,6 +214,8 @@ public class DockerNetworkManager {
             if (runtimeEngine.runCommandInNode(host, outputCommand) != 0) {
                 throw new RuntimeEngineException("Error while adding iptables rules to node " + host + "!");
             }
+        } catch (NodeIsNotRunningException e) {
+            logger.debug("Cannot apply network blockage rules because node {} is not running", host);
         } catch (RuntimeEngineException e) {
             throw new RuntimeEngineException("Error while adding iptables rules to node " + host + "!");
         }
