@@ -48,7 +48,7 @@ public class WorkspaceManager {
             logger.info("Creating the working directory at {}", workingDirectory.toString());
             Files.createDirectories(workingDirectory);
         } catch (IOException e) {
-            throw new WorkspaceException("Error in creating SpiderSilk working directory at " + workingDirectory.toString());
+            throw new WorkspaceException("Error in creating SpiderSilk working directory at " + workingDirectory.toString(), e);
         }
 
         // Creates the shared directories
@@ -87,8 +87,7 @@ public class WorkspaceManager {
         try {
             Files.createDirectory(sharedDirectoriesRoot);
         } catch (IOException e) {
-            logger.error("Error in creating shared directories root directory", e);
-            throw new WorkspaceException("Error in creating shared directories root directory");
+            throw new WorkspaceException("Error in creating shared directories root directory", e);
         }
 
         for (String path: deployment.getSharedDirectories()) {
@@ -99,8 +98,7 @@ public class WorkspaceManager {
                 Files.createDirectory(sharedDirectory);
                 sharedDirectoriesMap.put(sharedDirectory.toString(), path);
             } catch (IOException e) {
-                logger.error("Error in creating shared directory {}", path, e);
-                throw new WorkspaceException("Error in creating shared directory " + path);
+                throw new WorkspaceException("Error in creating shared directory " + path, e);
             }
         }
 
@@ -114,8 +112,7 @@ public class WorkspaceManager {
         try {
             Files.createDirectory(decompressedDirectory);
         } catch (IOException e) {
-            logger.error("Error in creating decompressed directory at {}", decompressedDirectory, e);
-            throw new WorkspaceException("Error in creating decompressed directory at " + decompressedDirectory);
+            throw new WorkspaceException("Error in creating decompressed directory at " + decompressedDirectory, e);
         }
 
         for (Service service: deployment.getServices().values()) {
@@ -128,15 +125,10 @@ public class WorkspaceManager {
 
                         try {
                             ZipUtil.unzip(pathEntry.getPath(), targetDir.toString());
-                        } catch (IOException e) {
-                            logger.error("Error while unzipping {}", pathEntry.getPath(), e);
-                            throw new WorkspaceException("Error while unzipping " + pathEntry.getPath());
-                        } catch (InterruptedException e) {
-                            logger.error("Error while unzipping {}", pathEntry.getPath(), e);
-                            throw new WorkspaceException("Error while unzipping " + pathEntry.getPath());
+                        } catch (InterruptedException | IOException e) {
+                            throw new WorkspaceException("Error while unzipping " + pathEntry.getPath(), e);
                         } catch (OsNotSupportedException e) {
-                            logger.error(e.getMessage(), pathEntry.getPath(), e);
-                            throw new WorkspaceException(e.getMessage());
+                            throw new WorkspaceException(e.getMessage(), e);
                         }
                         retMap.get(service.getName()).put(pathEntry.getPath(), targetDir.toString());
                     } else {
@@ -158,7 +150,7 @@ public class WorkspaceManager {
             Files.createDirectory(nodeWorkingDirectory);
         } catch (IOException e) {
             throw new WorkspaceException("Error in creating SpiderSilk node working directory \""
-                    + node.getName() + "\"!");
+                    + node.getName() + "\"!", e);
         }
 
         // Creates the node root directory
@@ -167,7 +159,7 @@ public class WorkspaceManager {
             Files.createDirectory(nodeRootDirectory);
         } catch (IOException e) {
             throw new WorkspaceException("Error in creating SpiderSilk node root directory \""
-                    + node.getName() + "\"!");
+                    + node.getName() + "\"!", e);
         }
 
         // Creates the node's log directory
@@ -176,7 +168,7 @@ public class WorkspaceManager {
             Files.createDirectory(nodeLogDirectory);
         } catch (IOException e) {
             throw new WorkspaceException("Error in creating SpiderSilk node log directory \""
-                    + node.getName() + "\"!");
+                    + node.getName() + "\"!", e);
         }
 
         // Creates the node's log files
@@ -208,7 +200,10 @@ public class WorkspaceManager {
                 nodeWorkingDirectory.toString(),
                 nodeRootDirectory.toString(),
                 nodeLogDirectory.toString(),
-                logDirectoriesMap, logFilesMap, sharedDirectoriesMap, pathMappingList);
+                logDirectoriesMap,
+                logFilesMap,
+                sharedDirectoriesMap,
+                pathMappingList);
     }
 
     private Map<String, String> createLogFiles(Node node, Path nodeLogDirectory) throws WorkspaceException {
@@ -220,8 +215,7 @@ public class WorkspaceManager {
                 logFile.toFile().createNewFile();
                 logFilesMap.put(logFile.toString(), path);
             } catch (IOException e) {
-                logger.error("Error while creating log file {}", logFile, e);
-                throw new WorkspaceException("Error while creating log file " + logFile);
+                throw new WorkspaceException("Error while creating log file " + logFile, e);
             }
         }
 
@@ -237,8 +231,7 @@ public class WorkspaceManager {
                 Files.createDirectory(logDirectory);
                 logDirectoriesMap.put(logDirectory.toString(), path);
             } catch (IOException e) {
-                logger.error("Error while creating log directory {}", logDirectory, e);
-                throw new WorkspaceException("Error while creating log directory " + logDirectory);
+                throw new WorkspaceException("Error while creating log directory " + logDirectory, e);
             }
         }
 
@@ -269,8 +262,7 @@ public class WorkspaceManager {
                     try {
                         libPaths.addAll(FileUtil.findAllMatchingPaths(localLibPath));
                     } catch (IOException e) {
-                        logger.error("Error while trying to expand lib path {}", pathEntry.getTargetPath(), e);
-                        throw new WorkspaceException("Error while trying to expand lib path " + pathEntry.getTargetPath());
+                        throw new WorkspaceException("Error while trying to expand lib path " + pathEntry.getTargetPath(), e);
                     }
                 }
             }
@@ -283,8 +275,7 @@ public class WorkspaceManager {
                 try {
                     libPaths.addAll(FileUtil.findAllMatchingPaths(localLibPath));
                 } catch (IOException e) {
-                    logger.error("Error while trying to expand lib path {}", libPath, e);
-                    throw new WorkspaceException("Error while trying to expand lib path " + libPath);
+                    throw new WorkspaceException("Error while trying to expand lib path " + libPath, e);
                 }
             }
         }
@@ -386,8 +377,7 @@ public class WorkspaceManager {
 
             return pathMap;
         } catch (IOException e) {
-            logger.error("Error in copying over node {} binaries to its workspace!", node.getName(), e);
-            throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!");
+            throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!", e);
         }
     }
 
@@ -400,7 +390,7 @@ public class WorkspaceManager {
         try {
             Files.createDirectory(fakeTimeLibDirectory);
         } catch (IOException e) {
-            throw new WorkspaceException("Error in creating SpiderSilk faketime lib directory!");
+            throw new WorkspaceException("Error in creating SpiderSilk faketime lib directory!", e);
         }
 
         String[] filesToBeCopied = {Constants.FAKETIME_LIB_FILE_NAME, Constants.FAKETIMEMT_LIB_FILE_NAME};
@@ -413,8 +403,7 @@ public class WorkspaceManager {
                 pathMap.put(fakeTimePath.toString(), Constants.FAKETIME_TARGET_BASE_PATH  + fileToBeCopied);
             }
         } catch (IOException e) {
-            logger.error("Error in copying over faketime lib binaries to the workspace!", e);
-            throw new WorkspaceException("Error in copying over faketime lib binaries to the workspace!");
+            throw new WorkspaceException("Error in copying over faketime lib binaries to the workspace!", e);
         }
 
         return pathMap;

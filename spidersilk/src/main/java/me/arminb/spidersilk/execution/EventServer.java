@@ -3,6 +3,7 @@ package me.arminb.spidersilk.execution;
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
@@ -37,10 +38,10 @@ public class EventServer {
         if (stopped) {
             try {
                 jettyServer.start();
-                portNumber = jettyServer.getURI().getPort();
+                portNumber = ((ServerConnector) jettyServer.getConnectors()[0]).getLocalPort();
                 stopped = false;
             } catch (Exception e) {
-                throw new RuntimeEngineException("Cannot start Jetty Server on port " + jettyServer.getURI().getPort() + "!");
+                throw new RuntimeEngineException("Cannot start Jetty Server!", e);
             }
         }
     }
@@ -54,14 +55,6 @@ public class EventServer {
             } catch (Exception e) {
                 logger.error("Unable to stop Jetty Server!", e);
             }
-        }
-    }
-
-    public void join() {
-        try {
-            jettyServer.join();
-        } catch (InterruptedException e) {
-            logger.error("Jetty Server has been interrupted!", e);
         }
     }
 

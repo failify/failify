@@ -42,6 +42,9 @@ public class SpiderSilk {
     private ThreadLocal<Boolean> allowBlocking;
 
     public static SpiderSilk getInstance() {
+        if (instance == null) {
+            instance = new SpiderSilk(System.getenv("SPIDERSILK_EVENT_SERVER_IP_ADDRESS"), System.getenv("SPIDERSILK_EVENT_SERVER_PORT_NUMBER"));
+        }
         return instance;
     }
 

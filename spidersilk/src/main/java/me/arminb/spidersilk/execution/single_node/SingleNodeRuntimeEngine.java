@@ -39,6 +39,8 @@ import me.arminb.spidersilk.dsl.entities.*;
 import me.arminb.spidersilk.exceptions.NodeIsNotRunningException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.RuntimeEngine;
+import me.arminb.spidersilk.util.DockerUtil;
+import me.arminb.spidersilk.util.HostUtil;
 import me.arminb.spidersilk.util.OsUtil;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
 import org.apache.commons.io.IOUtils;
@@ -48,6 +50,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -69,8 +72,9 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     public String ip(String nodeName) {
-        if (OsUtil.isRunningInsideDocker()) {
-            return networkManager.getHostIpAddress();
+        if (DockerUtil.isRunningInsideDocker()) {
+            // This is possible because the client container is added to the created docker network
+            return nodeToContainerInfoMap.get(nodeName).ip();
         } else {
             if (OsUtil.getOS() == OsUtil.OS.LINUX) {
                 return nodeToContainerInfoMap.get(nodeName).ip();
@@ -82,9 +86,9 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     @Override
     public Integer portMapping(String nodeName, Integer portNumber, PortType portType) {
-        if (OsUtil.isRunningInsideDocker()) {
-            return nodeToContainerInfoMap.get(nodeName)
-                    .getPortMapping(new ExposedPortDefinition(portNumber, portType));
+        if (DockerUtil.isRunningInsideDocker()) {
+            // This is possible because the client container is added to the created docker network
+            return portNumber;
         } else {
             if (OsUtil.getOS() == OsUtil.OS.LINUX) {
                 return portNumber;
@@ -105,7 +109,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         try {
             dockerClient = DefaultDockerClient.fromEnv().build();
         } catch (DockerCertificateException e) {
-            throw new RuntimeEngineException("Cannot create docker client!");
+            throw new RuntimeEngineException("Cannot create docker client!", e);
         }
 
         // Builds docker images for the services if necessary
@@ -114,6 +118,29 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
         // creates a new docker network. This will be a new one every time the runtime engine starts.
         networkManager = new DockerNetworkManager(deployment.getName(), this, dockerClient);
+
+        // If the client is a docker container, adds the container to the created docker network
+        if (DockerUtil.isRunningInsideDocker()) {
+            logger.info("Adding client container to the created docker network ...");
+            String clientContainerId;
+            try {
+                 clientContainerId = DockerUtil.getMyContainerId();
+            } catch (IOException e) {
+                throw new RuntimeEngineException("Cannot determine client's container id", e);
+            }
+            logger.info("Client container id is {}", clientContainerId);
+            try {
+                dockerClient.connectToNetwork(networkManager.dockerNetworkId(), NetworkConnection.builder()
+                        .containerId(clientContainerId)
+                        .endpointConfig(EndpointConfig.builder()
+                                .ipAddress(networkManager.getNewIpAddress())
+                                .build())
+                        .build());
+            } catch (DockerException | InterruptedException e) {
+                throw new RuntimeEngineException("Error while trying to add client container to the docker network "
+                        + networkManager.dockerNetworkId(), e);
+            }
+        }
 
         logger.info("Creating a container for each of the nodes ...");
         for (Node node: deployment.getNodes().values()) {
@@ -148,16 +175,13 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     command.split("\\s+"));
             dockerClient.execStart(execCreation.id());
         } catch (InterruptedException e) {
-            logger.error("Error while trying to run command {} in node {} !", command, nodeName, e);
-            throw new RuntimeEngineException("Error while trying to run command " + command + " in node " + nodeName + "!");
-        } catch (ContainerNotFoundException e) {
-            logger.error("No running container for node {} has been found to execute command {}", nodeName, command);
-            throw new NodeIsNotRunningException("No running container for node " + nodeName + " has been found to execute command"
-                    + command);
+            throw new RuntimeEngineException("Error while trying to run command " + command + " in node " + nodeName + "!", e);
+        } catch (ContainerNotFoundException | IllegalStateException e) {
+            throw new NodeIsNotRunningException("No running container for node " + nodeName + " has been found to execute command "
+                    + command, e);
         } catch (DockerException e) {
-            logger.error("Error while trying to run command {} in node {} !", command, nodeName, e);
             throw new RuntimeEngineException("Error while trying to run command " + command + " in node "
-                    + nodeName + "!");
+                    + nodeName + "!", e);
         }
 
         ExecState execState;
@@ -169,14 +193,13 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             } while (execState.running());
         } catch (InterruptedException e) {
             throw new RuntimeEngineException("Error while trying to inspect the status of command " + command
-                    + " in node " + nodeName + "!");
-        } catch (ContainerNotFoundException e) {
-            logger.error("No running container for node {} has been found to execute command {}", nodeName, command);
+                    + " in node " + nodeName + "!", e);
+        } catch (ContainerNotFoundException | IllegalStateException e) {
             throw new NodeIsNotRunningException("No running container for node " + nodeName + " has been found to execute command"
-                    + command);
+                    + command, e);
         } catch (DockerException e) {
             throw new RuntimeEngineException("Error while trying to inspect the status of command " + command
-                    + " in node " + nodeName + "!");
+                    + " in node " + nodeName + "!", e);
         }
 
         return execState.exitCode();
@@ -194,15 +217,38 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                             DockerClient.BuildParam.forceRm(),
                             DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
                 }
-            } catch (DockerException e) {
-                logger.error("Error while building docker image for service {}!", service.getName(), e);
-                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
-            } catch (InterruptedException e) {
-                logger.error("Error while building docker image for service {}!", service.getName(), e);
-                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
-            } catch (IOException e) {
-                logger.error("Error while building docker image for service {}!", service.getName(), e);
-                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!");
+            } catch (InterruptedException | IOException | DockerException e) {
+                throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!", e);
+            }
+        }
+    }
+
+    @Override
+    protected Map<String, String> improveEnvironmentVariablesMapForEngine(String nodeName, Map<String, String> environment)
+            throws RuntimeEngineException {
+
+        // Adds preload for libfaketime
+        environment.put("LD_PRELOAD", Constants.FAKETIME_TARGET_BASE_PATH + Constants.FAKETIMEMT_LIB_FILE_NAME);
+        // Disables offset caching for libfaketime
+        environment.put("FAKETIME_NO_CACHE", "1");
+        // Adds additional libfaketime config for java
+        if (deployment.getService(deployment.getNode(nodeName).getServiceName()).getServiceType() == ServiceType.JAVA) {
+            environment.put("DONT_FAKE_MONOTONIC", "1");
+        }
+        // Adds controller file config for libfaketime
+        environment.put("FAKETIME_TIMESTAMP_FILE", "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME);
+
+        return environment;
+    }
+
+    @Override protected String getEventServerIpAddress() throws RuntimeEngineException {
+        if (DockerUtil.isRunningInsideDocker()) {
+            return networkManager.getClientContainerIpAddress();
+        } else {
+            try {
+                return HostUtil.getLocalIpAddress();
+            } catch (UnknownHostException e) {
+                throw new RuntimeEngineException("Unable to detect the local IP address of the client machine", e);
             }
         }
     }
@@ -213,6 +259,13 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         Service nodeService = deployment.getService(node.getServiceName());
         NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(node.getName());
         String newIpAddress = networkManager.getNewIpAddress();
+
+        String clientContainerId;
+        try {
+            clientContainerId = DockerUtil.getMyContainerId();
+        } catch (IOException e) {
+            throw new RuntimeEngineException("Cannot determine client's container id", e);
+        }
 
         ContainerConfig.Builder containerConfigBuilder = ContainerConfig.builder();
         HostConfig.Builder hostConfigBuilder = HostConfig.builder();
@@ -227,7 +280,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
         containerConfigBuilder.env(envList);
         // Creates the wrapper script and adds a bind mount for it
-        String wrapperScriptAddress = createWrapperScriptForNode(node);
+        String wrapperFile = createWrapperScriptForNode(node);
+        String wrapperScriptAddress = DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId,
+                wrapperFile);
+        logger.info("Wrapper script {} -> {}", wrapperFile, wrapperScriptAddress);
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(wrapperScriptAddress)
                 .to("/" + Constants.WRAPPER_SCRIPT_NAME).readOnly(true).build());
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
@@ -236,15 +292,17 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         try {
             Files.write(Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME), "1".getBytes());
         } catch (IOException e) {
-            throw new RuntimeEngineException("Error while spidersilk do init file in node " + node.getName() + " workspace!");
+            throw new RuntimeEngineException("Error while spidersilk do init file in node " + node.getName() + " workspace!", e);
         }
         hostConfigBuilder.appendBinds(HostConfig.Bind
-                .from(Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME).toAbsolutePath().toString())
+                .from(DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId,
+                        Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME).toAbsolutePath().toString()))
                 .to("/" + Constants.DO_INIT_FILE_NAME).readOnly(false).build());
         // Adds all of the path mappings to the container
         for (NodeWorkspace.PathMappingEntry pathMappingEntry: nodeWorkspace.getPathMappingList()) {
             // TODO The readonly should come from path mapping. Right now docker wouldn't work with sub-path that are not readonly
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(pathMappingEntry.getSource())
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, pathMappingEntry.getSource()))
                     .to(pathMappingEntry.getDestination()).readOnly(false).build());
         }
         // Sets the network alias and hostname
@@ -255,31 +313,37 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 .aliases(ImmutableList.<String>builder().add(node.getName()).build()).build());
         containerConfigBuilder.networkingConfig(ContainerConfig.NetworkingConfig.create(endpointConfigMap));
         // Sets exposed ports
-        containerConfigBuilder.exposedPorts(
-                getNodeExposedPorts(node.getName()).stream().map(portDef -> portDef.toString()).collect(Collectors.toSet()));
-        hostConfigBuilder.publishAllPorts(true);
+        if (!DockerUtil.isRunningInsideDocker() && OsUtil.getOS() != OsUtil.OS.LINUX) {
+            containerConfigBuilder.exposedPorts(
+                    getNodeExposedPorts(node.getName()).stream().map(portDef -> portDef.toString()).collect(Collectors.toSet()));
+            hostConfigBuilder.publishAllPorts(true);
+        }
         // Adds bind mount for console output
         // TODO file creation should be moved to WorkspaceManager
         String localConsoleFile = Paths.get(nodeWorkspace.getLogDirectory(), Constants.CONSOLE_OUTERR_FILE_NAME).toAbsolutePath().toString();
         try {
             new File(localConsoleFile).createNewFile();
         } catch (IOException e) {
-            throw new RuntimeEngineException("Error while creating initial console log file for node " + node.getName() + "!");
+            throw new RuntimeEngineException("Error while creating initial console log file for node " + node.getName() + "!", e);
         }
-        hostConfigBuilder.appendBinds(HostConfig.Bind.from(localConsoleFile).to("/" + Constants.CONSOLE_OUTERR_FILE_NAME).build());
+        hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                clientContainerId, localConsoleFile)).to("/" + Constants.CONSOLE_OUTERR_FILE_NAME).build());
         // Adds bind mounts for shared directories
         for (String localSharedDirectory: nodeWorkspace.getSharedDirectoriesMap().keySet()) {
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(localSharedDirectory).to(nodeWorkspace.getSharedDirectoriesMap()
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, localSharedDirectory)).to(nodeWorkspace.getSharedDirectoriesMap()
                     .get(localSharedDirectory)).readOnly(false).build());
         }
         // Adds bind mounts for log directories
         for (String localLogDirectory: nodeWorkspace.getLogDirectoriesMap().keySet()) {
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLogDirectory).to(nodeWorkspace.getLogDirectoriesMap()
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, localLogDirectory)).to(nodeWorkspace.getLogDirectoriesMap()
                     .get(localLogDirectory)).readOnly(false).build());
         }
         // Adds bind mounts for log files
         for (String localLogFile: nodeWorkspace.getLogFilesMap().keySet()) {
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLogFile).to(nodeWorkspace.getLogFilesMap()
+            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, localLogFile)).to(nodeWorkspace.getLogFilesMap()
                     .get(localLogFile)).readOnly(false).build());
         }
         // Adds bind mount for libfaketime controller file
@@ -288,9 +352,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         try {
             new File(localLibFakeTimeFile).createNewFile();
         } catch (IOException e) {
-            throw new RuntimeEngineException("Error while creating libfaketime controller file for node " + node.getName() + "!");
+            throw new RuntimeEngineException("Error while creating libfaketime controller file for node " + node.getName() + "!", e);
         }
-        hostConfigBuilder.appendBinds(HostConfig.Bind.from(localLibFakeTimeFile).to("/" + Constants.FAKETIME_CONTROLLER_FILE_NAME).build());
+        hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                clientContainerId, localLibFakeTimeFile)).to("/" + Constants.FAKETIME_CONTROLLER_FILE_NAME).build());
 
         // Sets the wrapper script as the starting command
         containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
@@ -302,12 +367,9 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         try {
             nodeToContainerInfoMap.put(node.getName(), new DockerContainerInfo(
                     dockerClient.createContainer(containerConfigBuilder.build(), containerName).id(), newIpAddress));
-            logger.info("Container {} for node {} is created!", nodeToContainerInfoMap.get(node.getName()), node.getName());
-        } catch (DockerException e) {
-            logger.error("Error while trying to create the container for node {}!", node.getName(), e);
-            throw new RuntimeEngineException("Error while trying to create the container for node " + node.getName() + "!");
-        } catch (InterruptedException e) {
-            throw new RuntimeEngineException("Error while trying to create the container for node " + node.getName() + "!");
+            logger.info("Container {} for node {} is created!", nodeToContainerInfoMap.get(node.getName()).containerId(), node.getName());
+        } catch (InterruptedException | DockerException e) {
+            throw new RuntimeEngineException("Error while trying to create the container for node " + node.getName() + "!", e);
         }
     }
 
@@ -341,7 +403,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             IOUtils.write(wrapperScriptString, fileOutputStream, StandardCharsets.UTF_8);
             fileOutputStream.close();
         } catch (IOException e) {
-            throw new RuntimeEngineException("Error while creating wrapper script for node " + node.getName() + "!");
+            throw new RuntimeEngineException("Error while creating wrapper script for node " + node.getName() + "!", e);
         }
 
         wrapperScriptFile.setExecutable(true);
@@ -363,18 +425,37 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     stopNode(nodeName, deployment.getSecondsUntilForcedStop());
                 }
             } catch (RuntimeEngineException e) {
-                logger.error("Error while trying to stop the container for node {}!", nodeName);
+                logger.warn("Error while trying to stop the container for node {}!", nodeName);
             }
         }
-        // deletes the created docker network
-        try {
-            if (networkManager != null) {
+
+        if (networkManager != null) {
+            // If the client is a docker container, removes the container from the created docker network
+            if (DockerUtil.isRunningInsideDocker()) {
+                logger.info("Removing client container from the created docker network ...");
+                String clinetContainerId = null;
+                try {
+                    clinetContainerId = DockerUtil.getMyContainerId();
+                } catch (IOException e) {
+                    logger.error("Cannot determine client's container id", e);
+                }
+                if (clinetContainerId != null && !clinetContainerId.isEmpty()) {
+                    try {
+                        dockerClient.disconnectFromNetwork(clinetContainerId, networkManager.dockerNetworkId());
+                    } catch (DockerException | InterruptedException e) {
+                        logger.error("Error while trying to remove client container from the docker network " + networkManager.dockerNetworkId(), e);
+                    }
+                }
+            }
+
+            // deletes the created docker network
+            try {
                 logger.info("Deleting docker network {} ...", networkManager.dockerNetworkId());
                 networkManager.deleteDockerNetwork();
                 logger.info("Docker network is deleted successfully!");
+            } catch (RuntimeEngineException e) {
+                logger.error(e.getMessage(), e);
             }
-        } catch (RuntimeEngineException e) {
-            logger.error(e.getMessage());
         }
     }
 
@@ -385,10 +466,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             try {
                 dockerClient.killContainer(nodeToContainerInfoMap.get(nodeName).containerId());
                 logger.info("Node {} container is killed!", nodeName);
-            } catch (InterruptedException e) {
-                throw new RuntimeEngineException("Error while trying to kill the container for node " + nodeName + "!");
-            } catch (DockerException e) {
-                throw new RuntimeEngineException("Error while trying to kill the container for node " + nodeName + "!");
+            } catch (InterruptedException | DockerException e) {
+                throw new RuntimeEngineException("Error while trying to kill the container for node " + nodeName + "!", e);
             }
         } else {
             logger.error("There is no container for node {} to be killed!", nodeName);
@@ -407,10 +486,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 }
                 dockerClient.stopContainer(nodeToContainerInfoMap.get(nodeName).containerId(), secondsUntilForcedStop);
                 logger.info("Node {} container is stopped!", nodeName);
-            } catch (InterruptedException e) {
-                throw new RuntimeEngineException("Error while trying to stop the container for node " + nodeName + "!");
-            } catch (DockerException e) {
-                throw new RuntimeEngineException("Error while trying to stop the container for node " + nodeName + "!");
+            } catch (InterruptedException | DockerException e) {
+                throw new RuntimeEngineException("Error while trying to stop the container for node " + nodeName + "!", e);
             }
         } else {
             logger.error("There is no container for node {} to be stopped!", nodeName);
@@ -421,12 +498,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         ContainerInfo containerInfo;
         try {
             containerInfo = dockerClient.inspectContainer(nodeToContainerInfoMap.get(nodeName).containerId());
-        } catch (InterruptedException e) {
-            logger.error("Error while trying to inspect the status of node {}!", nodeName, e);
-            throw new RuntimeEngineException("Error while trying to inspect the status of node " + nodeName + "!");
-        } catch (DockerException e) {
-            logger.error("Error while trying to inspect the status of node {}!", nodeName, e);
-            throw new RuntimeEngineException("Error while trying to inspect the status of node " + nodeName + "!");
+        } catch (InterruptedException | DockerException e) {
+            throw new RuntimeEngineException("Error while trying to inspect the status of node " + nodeName + "!", e);
         }
 
         Map<ExposedPortDefinition, Integer> portMapping = new HashMap<>();
@@ -448,24 +521,20 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             try {
                 dockerClient.startContainer(containerId);
                 networkManager.reApplyIptablesRules(nodeName);
-            } catch (DockerException e) {
-                logger.error("Error while trying to start the container for node {}!", nodeName, e);
-                throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!");
-            } catch (InterruptedException e) {
-                logger.error("Error while trying to start the container for node {}!", nodeName, e);
-                throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!");
+            } catch (InterruptedException | DockerException e) {
+                throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!", e);
             }
             // Prevents the init command to be executed in the next run of this node
             try {
                 Thread.sleep(50);
             } catch (InterruptedException e) {
-                throw new RuntimeEngineException("Error while waiting for node " + nodeName + " to get started!");
+                throw new RuntimeEngineException("Error while waiting for node " + nodeName + " to get started!", e);
             }
             try {
                 Files.write(Paths.get(nodeWorkspaceMap.get(nodeName).getWorkingDirectory(), "spidersilk_do_init"),
                         "0".getBytes());
             } catch (IOException e) {
-                throw new RuntimeEngineException("Error while spidersilk do init file in node " + nodeName + " workspace!");
+                throw new RuntimeEngineException("Error while spidersilk do init file in node " + nodeName + " workspace!", e);
             }
 
             updateContainerPortMapping(nodeName);
@@ -490,10 +559,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 networkManager.reApplyIptablesRules(nodeName);
                 updateContainerPortMapping(nodeName);
                 logger.info("Container {} for node {} is restarted!", nodeToContainerInfoMap.get(nodeName).containerId(), nodeName);
-            } catch (DockerException e) {
-                throw new RuntimeEngineException("Error while trying to restart the container for node " + nodeName + "!");
-            } catch (InterruptedException e) {
-                throw new RuntimeEngineException("Error while trying to restart the container for node " + nodeName + "!");
+            } catch (InterruptedException | DockerException e) {
+                throw new RuntimeEngineException("Error while trying to restart the container for node " + nodeName + "!", e);
             }
         } else {
             logger.error("There is no container for node {} to be restarted!", nodeName);
@@ -527,8 +594,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         try {
             Files.write(localLibFakeTimeFile, (stringAmount + "\n").getBytes());
         } catch (IOException e) {
-            logger.error("Error while writing into libfaketime controller file for node {}", nodeName, e);
-            throw new RuntimeEngineException("Error while writing into libfaketime controller file for node " + nodeName);
+            throw new RuntimeEngineException("Error while writing into libfaketime controller file for node " + nodeName, e);
         }
     }
 

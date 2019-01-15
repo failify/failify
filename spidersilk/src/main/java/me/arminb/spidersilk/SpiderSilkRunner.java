@@ -126,15 +126,10 @@ public class SpiderSilkRunner {
             logger.info("Creating the nodes' workspaces ...");
             Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);
 
-            // Starting the Event Server to get the port number for instrumentation
-            logger.info("Starting event server ...");
-            runtimeEngine.startEventServer();
-            logger.info("Event server is started at port " + runtimeEngine.getEventServerPortNumber());
-
             // Instrument the nodes binaries. This shouldn't change any of the application paths
             logger.info("Starting the instrumentation process ...");
             instrumentationEngine = new InstrumentationEngine(deployment, nodeWorkspaceMap);
-            instrumentationEngine.instrumentNodes(runtimeEngine.getEventServerPortNumber());
+            instrumentationEngine.instrumentNodes();
             logger.info("Instrumentation process is completed!");
 
             // Starting the runtime engine
@@ -147,12 +142,10 @@ public class SpiderSilkRunner {
                 stop();
             }
             throw new RuntimeException(e);
-        } catch (InstrumentationException e) {
-            throw new RuntimeException(e);
-        } catch (WorkspaceException e) {
+        } catch (WorkspaceException | InstrumentationException e) {
             throw new RuntimeException(e);
         } catch (Throwable e) {
-            logger.error("An unexpected error has happened. Stopping ...");
+            logger.error("An unexpected error has happened. Stopping ...", e);
             if (!isStopped()) {
                 stop();
             }

@@ -25,7 +25,7 @@
 package me.arminb.spidersilk.exceptions;
 
 public class NodeIsNotRunningException extends RuntimeEngineException {
-    public NodeIsNotRunningException(String msg) {
-        super(msg);
+    public NodeIsNotRunningException(String msg, Throwable cause) {
+        super(msg, cause);
     }
 }

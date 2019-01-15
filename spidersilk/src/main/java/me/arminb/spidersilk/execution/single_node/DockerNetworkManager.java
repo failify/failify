@@ -11,6 +11,9 @@ import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.time.Instant;
 import java.util.*;
 
@@ -54,17 +57,21 @@ public class DockerNetworkManager {
                     .name(dockerNetworkName)
                     .build()).id();
             logger.info("Docker network {} is created!", dockerNetworkId);
-        } catch (DockerException e) {
-            throw new RuntimeEngineException("Error in creating docker network!");
-        } catch (InterruptedException e) {
-            throw new RuntimeEngineException("Error in creating docker network!");
+        } catch (InterruptedException | DockerException e) {
+            throw new RuntimeEngineException("Error in creating docker network!", e);
         }
 
         // Calculates ipPrefix and currentIp for future ip assignments
         try {
-            String gateway = inspectDockerNetwork().ipam().config().get(0).gateway();
+            Network dockerNetwork = inspectDockerNetwork();
+            String gateway = dockerNetwork.ipam().config().get(0).gateway();
+            if (gateway.contains("/")) {
+                gateway = gateway.substring(0, gateway.lastIndexOf("/"));
+            }
             hostIp = gateway;
             ipPrefix = gateway.substring(0, gateway.lastIndexOf(".") + 1);
+            logger.info("Gateway is {}", gateway);
+            logger.info("Subnet is {}", dockerNetwork.ipam().config().get(0).subnet());
             currentIp = Integer.parseInt(gateway.substring(gateway.lastIndexOf(".") + 1, gateway.length())) + 1;
         } catch (RuntimeEngineException e) {
             deleteDockerNetwork();
@@ -90,10 +97,8 @@ public class DockerNetworkManager {
             if (dockerNetworkId != null) {
                 dockerClient.removeNetwork(dockerNetworkId);
             }
-        } catch (DockerException e) {
-            throw new RuntimeEngineException("Error in deleting docker network" + dockerNetworkId + "!");
-        } catch (InterruptedException e) {
-            throw new RuntimeEngineException("Error in deleting docker network" + dockerNetworkId + "!");
+        } catch (InterruptedException | DockerException e) {
+            throw new RuntimeEngineException("Error in deleting docker network" + dockerNetworkId + "!", e);
         }
     }
 
@@ -101,15 +106,30 @@ public class DockerNetworkManager {
         try {
             Network network = dockerClient.inspectNetwork(dockerNetworkId);
             return network;
-        } catch (DockerException e) {
-            throw new RuntimeEngineException("Error while trying to inspect docker network " + dockerNetworkId + "!");
-        } catch (InterruptedException e) {
-            throw new RuntimeEngineException("Error while trying to inspect docker network " + dockerNetworkId + "!");
+        } catch (InterruptedException | DockerException e) {
+            throw new RuntimeEngineException("Error while trying to inspect docker network " + dockerNetworkId + "!", e);
         }
     }
 
     public String getHostIpAddress() {
         return hostIp;
+    }
+
+    public String getClientContainerIpAddress() throws RuntimeEngineException {
+        try {
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+                NetworkInterface networkInterface = en.nextElement();
+                for (Enumeration<InetAddress> enIp = networkInterface.getInetAddresses(); enIp.hasMoreElements();) {
+                    InetAddress inetAddress = enIp.nextElement();
+                    if (inetAddress.getHostAddress().startsWith(ipPrefix)) {
+                        return inetAddress.getHostAddress();
+                    }
+                }
+            }
+            return null;
+        } catch (SocketException e) {
+            throw new RuntimeEngineException("Error while getting the list of the inerfaces in the system", e);
+        }
     }
 
     public String getNewIpAddress() {
@@ -168,7 +188,7 @@ public class DockerNetworkManager {
             try {
                 removeIpTablesRules(nodeName, blockedNodesMap.get(nodeName));
             } catch (RuntimeEngineException e) {
-                throw new RuntimeEngineException("Error while trying to delete iptables rules in node " + nodeName + "!");
+                throw new RuntimeEngineException("Error while trying to delete iptables rules in node " + nodeName + "!", e);
             }
         }
     }
@@ -217,7 +237,7 @@ public class DockerNetworkManager {
         } catch (NodeIsNotRunningException e) {
             logger.debug("Cannot apply network blockage rules because node {} is not running", host);
         } catch (RuntimeEngineException e) {
-            throw new RuntimeEngineException("Error while adding iptables rules to node " + host + "!");
+            throw new RuntimeEngineException("Error while adding iptables rules to node " + host + "!", e);
         }
     }
 }

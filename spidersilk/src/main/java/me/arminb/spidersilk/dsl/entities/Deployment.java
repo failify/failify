@@ -340,8 +340,7 @@ public class Deployment extends DeploymentEntity {
                             instrumentablePathSet.add(Paths.get(instrumentablePath).toAbsolutePath().normalize().toString());
                         }
                     } catch (IOException e) {
-                        logger.error("Error while trying to expand instrumentable path {}", instrumentablePathPattern, e);
-                        throw new RuntimeException("Error while trying to expand instrumentable path " + instrumentablePathPattern);
+                        throw new RuntimeException("Error while trying to expand instrumentable path " + instrumentablePathPattern, e);
                     }
                 }
             }

@@ -65,7 +65,7 @@ public class InstrumentationEngine {
     }
 
     // This method shouldn't change any of the application paths
-    public void instrumentNodes(Integer eventServerPortNumber) throws InstrumentationException {
+    public void instrumentNodes() throws InstrumentationException {
         String[] eventNames = deployment.getRunSequence().split("\\W+");
         Map<Node, List<InternalEvent>> nodeMap = new HashMap<>();
 
@@ -97,7 +97,7 @@ public class InstrumentationEngine {
             // Only does instrumentation when there is an instrumentation definition
             if (!instrumentationDefinitions.isEmpty()) {
                 // Preprocesses and orders instrumentation definitions list
-                instrumentationDefinitions = preProcessInstrumentationDefinitions(instrumentationDefinitions, eventServerPortNumber);
+                instrumentationDefinitions = preProcessInstrumentationDefinitions(instrumentationDefinitions);
 
                 // Performs the actual instrumentation and receives the new instrumented file name
                 Instrumentor instrumentor = getInstrumentor(service.getServiceType());
@@ -109,22 +109,13 @@ public class InstrumentationEngine {
         }
     }
 
-    private List<InstrumentationDefinition> preProcessInstrumentationDefinitions(List<InstrumentationDefinition> definitions,
-                                                                 Integer eventServerPortNumber) throws InstrumentationException {
+    private List<InstrumentationDefinition> preProcessInstrumentationDefinitions(List<InstrumentationDefinition> definitions)
+            throws InstrumentationException {
         InstrumentationDefinition.InstrumentationDefinitionBuilder mainInstrumentation;
 
-        // Adds configure operation to the main instrumentation definition
-        try {
-            mainInstrumentation = InstrumentationDefinition.builder()
-                .instrumentationPoint(Constants.INSTRUMENTATION_POINT_MAIN, InstrumentationPoint.Position.BEFORE)
-                .withInstrumentationOperation(SpiderSilkRuntimeOperation.CONFIGURE)
-                    .parameter(HostUtil.getLocalIpAddress())
-                    .parameter(eventServerPortNumber.toString()).and();
-        } catch (UnknownHostException e) {
-            throw new InstrumentationException("The IP address of the system cannot be determined!");
-        }
-
-        // Unifies instrumentation definitions for MAIN with configure operation at first
+        // Unifies instrumentation definitions for MAIN
+        mainInstrumentation = InstrumentationDefinition.builder()
+                .instrumentationPoint(Constants.INSTRUMENTATION_POINT_MAIN, InstrumentationPoint.Position.BEFORE);
         Iterator<InstrumentationDefinition> definitionIterator = definitions.iterator();
         while (definitionIterator.hasNext()){
             InstrumentationDefinition definition = definitionIterator.next();
