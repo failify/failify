@@ -32,8 +32,8 @@ import me.arminb.spidersilk.exceptions.WorkspaceException;
 import me.arminb.spidersilk.execution.EventService;
 import me.arminb.spidersilk.execution.RuntimeEngine;
 import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
-import me.arminb.spidersilk.execution.NextEventReceiptTimeoutCheckerThread;
 import me.arminb.spidersilk.instrumentation.InstrumentationEngine;
+import me.arminb.spidersilk.instrumentation.RunSequenceInstrumentationEngine;
 import me.arminb.spidersilk.verification.*;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
 import me.arminb.spidersilk.workspace.WorkspaceManager;
@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public class SpiderSilkRunner {
     private static final Logger logger = LoggerFactory.getLogger(SpiderSilkRunner.class);
@@ -48,11 +49,11 @@ public class SpiderSilkRunner {
     private final Deployment deployment;
     private final List<DeploymentVerifier> verifiers;
     private RuntimeEngine runtimeEngine;
-    private InstrumentationEngine instrumentationEngine;
+    private List<InstrumentationEngine> instrumentationEngines;
 
-    private SpiderSilkRunner(Deployment deployment, RuntimeEngine runtimeEngine) {
+    public SpiderSilkRunner(Deployment deployment) {
         this.deployment = deployment;
-        this.runtimeEngine = runtimeEngine;
+        this.instrumentationEngines = new ArrayList<>();
         this.workspaceManager = new WorkspaceManager(deployment);
 
         // Verifiers
@@ -61,45 +62,65 @@ public class SpiderSilkRunner {
                 new RunSequenceVerifier(deployment),
                 new SchedulingOperationVerifier(deployment)
         ));
+
+        // Add the default instrumentation engine
+        instrumentationEngines.add(new RunSequenceInstrumentationEngine());
     }
 
-    public static SpiderSilkRunner run(Deployment deployment, RuntimeEngine runtimeEngine) {
+    public void addInstrumentationEngine(InstrumentationEngine instrumentationEngine) {
+        instrumentationEngines.add(instrumentationEngine);
+    }
+
+    public static SpiderSilkRunner run(Deployment deployment) {
         logger.info("Starting SpiderSilkRunner ...");
-        SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment, runtimeEngine);
+        SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment);
         spiderSilkRunner.start();
-
-        // Starts last event receipt timeout checker
-        if (deployment.getNextEventReceiptTimeout() != null && deployment.getRunSequence() != null
-                && !deployment.getRunSequence().isEmpty()) {
-            logger.info("Starting next event receipt timeout checker thread with {} seconds timeout ..."
-                    , deployment.getNextEventReceiptTimeout());
-            new NextEventReceiptTimeoutCheckerThread(spiderSilkRunner).start();
-        }
-
         return spiderSilkRunner;
     }
 
-    public void waitForRunSequenceCompletion() {
-        waitForRunSequenceCompletion(false);
+    public void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException {
+        waitForRunSequenceCompletion(timeout,null,false);
     }
 
-    public void waitForRunSequenceCompletion(boolean stopAfter) {
-        while (!isStopped()) {
+    public void waitForRunSequenceCompletion(Integer timeout, boolean stopAfter) throws TimeoutException {
+        waitForRunSequenceCompletion(timeout,null,stopAfter);
+    }
+
+    public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout) throws TimeoutException {
+        waitForRunSequenceCompletion(timeout,nextEventReceiptTimeout,false);
+    }
+
+    public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout, boolean stopAfter)
+            throws TimeoutException {
+
+        int originalTimeout = timeout;
+        while (!isStopped() && timeout > 0) {
             if (EventService.getInstance().isTheRunSequenceCompleted()) {
                 logger.info("The run sequence is completed!");
-                if (deployment.getSecondsToWaitForCompletion() > 0) {
-                    logger.info("Waiting for {} seconds before stopping the runner ...",
-                            deployment.getSecondsToWaitForCompletion());
-                    try {
-                        Thread.sleep(deployment.getSecondsToWaitForCompletion() * 1000);
-                    } catch (InterruptedException e) {
-                        logger.error("The SpiderSilkRunner wait for completion thread sleep has been interrupted!", e);
-                    }
-                }
+
                 if (stopAfter && !isStopped()) {
                     stop();
                 }
+
+                return;
             }
+
+            if (deployment.getRunSequence() != null && !deployment.getRunSequence().isEmpty() &&
+                    EventService.getInstance().isLastEventReceivedTimeoutPassed(nextEventReceiptTimeout)) {
+                throw new TimeoutException("The timeout for receiving the next event (" + nextEventReceiptTimeout + " seconds) is passed!");
+            }
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // TODO is this the best thing to do ?
+                logger.warn("The run sequence completion wait sleep thread is interrupted");
+            }
+            timeout--;
+        }
+
+        if (timeout <= 0) {
+            throw new TimeoutException("The Wait timeout for run sequence completion (" + originalTimeout + " seconds) is passed!");
         }
     }
 
@@ -128,21 +149,25 @@ public class SpiderSilkRunner {
 
             // Instrument the nodes binaries. This shouldn't change any of the application paths
             logger.info("Starting the instrumentation process ...");
-            instrumentationEngine = new InstrumentationEngine(deployment, nodeWorkspaceMap);
-            instrumentationEngine.instrumentNodes();
+            for (InstrumentationEngine instrumentationEngine: instrumentationEngines) {
+                logger.info("Instrumenting using {}", instrumentationEngine.getClass().getName());
+                instrumentationEngine.instrumentNodes(deployment, nodeWorkspaceMap);
+            }
             logger.info("Instrumentation process is completed!");
 
             // Starting the runtime engine
             logger.info("Starting the runtime engine ...");
 
-            runtimeEngine.setNodeWorkspaceMap(nodeWorkspaceMap);
+            runtimeEngine = RuntimeEngine.getRuntimeEngine(deployment, nodeWorkspaceMap);
             runtimeEngine.start(this);
         } catch (RuntimeEngineException e) {
+            logger.error("An error happened while starting the runtime engine. Stopping ...", e);
             if (!isStopped()) {
                 stop();
             }
             throw new RuntimeException(e);
         } catch (WorkspaceException | InstrumentationException e) {
+            logger.error("An error happened while instrumenting the nodes", e);
             throw new RuntimeException(e);
         } catch (Throwable e) {
             logger.error("An unexpected error has happened. Stopping ...", e);
@@ -154,8 +179,16 @@ public class SpiderSilkRunner {
     }
 
     public void stop() {
+        stop(true, 0);
+    }
+
+    public void stop(boolean kill) {
+        stop(kill, Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP);
+    }
+
+    public void stop(boolean kill, Integer secondsUntilForcedStop) {
         logger.info("Stopping SpiderSilkRunner ...");
-        runtimeEngine.stop();
+        runtimeEngine.stop(kill, secondsUntilForcedStop);
     }
 
     public boolean isStopped() {

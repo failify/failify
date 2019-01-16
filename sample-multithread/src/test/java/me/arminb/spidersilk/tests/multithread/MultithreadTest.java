@@ -29,16 +29,17 @@ import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.ServiceType;
 import me.arminb.spidersilk.exceptions.DeploymentVerificationException;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
-import me.arminb.spidersilk.execution.single_node.SingleNodeRuntimeEngine;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeoutException;
 
 public class MultithreadTest {
     public static final Logger logger = LoggerFactory.getLogger(MultithreadTest.class);
 
     @Test
-    public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException {
+    public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException, TimeoutException {
         Deployment deployment = new Deployment.DeploymentBuilder("sample-multithread")
                 // Service Definitions
                 .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
@@ -68,10 +69,9 @@ public class MultithreadTest {
                 // Run Sequence Definition
                 .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * e3 * we2 * x2 * e4")
                 .sharedDirectory("/spidersilk")
-                .nextEventReceiptTimeout(15)
                 .build();
 
-        SpiderSilkRunner runner = SpiderSilkRunner.run(deployment, new SingleNodeRuntimeEngine(deployment));
+        SpiderSilkRunner runner = SpiderSilkRunner.run(deployment);
         // Injecting network partition in a specific time in the test case
         runner.runtime().waitFor("x1");
         runner.runtime().networkPartition("n1,n2");
@@ -79,6 +79,6 @@ public class MultithreadTest {
         runner.runtime().sendEvent("we1");
         // Removing network partition in a specific time in the test case
         runner.runtime().enforceOrder("we2", () -> runner.runtime().removeNetworkPartition());
-        runner.waitForRunSequenceCompletion(true);
+        runner.waitForRunSequenceCompletion(1, 1, true);
     }
 }

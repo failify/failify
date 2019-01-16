@@ -30,6 +30,7 @@ import me.arminb.spidersilk.SpiderSilkRunner;
 import me.arminb.spidersilk.dsl.entities.*;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
+import me.arminb.spidersilk.execution.single_node.SingleNodeRuntimeEngine;
 import me.arminb.spidersilk.rt.SpiderSilk;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
 import org.slf4j.Logger;
@@ -44,11 +45,18 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
 
-    public RuntimeEngine(Deployment deployment) {
+    public RuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.stopped = true;
         this.deployment = deployment;
-        eventServer = new EventServer(deployment);
+        this.nodeWorkspaceMap = nodeWorkspaceMap;
+        eventServer = new EventServer();
         EventService.initialize(deployment);
+    }
+
+    // TODO this method should use an external configuration to detect the proper runtime engine and its corresponding configs
+    // By defualt this methos returns single node runtime engine
+    public static RuntimeEngine getRuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
+        return new SingleNodeRuntimeEngine(deployment, nodeWorkspaceMap);
     }
 
     public Set<String> nodeNames() {
@@ -84,7 +92,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             stopped = false;
             startNodes();
         } catch (RuntimeEngineException e) {
-            stop();
+            stop(true, 0);
             throw e;
         }
     }
@@ -107,12 +115,12 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         eventServer.start();
     }
 
-    public void stop() {
+    public void stop(boolean kill, Integer secondsUntilForcedStop) {
         logger.info("Stopping the runtime engine ...");
         logger.info("Stopping external events ...");
         stopExternalEvents();
         logger.info("Stopping nodes ...");
-        stopNodes(true);
+        stopNodes(kill, secondsUntilForcedStop);
         logger.info("Stopping event server ...");
         stopEventServer();
         if (!deployment.getSharedDirectories().isEmpty()) {
@@ -266,7 +274,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      * This method should stop all of the nodes and in case of a failure in stopping something it won't throw any exception, but
      * error logs the exception or a message. This method should only be called when stopping the runtime engine
      */
-    protected abstract void stopNodes(Boolean kill);
+    protected abstract void stopNodes(Boolean kill, Integer secondsUntilForcedStop);
 
     /**
      * This method should start the file sharing service (if any), create the defined shared directory in the deployment definition
@@ -282,8 +290,4 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      * This method should only be called when stopping the runtime engine
      */
     protected abstract void stopFileSharingService();
-
-    public void setNodeWorkspaceMap(Map<String, NodeWorkspace> nodeWorkspaceMap) {
-        this.nodeWorkspaceMap = Collections.unmodifiableMap(nodeWorkspaceMap);
-    }
 }

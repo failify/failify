@@ -122,11 +122,16 @@ public class EventService {
         return true;
     }
 
-    public boolean isLastEventReceivedTimeoutPassed() {
+    public boolean isLastEventReceivedTimeoutPassed(Integer nextEventReceiptTimeout) {
         if (isTheRunSequenceCompleted()) {
             return false;
         }
-        if (Duration.between(lastTimeEventReceived, Instant.now()).getSeconds() >= deployment.getNextEventReceiptTimeout()) {
+
+        if (nextEventReceiptTimeout == null) {
+            return false;
+        }
+
+        if (Duration.between(lastTimeEventReceived, Instant.now()).getSeconds() >= nextEventReceiptTimeout) {
             return true;
         }
         return false;

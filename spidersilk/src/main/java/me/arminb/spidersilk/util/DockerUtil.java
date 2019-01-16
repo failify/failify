@@ -72,7 +72,6 @@ public class DockerUtil {
             }
 
             volumeMap.put(destination, source);
-            logger.info("Docker Mapping => source: {}, destination: {}", source, destination);
         }
 
         // Populate the cache for the next time

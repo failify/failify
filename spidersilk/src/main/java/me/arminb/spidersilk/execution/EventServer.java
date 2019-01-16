@@ -11,13 +11,11 @@ import org.slf4j.LoggerFactory;
 
 public class EventServer {
     private final static Logger logger = LoggerFactory.getLogger(EventServer.class);
-    private final Deployment deployment;
     private Server jettyServer;
     private Integer portNumber;
     private Boolean stopped;
 
-    public EventServer(Deployment deployment) {
-        this.deployment = deployment;
+    public EventServer() {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
 
@@ -60,9 +58,5 @@ public class EventServer {
 
     public Integer getPortNumber() {
         return portNumber;
-    }
-
-    public Deployment getDeployment() {
-        return deployment;
     }
 }

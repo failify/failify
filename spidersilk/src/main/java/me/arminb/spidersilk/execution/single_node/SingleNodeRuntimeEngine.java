@@ -66,8 +66,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     private DockerNetworkManager networkManager;
     private DockerClient dockerClient;
 
-    public SingleNodeRuntimeEngine(Deployment deployment) {
-        super(deployment);
+    public SingleNodeRuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
+        super(deployment, nodeWorkspaceMap);
         nodeToContainerInfoMap = new HashMap<>();
     }
 
@@ -271,8 +271,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         HostConfig.Builder hostConfigBuilder = HostConfig.builder();
         // Sets the docker image for the container
         containerConfigBuilder.image(nodeService.getDockerImage());
-        // Adds auto remove after stop
-        hostConfigBuilder.autoRemove(true);
         // Sets env vars for the container
         List<String> envList = new ArrayList<>();
         for (Map.Entry<String, String> envEntry: getNodeEnvironmentVariablesMap(node.getName()).entrySet()) {
@@ -283,7 +281,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         String wrapperFile = createWrapperScriptForNode(node);
         String wrapperScriptAddress = DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId,
                 wrapperFile);
-        logger.info("Wrapper script {} -> {}", wrapperFile, wrapperScriptAddress);
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(wrapperScriptAddress)
                 .to("/" + Constants.WRAPPER_SCRIPT_NAME).readOnly(true).build());
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
@@ -414,7 +411,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     @Override
-    protected void stopNodes(Boolean kill) {
+    protected void stopNodes(Boolean kill, Integer secondsUntilForcedStop) {
         // stops all of the running containers
         logger.info("Stopping containers ...");
         for (String nodeName: nodeToContainerInfoMap.keySet()) {
@@ -422,10 +419,15 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 if (kill) {
                     killNode(nodeName);
                 } else {
-                    stopNode(nodeName, deployment.getSecondsUntilForcedStop());
+                    stopNode(nodeName, secondsUntilForcedStop);
                 }
             } catch (RuntimeEngineException e) {
-                logger.warn("Error while trying to stop the container for node {}!", nodeName);
+                logger.warn("Error while trying to stop the container for node {}!", nodeName, e);
+            }
+            try {
+                removeContainer(nodeName);
+            } catch (RuntimeEngineException e) {
+                logger.warn("Error while trying to remove the container for node {}!", nodeName, e);
             }
         }
 
@@ -456,6 +458,21 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             } catch (RuntimeEngineException e) {
                 logger.error(e.getMessage(), e);
             }
+        }
+    }
+
+    public void removeContainer(String nodeName) throws RuntimeEngineException {
+        if (nodeToContainerInfoMap.containsKey(nodeName)) {
+            logger.info("Removing container for node {} ...", nodeName);
+            try {
+                dockerClient.removeContainer(nodeToContainerInfoMap.get(nodeName).containerId(),
+                        DockerClient.RemoveContainerParam.forceKill());
+                logger.info("Node {} container is removed!", nodeName);
+            } catch (InterruptedException | DockerException e) {
+                throw new RuntimeEngineException("Error while trying to remove the container for node " + nodeName + "!", e);
+            }
+        } else {
+            logger.error("There is no container for node {} to be removed!", nodeName);
         }
     }
 
