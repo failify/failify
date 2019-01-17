@@ -164,6 +164,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     public long runCommandInNode(String nodeName, String command) throws RuntimeEngineException {
         if (!nodeToContainerInfoMap.containsKey(nodeName)) {
+            // TODO should this throw exception
             logger.error("Node {} does not have a running container to run command {}!", nodeName, command);
             return -1;
         }
@@ -422,12 +423,12 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     stopNode(nodeName, secondsUntilForcedStop);
                 }
             } catch (RuntimeEngineException e) {
-                logger.warn("Error while trying to stop the container for node {}!", nodeName, e);
+                logger.warn("Error while trying to stop the container for node {}!", nodeName);
             }
             try {
                 removeContainer(nodeName);
             } catch (RuntimeEngineException e) {
-                logger.warn("Error while trying to remove the container for node {}!", nodeName, e);
+                logger.warn("Error while trying to remove the container for node {}!", nodeName);
             }
         }
 
@@ -472,6 +473,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 throw new RuntimeEngineException("Error while trying to remove the container for node " + nodeName + "!", e);
             }
         } else {
+            // TODO should this throw exception
             logger.error("There is no container for node {} to be removed!", nodeName);
         }
     }
@@ -487,6 +489,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 throw new RuntimeEngineException("Error while trying to kill the container for node " + nodeName + "!", e);
             }
         } else {
+            // TODO should this throw exception
             logger.error("There is no container for node {} to be killed!", nodeName);
         }
     }
@@ -507,6 +510,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 throw new RuntimeEngineException("Error while trying to stop the container for node " + nodeName + "!", e);
             }
         } else {
+            // TODO should this throw exception
             logger.error("There is no container for node {} to be stopped!", nodeName);
         }
     }
@@ -558,6 +562,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
             logger.info("Container {} for node {} is started!", containerId, nodeName);
         } else {
+            // TODO should this throw exception
             logger.error("There is no container for node {} to be started!", nodeName);
         }
     }
@@ -580,6 +585,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 throw new RuntimeEngineException("Error while trying to restart the container for node " + nodeName + "!", e);
             }
         } else {
+            // TODO should this throw exception
             logger.error("There is no container for node {} to be restarted!", nodeName);
         }
     }

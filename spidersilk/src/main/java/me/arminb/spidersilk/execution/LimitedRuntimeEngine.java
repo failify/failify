@@ -4,6 +4,7 @@ import me.arminb.spidersilk.dsl.entities.PortType;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 
 import java.util.Set;
+import java.util.concurrent.TimeoutException;
 
 public interface LimitedRuntimeEngine {
     // Runtime Operation
@@ -27,6 +28,11 @@ public interface LimitedRuntimeEngine {
     // Events
     void waitFor(String eventName) throws RuntimeEngineException;
     void waitFor(String eventName, Boolean includeEvent) throws RuntimeEngineException;
+    void waitFor(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException;
+    void waitFor(String eventName, Boolean includeEvent, Integer timeout)
+            throws RuntimeEngineException, TimeoutException;
     void sendEvent(String eventName) throws RuntimeEngineException;
     void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException;
+    void enforceOrder(String eventName, SpiderSilkCheckedRunnable action, Integer timeout)
+            throws RuntimeEngineException, TimeoutException;
 }

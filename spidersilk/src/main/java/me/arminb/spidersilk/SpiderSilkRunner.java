@@ -78,12 +78,21 @@ public class SpiderSilkRunner {
         return spiderSilkRunner;
     }
 
+
+    public void waitForRunSequenceCompletion() throws TimeoutException {
+        waitForRunSequenceCompletion(null,null,false);
+    }
+
+    public void waitForRunSequenceCompletion(boolean stopAfter) throws TimeoutException {
+        waitForRunSequenceCompletion(null,null, stopAfter);
+    }
+
     public void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException {
         waitForRunSequenceCompletion(timeout,null,false);
     }
 
     public void waitForRunSequenceCompletion(Integer timeout, boolean stopAfter) throws TimeoutException {
-        waitForRunSequenceCompletion(timeout,null,stopAfter);
+        waitForRunSequenceCompletion(timeout,null, stopAfter);
     }
 
     public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout) throws TimeoutException {
@@ -93,8 +102,8 @@ public class SpiderSilkRunner {
     public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout, boolean stopAfter)
             throws TimeoutException {
 
-        int originalTimeout = timeout;
-        while (!isStopped() && timeout > 0) {
+        Integer originalTimeout = timeout;
+        while (!isStopped() && (timeout == null || timeout > 0)) {
             if (EventService.getInstance().isTheRunSequenceCompleted()) {
                 logger.info("The run sequence is completed!");
 
@@ -116,10 +125,13 @@ public class SpiderSilkRunner {
                 // TODO is this the best thing to do ?
                 logger.warn("The run sequence completion wait sleep thread is interrupted");
             }
-            timeout--;
+
+            if (timeout != null) {
+                timeout--;
+            }
         }
 
-        if (timeout <= 0) {
+        if (timeout != null && timeout <= 0) {
             throw new TimeoutException("The Wait timeout for run sequence completion (" + originalTimeout + " seconds) is passed!");
         }
     }

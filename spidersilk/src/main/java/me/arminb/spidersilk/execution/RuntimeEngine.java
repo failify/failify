@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private final static Logger logger = LoggerFactory.getLogger(RuntimeEngine.class);
@@ -211,15 +212,36 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
 
     @Override
     public void waitFor(String eventName) throws RuntimeEngineException {
-        waitFor(eventName, false);
+        try {
+            waitFor(eventName, false, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
     }
 
     @Override
     public void waitFor(String eventName, Boolean includeEvent) throws RuntimeEngineException {
+        try {
+            waitFor(eventName, false, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
+    }
+
+    @Override
+    public void waitFor(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException {
+        waitFor(eventName, false, timeout);
+    }
+
+    @Override
+    public void waitFor(String eventName, Boolean includeEvent, Integer timeout)
+            throws RuntimeEngineException, TimeoutException {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Waiting for event {} in workload ...", eventName);
             try {
-                SpiderSilk.getInstance().blockAndPoll(eventName, includeEvent);
+                SpiderSilk.getInstance().blockAndPoll(eventName, includeEvent, timeout);
+            } catch (TimeoutException e) {
+                throw e;
             } catch (Exception e) {
                 throw new RuntimeEngineException("Error happened while waiting for event " + eventName, e);
             }
@@ -243,7 +265,17 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
 
     @Override
     public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException {
-        waitFor(eventName, false);
+        try {
+            enforceOrder(eventName, action, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
+    }
+
+    @Override
+    public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action, Integer timeout)
+            throws RuntimeEngineException, TimeoutException {
+        waitFor(eventName, false, timeout);
         action.run();
         sendEvent(eventName);
     }

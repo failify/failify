@@ -30,6 +30,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.TimeoutException;
 
 // TODO should some methods be synchronized ?
 public class SpiderSilk {
@@ -142,10 +143,28 @@ public class SpiderSilk {
 
     // This method blocks until the dependencies of eventName are met not the event itself
     public void blockAndPoll(String eventName) {
-        blockAndPoll(eventName, false);
+        try {
+            blockAndPoll(eventName, false, null);
+        } catch (TimeoutException e) {
+            // This never happens
+        }
     }
+
     public void blockAndPoll(String eventName, Boolean includeEvent) {
-        while (true) {
+        try {
+            blockAndPoll(eventName, includeEvent, null);
+        } catch (TimeoutException e) {
+            // this never happens
+        }
+    }
+
+    public void blockAndPoll(String eventName, Boolean includeEvent, Integer timeout) throws TimeoutException {
+
+        if (timeout != null) {
+            timeout = timeout * 1000;
+        }
+
+        while (timeout == null || timeout > 0) {
             try {
                 Integer eventInclusion = includeEvent? 1:0;
                 URL url = new URL("http://" + hostname + ":" + port + "/dependencies/" + eventName
@@ -157,6 +176,10 @@ public class SpiderSilk {
                     break;
                 }
                 Thread.sleep(5);
+
+                if (timeout != null) {
+                    timeout -= 5;
+                }
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -164,6 +187,10 @@ public class SpiderSilk {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+
+        if (timeout != null && timeout <= 0) {
+            throw new TimeoutException("The timeout for event " + eventName + " is passed");
         }
     }
 
