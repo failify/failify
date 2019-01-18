@@ -251,8 +251,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         }
     }
 
-    @Override
-    public void sendEvent(String eventName) throws RuntimeEngineException {
+    private void sendEvent(String eventName) throws RuntimeEngineException {
         if (deployment.workloadEventExists(eventName) && deployment.isInRunSequence(eventName)) {
             logger.info("Sending workload event {} ...", eventName);
             SpiderSilk.getInstance().allowBlocking();
@@ -262,6 +261,21 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
                     " in the run sequence. Thus, its order cannot be sent from the workload!");
         }
     }
+
+    @Override
+    public void enforceOrder(String eventName) throws RuntimeEngineException {
+        try {
+            enforceOrder(eventName, null, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
+    }
+
+    @Override
+    public void enforceOrder(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException {
+        enforceOrder(eventName, null, timeout);
+    }
+
 
     @Override
     public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException {
@@ -276,7 +290,9 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action, Integer timeout)
             throws RuntimeEngineException, TimeoutException {
         waitFor(eventName, false, timeout);
-        action.run();
+        if (action != null) {
+            action.run();
+        }
         sendEvent(eventName);
     }
 

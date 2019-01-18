@@ -46,6 +46,9 @@ public class SpiderSilk {
         if (instance == null) {
             instance = new SpiderSilk(System.getenv("SPIDERSILK_EVENT_SERVER_IP_ADDRESS"), System.getenv("SPIDERSILK_EVENT_SERVER_PORT_NUMBER"));
         }
+
+        instance.initializeAllowBlocking();
+
         return instance;
     }
 
@@ -54,12 +57,19 @@ public class SpiderSilk {
         this.port = port;
         this.stackMatcher = new StackMatcher();
         this.allowBlocking = new ThreadLocal<>();
-        this.allowBlocking.set(true);
     }
 
     public static void configure(String hostname, String port) {
         if (instance == null) {
             instance = new SpiderSilk(hostname, port);
+        }
+
+        instance.initializeAllowBlocking();
+    }
+
+    private void initializeAllowBlocking() {
+        if (allowBlocking.get() == null) {
+            allowBlocking.set(true);
         }
     }
 

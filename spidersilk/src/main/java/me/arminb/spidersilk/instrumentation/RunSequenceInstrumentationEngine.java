@@ -115,7 +115,8 @@ public class RunSequenceInstrumentationEngine extends InstrumentationEngine {
             }
 
             // except for the main method, add allow blocking operation at the beginning of every method with instrumentation
-            if (!definition.getInstrumentationPoint().getMethodName().equals(Constants.INSTRUMENTATION_POINT_MAIN)) {
+            if (!definition.getInstrumentationPoint().getMethodName().equals(Constants.INSTRUMENTATION_POINT_MAIN) &&
+                    instrumentationPointMap.get(definition.getInstrumentationPoint()).isEmpty()) {
                 instrumentationPointMap.get(definition.getInstrumentationPoint()).add(
                         new InstrumentationOperation.InstrumentationOperationBuilder(SpiderSilkRuntimeOperation.ALLOW_BLOCKING,
                                 null).build()

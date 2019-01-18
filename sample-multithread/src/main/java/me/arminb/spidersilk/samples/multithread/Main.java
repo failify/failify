@@ -71,7 +71,7 @@ public class Main {
     public void start() {
         new Thread(()-> fileNameUtil()).start();
         new Thread(()-> helloWorld1()).start();
-        new Thread(()-> helloWorld2()).start();
+        new Thread(()-> {helloWorld2(); helloWorld2();}).start();
         new Thread(()-> helloWorld3()).start();
 
         try {

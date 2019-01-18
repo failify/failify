@@ -75,8 +75,8 @@ public class MultithreadTest {
         // Injecting network partition in a specific time in the test case
         runner.runtime().waitFor("x1",10);
         runner.runtime().networkPartition("n1,n2");
-        runner.runtime().clockDrift("n1", -1000);
-        runner.runtime().sendEvent("we1");
+        runner.runtime().clockDrift("n1", -10000);
+        runner.runtime().enforceOrder("we1", 10);
         // Removing network partition in a specific time in the test case
         runner.runtime().enforceOrder("we2", () -> runner.runtime().removeNetworkPartition(), 10);
         runner.waitForRunSequenceCompletion(60, 20, true);

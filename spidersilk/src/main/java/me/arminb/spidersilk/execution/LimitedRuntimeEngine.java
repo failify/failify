@@ -31,7 +31,8 @@ public interface LimitedRuntimeEngine {
     void waitFor(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException;
     void waitFor(String eventName, Boolean includeEvent, Integer timeout)
             throws RuntimeEngineException, TimeoutException;
-    void sendEvent(String eventName) throws RuntimeEngineException;
+    void enforceOrder(String eventName) throws RuntimeEngineException;
+    void enforceOrder(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException;
     void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException;
     void enforceOrder(String eventName, SpiderSilkCheckedRunnable action, Integer timeout)
             throws RuntimeEngineException, TimeoutException;
