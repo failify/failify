@@ -57,7 +57,7 @@ public class JavaInstrumentor implements Instrumentor {
             try {
                 aspectFile.save(nodeWorkspace.getRootDirectory());
             } catch (IOException e) {
-                throw new InstrumentationException("Error in creating Java aspect files for \"" + nodeWorkspace.getInstrumentablePaths() + "\"!");
+                throw new InstrumentationException("Error in creating Java aspect files for \"" + nodeWorkspace.getInstrumentablePaths() + "\"!", e);
             }
             aspectFiles.add(aspectFile);
             argFileString += aspectFile.getAspectFileName() + "\n";
@@ -66,7 +66,7 @@ public class JavaInstrumentor implements Instrumentor {
         try {
             Files.write(Paths.get(nodeWorkspace.getRootDirectory(), "argfile"), argFileString.getBytes());
         } catch (IOException e) {
-            throw new InstrumentationException("Error in creating AspectJ argfile for \"" + nodeWorkspace.getInstrumentablePaths() + "\"!");
+            throw new InstrumentationException("Error in creating AspectJ argfile for \"" + nodeWorkspace.getInstrumentablePaths() + "\"!", e);
         }
 
         // Constructs classpath for instrumentation
@@ -108,8 +108,7 @@ public class JavaInstrumentor implements Instrumentor {
                             Paths.get(nodeWorkspace.getRootDirectory(), "aspectj.log").toString() + "!");
                 }
             } catch (IOException | InterruptedException e) {
-                logger.error("Error in instrumenting {} using AspectJ.", instrumentablePath, e);
-                throw new InstrumentationException("Error in instrumenting " + instrumentablePath + " using AspectJ.");
+                throw new InstrumentationException("Error in instrumenting " + instrumentablePath + " using AspectJ.", e);
             }
 
             // copy back the generated classes or jar file to the original instrumentable path
@@ -124,7 +123,7 @@ public class JavaInstrumentor implements Instrumentor {
                 Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toFile().delete();
 
             } catch (IOException e) {
-                throw new InstrumentationException("Error while trying to unzip aspectj jar output!");
+                throw new InstrumentationException("Error while trying to unzip aspectj jar output!", e);
             }
         }
     }

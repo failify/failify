@@ -26,6 +26,10 @@
 package me.arminb.spidersilk.exceptions;
 
 public class InstrumentationException extends Exception {
+    public InstrumentationException(String msg, Throwable cause) {
+        super(msg, cause);
+    }
+
     public InstrumentationException(String msg) {
         super(msg);
     }

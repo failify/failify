@@ -63,15 +63,11 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, DeploymentEntity> deploymentEntities;
     private final Map<String, BlockingEvent> blockingEvents;
     private final Map<String, SchedulingEvent> blockingSchedulingEvents;
-    private final Integer secondsToWaitForCompletion;
     private final String runSequence;
-    private final Integer secondsUntilForcedStop;
-    private final Integer nextEventReceiptTimeout;
 
     private Deployment(DeploymentBuilder builder) {
         super(builder.getName());
         runSequence = builder.runSequence;
-        secondsToWaitForCompletion = new Integer(builder.secondsToWaitForCompletion);
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
         sharedDirectories = Collections.unmodifiableSet(builder.sharedDorectories);
@@ -83,8 +79,6 @@ public class Deployment extends DeploymentEntity {
         // List of blocking type scheduling events that are present in the run sequence
         blockingSchedulingEvents = Collections.unmodifiableMap(generateBlockingSchedulingEventsMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
-        secondsUntilForcedStop = builder.secondsUntilForcedStop;
-        nextEventReceiptTimeout = builder.nextEventReceiptTimeout;
     }
 
     private Map<String,ReferableDeploymentEntity> generateReferableEntitiesMap() {
@@ -227,18 +221,6 @@ public class Deployment extends DeploymentEntity {
         return deploymentEntities;
     }
 
-    public Integer getSecondsToWaitForCompletion() {
-        return secondsToWaitForCompletion;
-    }
-
-    public Integer getSecondsUntilForcedStop() {
-        return secondsUntilForcedStop;
-    }
-
-    public Integer getNextEventReceiptTimeout() {
-        return nextEventReceiptTimeout;
-    }
-
     // TODO make this more efficient and refactor other places that uses this functionality
     public Boolean isInRunSequence(String eventName) {
         String[] eventNames = runSequence.split("\\W+");
@@ -257,9 +239,6 @@ public class Deployment extends DeploymentEntity {
         private Set<String> sharedDorectories;
         private Map<String, WorkloadEvent> workloadEvents;
         private Map<String, ExternalEvent> externalEvents;
-        private Integer secondsToWaitForCompletion;
-        private Integer secondsUntilForcedStop;
-        private Integer nextEventReceiptTimeout;
 
         public DeploymentBuilder(String name) {
             super(null, name);
@@ -269,9 +248,6 @@ public class Deployment extends DeploymentEntity {
             externalEvents = new HashMap<>();
             workloadEvents = new HashMap<>();
             runSequence = "";
-            secondsToWaitForCompletion = 0;
-            secondsUntilForcedStop = Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP;
-            nextEventReceiptTimeout = null;
         }
 
         public DeploymentBuilder(Deployment instance) {
@@ -282,9 +258,6 @@ public class Deployment extends DeploymentEntity {
             externalEvents = new HashMap<>(instance.externalEvents);
             workloadEvents = new HashMap<>(instance.workloadEvents);
             runSequence =  new String(instance.runSequence);
-            secondsToWaitForCompletion = new Integer(instance.secondsToWaitForCompletion);
-            secondsUntilForcedStop = new Integer(instance.secondsUntilForcedStop);
-            nextEventReceiptTimeout = new Integer(instance.nextEventReceiptTimeout);
         }
 
         public DeploymentBuilder node(Node node) {
@@ -340,8 +313,7 @@ public class Deployment extends DeploymentEntity {
                             instrumentablePathSet.add(Paths.get(instrumentablePath).toAbsolutePath().normalize().toString());
                         }
                     } catch (IOException e) {
-                        logger.error("Error while trying to expand instrumentable path {}", instrumentablePathPattern, e);
-                        throw new RuntimeException("Error while trying to expand instrumentable path " + instrumentablePathPattern);
+                        throw new RuntimeException("Error while trying to expand instrumentable path " + instrumentablePathPattern, e);
                     }
                 }
             }
@@ -499,21 +471,6 @@ public class Deployment extends DeploymentEntity {
 
         public DeploymentBuilder runSequence(String sequence) {
             runSequence = sequence;
-            return this;
-        }
-
-        public DeploymentBuilder secondsToWaitForCompletion(Integer secondsToWaitForCompletion) {
-            this.secondsToWaitForCompletion = secondsToWaitForCompletion;
-            return this;
-        }
-
-        public DeploymentBuilder secondsUntilForcedStop(Integer secondsUntilForcedStop) {
-            this.secondsUntilForcedStop = secondsUntilForcedStop;
-            return this;
-        }
-
-        public DeploymentBuilder nextEventReceiptTimeout(Integer nextEventReceiptTimeout) {
-            this.nextEventReceiptTimeout = nextEventReceiptTimeout;
             return this;
         }
 

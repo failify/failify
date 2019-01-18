@@ -24,4 +24,6 @@ public class Constants {
     public final static String DOCKER_CONTAINER_NAME_PREFIX = "spidersilk_";
     public final static Integer DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_RESTART = 5;
     public final static Integer DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP = 5;
+    public final static String SPIDERSILK_EVENT_SERVER_IP_ADDRESS_ENV_VAR = "SPIDERSILK_EVENT_SERVER_IP_ADDRESS";
+    public final static String SPIDERSILK_EVENT_SERVER_PORT_NUMBER_ENV_VAR = "SPIDERSILK_EVENT_SERVER_PORT_NUMBER";
 }

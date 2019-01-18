@@ -30,14 +30,14 @@ import me.arminb.spidersilk.SpiderSilkRunner;
 import me.arminb.spidersilk.dsl.entities.*;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.exceptions.RuntimeEngineException;
+import me.arminb.spidersilk.execution.single_node.SingleNodeRuntimeEngine;
 import me.arminb.spidersilk.rt.SpiderSilk;
-import me.arminb.spidersilk.util.HostUtil;
 import me.arminb.spidersilk.workspace.NodeWorkspace;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.UnknownHostException;
 import java.util.*;
+import java.util.concurrent.TimeoutException;
 
 public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private final static Logger logger = LoggerFactory.getLogger(RuntimeEngine.class);
@@ -46,11 +46,18 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
 
-    public RuntimeEngine(Deployment deployment) {
+    public RuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.stopped = true;
         this.deployment = deployment;
-        eventServer = new EventServer(deployment);
+        this.nodeWorkspaceMap = nodeWorkspaceMap;
+        eventServer = new EventServer();
         EventService.initialize(deployment);
+    }
+
+    // TODO this method should use an external configuration to detect the proper runtime engine and its corresponding configs
+    // By defualt this methos returns single node runtime engine
+    public static RuntimeEngine getRuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
+        return new SingleNodeRuntimeEngine(deployment, nodeWorkspaceMap);
     }
 
     public Set<String> nodeNames() {
@@ -62,16 +69,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     public void start(SpiderSilkRunner spiderSilkRunner) throws RuntimeEngineException {
-        // Configure local SpiderSilk runtime
-        try {
-            if (eventServer.getPortNumber() == null) {
-                throw new RuntimeEngineException("The event server's port number is not known since the event server is not started yet!");
-            }
-            SpiderSilk.configure(HostUtil.getLocalIpAddress(), String.valueOf(eventServer.getPortNumber()));
-        } catch (UnknownHostException e) {
-            throw new RuntimeEngineException("Cannot get the local IP address to configure the local SpiderSilk runtime!");
-        }
-
         // Exits if nodes' workspaces is not set
         if (nodeWorkspaceMap == null || nodeWorkspaceMap.isEmpty()) {
             throw new RuntimeEngineException("NodeWorkspaces is not set!");
@@ -81,6 +78,13 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             logger.info("Starting file sharing service ...");
             startFileSharingService();
         }
+
+        logger.info("Starting event server ...");
+        startEventServer();
+
+        // Configure local SpiderSilk runtime
+        SpiderSilk.configure("127.0.0.1", String.valueOf(eventServer.getPortNumber()));
+
         logger.info("Starting external events ...");
         startExternalEvents(spiderSilkRunner);
 
@@ -89,7 +93,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             stopped = false;
             startNodes();
         } catch (RuntimeEngineException e) {
-            stop();
+            stop(true, 0);
             throw e;
         }
     }
@@ -108,16 +112,16 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         }
     }
 
-    public void startEventServer() throws RuntimeEngineException {
+    protected void startEventServer() throws RuntimeEngineException {
         eventServer.start();
     }
 
-    public void stop() {
+    public void stop(boolean kill, Integer secondsUntilForcedStop) {
         logger.info("Stopping the runtime engine ...");
         logger.info("Stopping external events ...");
         stopExternalEvents();
         logger.info("Stopping nodes ...");
-        stopNodes(true);
+        stopNodes(kill, secondsUntilForcedStop);
         logger.info("Stopping event server ...");
         stopEventServer();
         if (!deployment.getSharedDirectories().isEmpty()) {
@@ -152,23 +156,17 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         return environment;
     }
 
-    protected Map<String, String> improveEnvironmentVariablesMap(String nodeName, Map<String, String> environment) {
-        // Adds preload for libfaketime
-        environment.put("LD_PRELOAD", Constants.FAKETIME_TARGET_BASE_PATH + Constants.FAKETIMEMT_LIB_FILE_NAME);
-        // Disables offset caching for libfaketime
-        environment.put("FAKETIME_NO_CACHE", "1");
-        // Adds additional libfaketime config for java
-        if (deployment.getService(deployment.getNode(nodeName).getServiceName()).getServiceType() == ServiceType.JAVA) {
-            environment.put("DONT_FAKE_MONOTONIC", "1");
-        }
-        // Adds controller file config for libfaketime
-        environment.put("FAKETIME_TIMESTAMP_FILE", "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME);
+    protected Map<String, String> improveEnvironmentVariablesMap(String nodeName, Map<String, String> environment)
+            throws RuntimeEngineException {
+        environment.put(Constants.SPIDERSILK_EVENT_SERVER_IP_ADDRESS_ENV_VAR, getEventServerIpAddress());
+        environment.put(Constants.SPIDERSILK_EVENT_SERVER_PORT_NUMBER_ENV_VAR, String.valueOf(eventServer.getPortNumber()));
         return environment;
     }
 
-    protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName) {
+    protected final Map<String, String> getNodeEnvironmentVariablesMap(String nodeName) throws RuntimeEngineException {
         Map<String, String> retMap = new HashMap<>();
         retMap = getNodeEnvironmentVariablesMap(nodeName, retMap);
+        retMap = improveEnvironmentVariablesMapForEngine(nodeName, retMap);
         retMap = improveEnvironmentVariablesMap(nodeName, retMap);
         return retMap;
     }
@@ -214,22 +212,46 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
 
     @Override
     public void waitFor(String eventName) throws RuntimeEngineException {
-        waitFor(eventName, false);
+        try {
+            waitFor(eventName, false, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
     }
 
     @Override
     public void waitFor(String eventName, Boolean includeEvent) throws RuntimeEngineException {
+        try {
+            waitFor(eventName, false, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
+    }
+
+    @Override
+    public void waitFor(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException {
+        waitFor(eventName, false, timeout);
+    }
+
+    @Override
+    public void waitFor(String eventName, Boolean includeEvent, Integer timeout)
+            throws RuntimeEngineException, TimeoutException {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Waiting for event {} in workload ...", eventName);
-            SpiderSilk.getInstance().blockAndPoll(eventName, includeEvent);
+            try {
+                SpiderSilk.getInstance().blockAndPoll(eventName, includeEvent, timeout);
+            } catch (TimeoutException e) {
+                throw e;
+            } catch (Exception e) {
+                throw new RuntimeEngineException("Error happened while waiting for event " + eventName, e);
+            }
         } else {
             throw new RuntimeEngineException("Event " + eventName + " is not referred to in the run sequence. Thus," +
                     " its order cannot be enforced!");
         }
     }
 
-    @Override
-    public void sendEvent(String eventName) throws RuntimeEngineException {
+    private void sendEvent(String eventName) throws RuntimeEngineException {
         if (deployment.workloadEventExists(eventName) && deployment.isInRunSequence(eventName)) {
             logger.info("Sending workload event {} ...", eventName);
             SpiderSilk.getInstance().allowBlocking();
@@ -241,12 +263,54 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     @Override
+    public void enforceOrder(String eventName) throws RuntimeEngineException {
+        try {
+            enforceOrder(eventName, null, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
+    }
+
+    @Override
+    public void enforceOrder(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException {
+        enforceOrder(eventName, null, timeout);
+    }
+
+
+    @Override
     public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException {
-        waitFor(eventName, false);
-        action.run();
+        try {
+            enforceOrder(eventName, action, null);
+        } catch (TimeoutException e) {
+            // never happens here
+        }
+    }
+
+    @Override
+    public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action, Integer timeout)
+            throws RuntimeEngineException, TimeoutException {
+        waitFor(eventName, false, timeout);
+        if (action != null) {
+            action.run();
+        }
         sendEvent(eventName);
     }
 
+    /**
+     * This method improves a node's env var map
+     * @param nodeName the corresponding node to be improved
+     * @param environment the current environment of the node
+     * @return the improved environment for the node
+     * @throws RuntimeEngineException if something goes wrong
+     */
+    protected abstract Map<String, String> improveEnvironmentVariablesMapForEngine(String nodeName, Map<String, String> environment)
+            throws RuntimeEngineException;
+    /**
+     * This method should find the best IP address for the nodes to connect to the event server based on the current environment
+     * @return the IP address to connect to the event server
+     * @throws RuntimeEngineException if something goes wrong
+     */
+    protected abstract String getEventServerIpAddress() throws RuntimeEngineException;
     /**
      * This method should start all of the nodes. In case of a problem in startup of a node, all of the started nodes should be
      * stopped and a RuntimeEngine Exception should be thrown
@@ -258,7 +322,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      * This method should stop all of the nodes and in case of a failure in stopping something it won't throw any exception, but
      * error logs the exception or a message. This method should only be called when stopping the runtime engine
      */
-    protected abstract void stopNodes(Boolean kill);
+    protected abstract void stopNodes(Boolean kill, Integer secondsUntilForcedStop);
 
     /**
      * This method should start the file sharing service (if any), create the defined shared directory in the deployment definition
@@ -274,12 +338,4 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      * This method should only be called when stopping the runtime engine
      */
     protected abstract void stopFileSharingService();
-
-    public void setNodeWorkspaceMap(Map<String, NodeWorkspace> nodeWorkspaceMap) {
-        this.nodeWorkspaceMap = Collections.unmodifiableMap(nodeWorkspaceMap);
-    }
-
-    public Integer getEventServerPortNumber() {
-        return eventServer.getPortNumber();
-    }
 }
