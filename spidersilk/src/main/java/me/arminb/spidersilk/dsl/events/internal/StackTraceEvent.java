@@ -101,7 +101,7 @@ public class StackTraceEvent extends BlockingEvent {
         }
 
         public StackTraceEventBuilder trace(String trace) {
-            stack += trace + ",";
+            stack += trace.trim() + ",";
             return this;
         }
 

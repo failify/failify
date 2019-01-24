@@ -27,8 +27,6 @@ package me.arminb.spidersilk.instrumentation;
 
 public enum SpiderSilkRuntimeOperation {
     ALLOW_BLOCKING,
-    BLOCK_AND_POLL,
-    SEND_EVENT,
     ENFORCE_ORDER,
     GARBAGE_COLLECTION
 }

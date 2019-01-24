@@ -48,9 +48,7 @@ public class AspectGenerator {
         operationToStringMap = new HashMap<>();
         operationToStringMap.put(SpiderSilkRuntimeOperation.ALLOW_BLOCKING, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().allowBlocking");
         operationToStringMap.put(SpiderSilkRuntimeOperation.ENFORCE_ORDER, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().enforceOrder");
-        operationToStringMap.put(SpiderSilkRuntimeOperation.BLOCK_AND_POLL, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().blockAndPoll");
         operationToStringMap.put(SpiderSilkRuntimeOperation.GARBAGE_COLLECTION, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().garbageCollection");
-        operationToStringMap.put(SpiderSilkRuntimeOperation.SEND_EVENT, "me.arminb.spidersilk.rt.SpiderSilk.getInstance().sendEvent");
 
         try {
             aspectTemplate = IOUtils.toString(AspectGenerator.class.getClassLoader().getResourceAsStream("AspectTemplate.java"));
