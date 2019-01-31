@@ -33,6 +33,10 @@ import java.net.URL;
 import java.util.concurrent.TimeoutException;
 
 // TODO should some methods be synchronized ?
+
+/**
+ * This class acts as a client for the event server and contains the necessary methods for run sequence related instrumentation
+ */
 public class SpiderSilk {
     private static SpiderSilk instance;
 
@@ -42,8 +46,12 @@ public class SpiderSilk {
     // this is needed because each pass of a method can only be blocked once per thread
     private ThreadLocal<Boolean> allowBlocking;
 
+    /**
+     * This method returns an instance of SpiderSilk class initialized with ip and port from the env
+     */
     public static SpiderSilk getInstance() {
         if (instance == null) {
+            // the event server ip an port should come from the env vars if not given as args
             instance = new SpiderSilk(System.getenv("SPIDERSILK_EVENT_SERVER_IP_ADDRESS"), System.getenv("SPIDERSILK_EVENT_SERVER_PORT_NUMBER"));
         }
 
@@ -52,6 +60,11 @@ public class SpiderSilk {
         return instance;
     }
 
+    /**
+     * Private Constructor
+     * @param hostname the hostname or ip address of the event server
+     * @param port the port number for the event server
+     */
     private SpiderSilk(String hostname, String port) {
         this.hostname = hostname;
         this.port = port;
@@ -59,6 +72,11 @@ public class SpiderSilk {
         this.allowBlocking = new ThreadLocal<>();
     }
 
+    /**
+     * This method initializes the SpiderSilk singleton instance with the given ip and port
+     * @param hostname the hostname or ip address of the event server
+     * @param port the port number for the event server
+     */
     public static void configure(String hostname, String port) {
         if (instance == null) {
             instance = new SpiderSilk(hostname, port);
@@ -67,16 +85,30 @@ public class SpiderSilk {
         instance.initializeAllowBlocking();
     }
 
+    /**
+     * this method initializes the thread local allow blocking attribute so each thread is allowed to block for the first time
+     */
     private void initializeAllowBlocking() {
         if (allowBlocking.get() == null) {
             allowBlocking.set(true);
         }
     }
 
+    /**
+     * Sets allow blocking to true and should be called in the beginning of each instrumented method
+     */
     public void allowBlocking() {
         allowBlocking.set(true);
     }
 
+    /**
+     * This method enforces the order for an internal event. It first checks if the event is already satisfied or not.
+     * then, if the stack matches, the current thread is allowed to be blocked and the blocking condition is satisfied,
+     * it blocks the thread until the event dependencies are satisfied. Then, it will mark the event as satisfied in the
+     * event server and disallows blocking for the current thread
+     * @param eventName that needs to be enforced
+     * @param stack the stack trace to match in order to allow blocking
+     */
     public void enforceOrder(String eventName, String stack) {
         // check if event is not already sent - useful when resetting a node
         if (!isEventAlreadySent(eventName)) {
@@ -94,6 +126,13 @@ public class SpiderSilk {
         }
     }
 
+    /**
+     * This method enforces a garbage collection event. It should be called in the beginning of the main method. Then,
+     * it will create a thread that checks that event is not sent yet, then, is the blocking condition is satisfied, it
+     * will block the created thread until the event dependencies are satisfied. After getting unblocked, it will run the
+     * gc and mark the event as satisfied in the event server.
+     * @param eventName that needs to be enforced
+     */
     public void garbageCollection(String eventName) {
         Thread gcThread = new Thread(new Runnable() {
             @Override
@@ -113,6 +152,11 @@ public class SpiderSilk {
         gcThread.start();
     }
 
+    /**
+     * Sends a message to event server to check if the event has been marked as satisfied or not.
+     * @param eventName that needs to be checked
+     * @return true if the event is marked as satisfied, otherwise false
+     */
     private boolean isEventAlreadySent(String eventName) {
         try {
             URL url = new URL("http://" + hostname + ":" + port + "/events/" + eventName);
@@ -132,6 +176,11 @@ public class SpiderSilk {
         }
     }
 
+    /**
+     * Sends a message to event server to check if the blocking condition for the given event is satisfied or not.
+     * @param eventName that needs to be checked
+     * @return true if the blocking condition is marked as satisfied, otherwise false
+     */
     private boolean isBlockingConditionSatisfied(String eventName) {
         try {
             URL url = new URL("http://" + hostname + ":" + port + "/blockDependencies/" + eventName);
@@ -151,7 +200,11 @@ public class SpiderSilk {
         }
     }
 
-    // This method blocks until the dependencies of eventName are met not the event itself
+    /**
+     * This method, in an infinite loop, sends a message to event server and checks that the dependency of the given event
+     * are satisfied. When the dependencies finally get satisfied, the method will return
+     * @param eventName that needs to be checked
+     */
     public void blockAndPoll(String eventName) {
         try {
             blockAndPoll(eventName, false, null);
@@ -160,6 +213,12 @@ public class SpiderSilk {
         }
     }
 
+    /**
+     * This method, in an infinite loop, sends a message to event server and checks that the dependency of the given event
+     * (and the event itself if include event flag is true) are satisfied. When the dependencies finally get satisfied, the method will return
+     * @param eventName that needs to be checked
+     * @param includeEvent the flag to check if the event itself is satisfied or not
+     */
     public void blockAndPoll(String eventName, Boolean includeEvent) {
         try {
             blockAndPoll(eventName, includeEvent, null);
@@ -168,6 +227,13 @@ public class SpiderSilk {
         }
     }
 
+    /**
+     * This method, until gets timeout, sends a message to event server and checks that the dependency of the given event
+     * are satisfied. When the dependencies finally get satisfied, the method will return
+     * @param eventName that needs to be checked
+     * @param includeEvent the flag to check if the event itself is satisfied or not
+     * @param timeout amount in seconds
+     */
     public void blockAndPoll(String eventName, Boolean includeEvent, Integer timeout) throws TimeoutException {
 
         if (timeout != null) {
@@ -204,6 +270,10 @@ public class SpiderSilk {
         }
     }
 
+    /**
+     * Sends a message to event server and marks the event as satisfied.
+     * @param eventName the event to be marked as satisfied
+     */
     public void sendEvent(String eventName) {
         try {
             URL url = new URL("http://" + hostname + ":" + port + "/events");

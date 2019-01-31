@@ -29,7 +29,17 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * This class is responsible for matching a given stack trace against the current stack trace
+ */
 public class StackMatcher {
+    // TODO change this so it returns true if the stack traces exist in the right order
+
+    /**
+     * This method matches the given stack arg against the current stack trace
+     * @param stack the list of methods separated by comma where the last called method comes in the end
+     * @return returns true if the given stack matches exactly the current stack, otherwise false
+     */
     public boolean match(String stack) {
         StackTraceElement[] elements = Thread.currentThread().getStackTrace();
         String[] inputTraces = stack.trim().split(",");
@@ -37,6 +47,7 @@ public class StackMatcher {
         Collections.reverse(inputList);
         inputTraces = inputList.toArray(new String[inputList.size()]);
         for (int i=0; i<inputTraces.length; i++) {
+            // +4 is needed to get rid of method signatures to call this method
             if (!getFullTraceString(elements[i+4]).equals(inputTraces[i].trim())) {
                 return false;
             }
@@ -44,6 +55,11 @@ public class StackMatcher {
         return true;
     }
 
+    /**
+     * transforms a stack trace element into full stack trace string in the format of package.class.method
+     * @param element the stack trace element
+     * @return an string in the format of package.class.method
+     */
     private String getFullTraceString(StackTraceElement element) {
         return element.getClassName() + "." + element.getMethodName();
     }
