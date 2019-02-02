@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,9 @@
 
 package me.arminb.spidersilk.exceptions;
 
+/**
+ * This exception happens when there are two different deployment entities with the same name
+ */
 public class DeploymentEntityNameConflictException extends RuntimeException {
     private String entityName;
 

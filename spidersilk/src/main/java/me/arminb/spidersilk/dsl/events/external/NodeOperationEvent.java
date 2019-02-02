@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -28,20 +28,19 @@ package me.arminb.spidersilk.dsl.events.external;
 import me.arminb.spidersilk.Constants;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
 import me.arminb.spidersilk.dsl.entities.Deployment;
-import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An abstraction for defining an operation on top of a node. The operation can a choice be between making a node down, making a node up
- * and resetting a node.
+ * This is an external event to execute a node operation including start, stop, restart and kill a node
  */
 public class NodeOperationEvent extends ExternalEvent {
     private final static Logger logger = LoggerFactory.getLogger(NodeOperationEvent.class);
-    private final NodeOperation nodeOperation;
-    private final String nodeName;
-    private final Integer secondsUntilForcedStop;
+    private final NodeOperation nodeOperation; // the type of node operation
+    private final String nodeName; // the node name to apply the operation on
+    private final Integer secondsUntilForcedStop; // the seconds until forced stop in case node stop is needed
+
 
     protected NodeOperationEvent(NodeOperationEventBuilder builder) {
         super(builder.getName());
@@ -85,41 +84,61 @@ public class NodeOperationEvent extends ExternalEvent {
         return secondsUntilForcedStop;
     }
 
-    public static class NodeOperationEventBuilder extends DeploymentBuilderBase<NodeOperationEvent, Deployment.DeploymentBuilder> {
+    /**
+     * The builder class for building a node operation event
+     */
+    public static class NodeOperationEventBuilder extends BuilderBase<NodeOperationEvent, Deployment.Builder> {
         private NodeOperation nodeOperation;
         private String nodeName;
         private Integer secondsUntilForcedStop;
 
-        public NodeOperationEventBuilder(String name) {
-            this(null, name);
-        }
-
-        public NodeOperationEventBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the node operation event to be built
+         */
+        public NodeOperationEventBuilder(Deployment.Builder parentBuilder, String name) {
             super(parentBuilder, name);
             secondsUntilForcedStop = null;
         }
 
-        public NodeOperationEventBuilder(NodeOperationEvent instance) {
-            super(null, instance);
-        }
-
-        public NodeOperationEventBuilder(Deployment.DeploymentBuilder parentBuilder, NodeOperationEvent instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a node operation event object instance to be changed
+         */
+        public NodeOperationEventBuilder(Deployment.Builder parentBuilder, NodeOperationEvent instance) {
             super(parentBuilder, instance);
             nodeName = new String(instance.nodeName);
             nodeOperation = instance.nodeOperation;
             secondsUntilForcedStop = new Integer(instance.secondsUntilForcedStop);
         }
 
+        /**
+         * Sets the node name to apply the operation on
+         * @param nodeName the node name to apply the operation on
+         * @return the current builder instance
+         */
         public NodeOperationEventBuilder nodeName(String nodeName) {
             this.nodeName = nodeName;
             return this;
         }
 
+        /**
+         * Sets the type of node operation
+         * @param nodeOperation the type of node operation
+         * @return the current builder instance
+         */
         public NodeOperationEventBuilder nodeOperation(NodeOperation nodeOperation) {
             this.nodeOperation = nodeOperation;
             return this;
         }
 
+        /**
+         * Sets the seconds until forced stop in case node stop is needed
+         * @param secondsUntilForcedStop the seconds until forced stop in case node stop is needed
+         * @return the current builder instance
+         */
         public NodeOperationEventBuilder secondsUntilForcedStop(Integer secondsUntilForcedStop) {
             this.secondsUntilForcedStop = secondsUntilForcedStop;
             return this;

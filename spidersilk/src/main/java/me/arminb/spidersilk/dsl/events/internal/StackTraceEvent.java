@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,6 @@ package me.arminb.spidersilk.dsl.events.internal;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
-import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 import me.arminb.spidersilk.instrumentation.InstrumentationPoint;
 import me.arminb.spidersilk.instrumentation.SpiderSilkRuntimeOperation;
@@ -39,10 +38,10 @@ import java.util.List;
  * This is an internal event to match a specific stack trace in runtime
  */
 public class StackTraceEvent extends BlockingEvent {
-    private final String stack;
-    private final SchedulingPoint schedulingPoint;
+    private final String stack; // the stack trace to block after or before
+    private final SchedulingPoint schedulingPoint; // before or after
 
-    private StackTraceEvent(StackTraceEventBuilder builder) {
+    private StackTraceEvent(Builder builder) {
         super(builder.getName(), builder.getNodeName());
         stack = builder.stack;
         schedulingPoint = builder.schedulingPoint;
@@ -52,6 +51,7 @@ public class StackTraceEvent extends BlockingEvent {
         return stack;
     }
 
+    @Override
     public String getStack(Deployment deployment) {
         return stack;
     }
@@ -76,36 +76,52 @@ public class StackTraceEvent extends BlockingEvent {
         return schedulingPoint;
     }
 
-    public static class StackTraceEventBuilder extends InternalEventBuilder<StackTraceEvent> {
+    /**
+     * The builder class for building a scheduling event
+     */
+    public static class Builder extends InternalEventBuilder<StackTraceEvent> {
         private String stack;
         private SchedulingPoint schedulingPoint;
 
-        public StackTraceEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the stack trace event to be built
+         * @param nodeName the node name that this stack trace event belongs to
+         */
+        public Builder(Node.Builder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name, nodeName);
             stack = "";
             schedulingPoint = SchedulingPoint.BEFORE;
         }
 
-        public StackTraceEventBuilder(String name, String nodeName) {
-            this(null, name, nodeName);
-        }
-
-        public StackTraceEventBuilder(Node.NodeBuilder parentBuilder, StackTraceEvent instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a stack trace event object instance to be changed
+         */
+        public Builder(Node.Builder parentBuilder, StackTraceEvent instance) {
             super(parentBuilder, instance);
             stack = new String(instance.stack);
             schedulingPoint = instance.schedulingPoint;
         }
 
-        public StackTraceEventBuilder(StackTraceEvent instance) {
-            this(null, instance);
-        }
-
-        public StackTraceEventBuilder trace(String trace) {
+        /**
+         * Adds a method address (trace) (e.g. package.class.method) to the stack trace
+         * @param trace the method address
+         * @return the current builder instance
+         */
+        public Builder trace(String trace) {
             stack += trace.trim() + ",";
             return this;
         }
 
-        public StackTraceEventBuilder blockAfter() {
+        /**
+         * By default stack trace events will be blocked before the last method in the stack trace. Calling this method
+         * will make the blocking to happen after the last method
+         * @return the current builder instance
+         */
+        public Builder blockAfter() {
             schedulingPoint = SchedulingPoint.AFTER;
             return this;
         }

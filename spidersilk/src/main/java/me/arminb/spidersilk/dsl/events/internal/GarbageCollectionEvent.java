@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -40,7 +40,7 @@ import java.util.List;
  * This is an internal event to start a garbage collection task in a node
  */
 public class GarbageCollectionEvent extends InternalEvent {
-    private GarbageCollectionEvent(GarbageCollectionEventBuilder builder) {
+    private GarbageCollectionEvent(Builder builder) {
         super(builder.getName(), builder.getNodeName());
     }
 
@@ -56,21 +56,28 @@ public class GarbageCollectionEvent extends InternalEvent {
         return retList;
     }
 
-    public static class GarbageCollectionEventBuilder extends InternalEventBuilder<GarbageCollectionEvent> {
-        public GarbageCollectionEventBuilder(String name, String nodeName) {
-            this(null, name, nodeName);
-        }
+    /**
+     * The builder class for building a garbage collection event
+     */
+    public static class Builder extends InternalEventBuilder<GarbageCollectionEvent> {
 
-        public GarbageCollectionEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the garbage collection event to be built
+         * @param nodeName the node name to apply garbage collection in
+         */
+        public Builder(Node.Builder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name, nodeName);
         }
 
-        public GarbageCollectionEventBuilder(Node.NodeBuilder parentBuilder, GarbageCollectionEvent instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a garbage collection event object instance to be changed
+         */
+        public Builder(Node.Builder parentBuilder, GarbageCollectionEvent instance) {
             super(parentBuilder, instance);
-        }
-
-        public GarbageCollectionEventBuilder(GarbageCollectionEvent instance) {
-            this(null, instance);
         }
 
         @Override

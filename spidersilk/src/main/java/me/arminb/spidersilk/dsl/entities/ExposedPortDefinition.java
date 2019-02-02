@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017-2018 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,11 +24,19 @@
 
 package me.arminb.spidersilk.dsl.entities;
 
+/**
+ * This class is used to define TCP or UDP ports that needs to exposed for each service or node
+ */
 public class ExposedPortDefinition {
 
     private final PortType type;
     private final Integer port;
 
+    /**
+     * Constructor
+     * @param port port number
+     * @param type port type TCP/UDP
+     */
     public ExposedPortDefinition(Integer port, PortType type) {
         this.type = type;
         this.port = port;
@@ -47,6 +55,11 @@ public class ExposedPortDefinition {
         return port + "/" + type.name().toLowerCase();
     }
 
+    /**
+     * Converts a string in format of portNum/portType to a port definition object
+     * @param portDef a string in format of portNum/portType
+     * @return a port definition object based on the string, or null if the string is not in the expected format
+     */
     public static ExposedPortDefinition fromString(String portDef) {
         String[] parts = portDef.split("/");
         if (parts.length != 2) {

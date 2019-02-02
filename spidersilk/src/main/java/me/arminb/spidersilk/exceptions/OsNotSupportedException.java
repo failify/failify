@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017-2018 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,9 @@ package me.arminb.spidersilk.exceptions;
 
 import me.arminb.spidersilk.util.OsUtil;
 
+/**
+ * This exception happens when something has to be done but is not supported the the running operating system
+ */
 public class OsNotSupportedException extends Exception {
     private OsUtil.OS os;
     private String operation;

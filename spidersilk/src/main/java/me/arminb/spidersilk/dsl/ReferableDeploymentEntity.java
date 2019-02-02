@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -33,7 +33,8 @@ import me.arminb.spidersilk.dsl.DeploymentEntity;
  * referable entities.
  */
 public abstract class ReferableDeploymentEntity extends DeploymentEntity {
-    protected String dependsOn;
+    protected String dependsOn; // this is needed for enforcing order through run sequence and shows the dependencies of
+                                // the referable entity (event) to be satisfied
 
     protected ReferableDeploymentEntity(String name) {
         super(name);

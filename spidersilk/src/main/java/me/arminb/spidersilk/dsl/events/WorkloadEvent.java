@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,6 +26,10 @@ package me.arminb.spidersilk.dsl.events;
 
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 
+/**
+ * This class represents workload entities to be referred to in the run sequence. These entities only need names as
+ * they will be enforced by the test case itself
+ */
 public class WorkloadEvent extends ReferableDeploymentEntity {
     public WorkloadEvent(String name) {
         super(name);

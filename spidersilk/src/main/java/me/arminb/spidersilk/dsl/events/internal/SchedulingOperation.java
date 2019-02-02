@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,9 @@
 
 package me.arminb.spidersilk.dsl.events.internal;
 
+/**
+ * Available types of scheduling operation
+ */
 public enum SchedulingOperation {
     BLOCK,
     UNBLOCK

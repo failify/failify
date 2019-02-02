@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -72,6 +72,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     public String ip(String nodeName) {
+        if (!nodeToContainerInfoMap.containsKey(nodeName)) {
+            return null;
+        }
+
         if (DockerUtil.isRunningInsideDocker()) {
             // This is possible because the client container is added to the created docker network
             return nodeToContainerInfoMap.get(nodeName).ip();
@@ -86,6 +90,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     @Override
     public Integer portMapping(String nodeName, Integer portNumber, PortType portType) {
+        if (!nodeToContainerInfoMap.containsKey(nodeName)) {
+            return null;
+        }
+
         if (DockerUtil.isRunningInsideDocker()) {
             // This is possible because the client container is added to the created docker network
             return portNumber;

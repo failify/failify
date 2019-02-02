@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,34 +32,37 @@ import me.arminb.spidersilk.dsl.events.internal.SchedulingEvent;
 import me.arminb.spidersilk.dsl.events.internal.SchedulingOperation;
 import me.arminb.spidersilk.dsl.events.internal.StackTraceEvent;
 import me.arminb.spidersilk.exceptions.DeploymentEntityNotFound;
-import me.arminb.spidersilk.exceptions.PathNotFoundException;
 import me.arminb.spidersilk.util.FileUtil;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.nio.file.Paths;
 import java.util.*;
 
 /**
- * An abstraction for a node in a distributed system which acts as a container for internal events definition of a node
+ * An abstraction for a node in a distributed system which acts as a container for internal events definition of a node.
+ * It is possible to define applications paths, environment variables, log files and directories to be collected, ports
+ * to be exposed in the node's container (if necessary).
  */
 public class Node extends ReferableDeploymentEntity {
-    private final Map<String, PathEntry> applicationPaths;
-    private final Set<ExposedPortDefinition> exposedPorts;
-    private final Map<String, String> environmentVariables;
-    private final Set<String> logFiles;
-    private final Set<String> logDirectories;
-    private final String serviceName;
-    private final String initCommand;
-    private final String startCommand;
-    private final String stopCommand;
-    private final Map<String, InternalEvent> internalEvents;
-    private final Boolean offOnStartup;
-    private final Integer pathOrderCounter;
+    private final Map<String, PathEntry> applicationPaths; // map of local paths to absolute target paths for the node
+    private final Set<ExposedPortDefinition> exposedPorts; // set of exposed TCP or UDP ports for the node
+    private final Map<String, String> environmentVariables; // map of env vars name to value
+    private final Set<String> logFiles; // set of target log files to be collected
+    private final Set<String> logDirectories; // set of target log directories to be collected
+    private final String serviceName; // the service name for the node
+    private final String initCommand; // the init command of the node which will executed only once
+    private final String startCommand; // the start command of the node which will executed when the node is started or restarted
+    private final String stopCommand; // the stop command of the node which will executed when the node is stopped or restarted
+    private final Map<String, InternalEvent> internalEvents; // the map of internal event names to their objects
+    private final Boolean offOnStartup; // the flag to start the node on start up or not
+    private final Integer pathOrderCounter; // the counter to use for applying order to application paths
 
-    private Node(NodeBuilder builder) {
+    /**
+     * Private Constructor
+     * @param builder the builder instance to use for creating the class instance
+     */
+    private Node(Builder builder) {
         super(builder.getName());
         serviceName = builder.serviceName;
         initCommand = builder.initCommand;
@@ -91,6 +94,10 @@ public class Node extends ReferableDeploymentEntity {
         return stopCommand;
     }
 
+    /**
+     * @param name of the internal event
+     * @return the internal event object matching the given name
+     */
     public InternalEvent getInternalEvent(String name) {
         return internalEvents.get(name);
     }
@@ -123,8 +130,11 @@ public class Node extends ReferableDeploymentEntity {
         return exposedPorts;
     }
 
-    public static class NodeBuilder extends DeploymentBuilderBase<Node, Deployment.DeploymentBuilder> {
-        private static Logger logger = LoggerFactory.getLogger(NodeBuilder.class);
+    /**
+     * The builder class to build a node object
+     */
+    public static class Builder extends BuilderBase<Node, Deployment.Builder> {
+        private static Logger logger = LoggerFactory.getLogger(Builder.class);
 
         private Map<String, PathEntry> applicationPaths;
         private Set<ExposedPortDefinition> exposedPorts;
@@ -139,7 +149,13 @@ public class Node extends ReferableDeploymentEntity {
         private Boolean offOnStartup;
         private Integer pathOrderCounter;
 
-        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, String name, String serviceName) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the node to be built
+         * @param serviceName the service name for the node
+         */
+        public Builder(Deployment.Builder parentBuilder, String name, String serviceName) {
             super(parentBuilder, name);
             this.serviceName = serviceName;
             offOnStartup = false;
@@ -152,11 +168,21 @@ public class Node extends ReferableDeploymentEntity {
             pathOrderCounter = 0;
         }
 
-        public NodeBuilder(String name, String serviceName) {
+        /**
+         * Constructor
+         * @param name the name of the node to be built
+         * @param serviceName the service name for the node
+         */
+        public Builder(String name, String serviceName) {
             this(null, name, serviceName);
         }
 
-        public NodeBuilder(Deployment.DeploymentBuilder parentBuilder, Node instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a node object instance to be changed
+         */
+        public Builder(Deployment.Builder parentBuilder, Node instance) {
             super(parentBuilder, instance);
             serviceName = new String(instance.serviceName);
             initCommand = new String(instance.initCommand);
@@ -172,30 +198,62 @@ public class Node extends ReferableDeploymentEntity {
             pathOrderCounter = new Integer(instance.pathOrderCounter);
         }
 
-        public NodeBuilder(Node instance) {
+        /**
+         * Constructor
+         * @param instance a node object instance to be changed
+         */
+        public Builder(Node instance) {
             this(null, instance);
         }
 
-        public StackTraceEvent.StackTraceEventBuilder withStackTraceEvent(String name) {
-            return new StackTraceEvent.StackTraceEventBuilder(this, name, this.name);
+        /**
+         * Returns a stack trace event builder to define a new stack trace event object in the node definition
+         * @param name of the stack trace event
+         * @return a new stack trace event builder object initialized with the given name
+         */
+        public StackTraceEvent.Builder withStackTraceEvent(String name) {
+            return new StackTraceEvent.Builder(this, name, this.name);
         }
 
-        public StackTraceEvent.StackTraceEventBuilder stackTraceEvent(String eventName) {
+        /**
+         * Returns a stack trace event builder to change an existing stack trace event object in the deployment definition
+         * with the given stack trace event name
+         * @param eventName the stakc trace event name to be changed through a stack trace event builder
+         * @return A stack trace event builder instance already initialized with an existing stack trace event object in
+         * the deployment definition
+         * @throws DeploymentEntityNotFound if a stack trace event object with the given name is not present in the
+         * deployment definition
+         */
+        public StackTraceEvent.Builder stackTraceEvent(String eventName) {
             if (!internalEvents.containsKey(eventName) || !(internalEvents.get(eventName) instanceof StackTraceEvent)) {
                 throw new DeploymentEntityNotFound(eventName, "StackTraceEvent");
             }
-            return new StackTraceEvent.StackTraceEventBuilder(this,
+            return new StackTraceEvent.Builder(this,
                     (StackTraceEvent) internalEvents.get(eventName));
         }
 
-        public NodeBuilder stackTraceEvent(StackTraceEvent stackTraceEvent) {
+        /**
+         * Adds a stack trace event or changes an existing definition of a stack trace event with the same name in the
+         * deployment definition
+         * @param stackTraceEvent definition to be added to the deployment
+         * @return the current builder instance
+         */
+        public Builder stackTraceEvent(StackTraceEvent stackTraceEvent) {
             addInternalEvent(stackTraceEvent);
             return this;
         }
 
-        public NodeBuilder stackTrace(String eventName, String stack) {
+        /**
+         * A shortcut method to add a new stack trace event to the node definition
+         * @param eventName the name of the stack trace event
+         * @param stack the stack trace for the event which is a set of traces combined with comma where the last method
+         *              call comes at the end of stack. For example, a.Class1.m1 calling b.Class2.m2 stack trace should be:
+         *              "a.Class1.m1,b.Class2.m2"
+         * @return the current builder instance
+         */
+        public Builder stackTrace(String eventName, String stack) {
             String[] stackParts = stack.trim().split(",");
-            StackTraceEvent.StackTraceEventBuilder builder = this.withStackTraceEvent(eventName);
+            StackTraceEvent.Builder builder = this.withStackTraceEvent(eventName);
             for (String part: stackParts) {
                 builder.trace(part);
             }
@@ -203,60 +261,145 @@ public class Node extends ReferableDeploymentEntity {
             return builder.and();
         }
 
-        public SchedulingEvent.SchedulingEventBuilder withSchedulingEvent(String name) {
-            return new SchedulingEvent.SchedulingEventBuilder(this, name, this.name);
+        /**
+         * Returns a scheduling event builder to define a new scheduling event object in the node definition
+         * @param name of the scheduling event
+         * @return a new scheduling event builder object initialized with the given name
+         */
+        public SchedulingEvent.Builder withSchedulingEvent(String name) {
+            return new SchedulingEvent.Builder(this, name, this.name);
         }
 
-        public SchedulingEvent.SchedulingEventBuilder schedulingEvent(String eventName) {
+        /**
+         * Returns a scheduling event builder to change an existing scheduling event object in the deployment definition
+         * with the given scheduling event name
+         * @param eventName the scheduling event name to be changed through a scheduling event builder
+         * @return A scheduling event builder instance already initialized with an existing scheduling event object in
+         * the deployment definition
+         * @throws DeploymentEntityNotFound if a scheduling event object with the given name is not present in the
+         * deployment definition
+         */
+        public SchedulingEvent.Builder schedulingEvent(String eventName) {
             if (!internalEvents.containsKey(eventName) || !(internalEvents.get(eventName) instanceof SchedulingEvent)) {
                 throw new DeploymentEntityNotFound(eventName, "SchedulingEvent");
             }
-            return new SchedulingEvent.SchedulingEventBuilder(this,
+            return new SchedulingEvent.Builder(this,
                     (SchedulingEvent) internalEvents.get(eventName));
         }
 
-        public NodeBuilder schedulingEvent(SchedulingEvent schedulingEvent) {
+        /**
+         * Adds a scheduling event or changes an existing definition of a scheduling event with the same name in the
+         * deployment definition
+         * @param schedulingEvent definition to be added to the deployment
+         * @return the current builder instance
+         */
+        public Builder schedulingEvent(SchedulingEvent schedulingEvent) {
             addInternalEvent(schedulingEvent);
             return this;
         }
 
-        public NodeBuilder blockBefore(String eventName, String stackTraceEventName) {
+        /**
+         * A shortcut method to add a scheduling event to block before the stack trace of the given stack trace event name
+         * @param eventName the name of scheduling event to be added
+         * @param stackTraceEventName the stack trace event name to be used as the blocking point
+         * @return the current builder instance
+         */
+        public Builder blockBefore(String eventName, String stackTraceEventName) {
             return withSchedulingEvent(eventName)
                     .operation(SchedulingOperation.BLOCK)
                     .before(stackTraceEventName).and();
         }
 
-        public NodeBuilder blockAfter(String eventName, String stackTraceEventName) {
+        /**
+         * A shortcut method to add a scheduling event to block after the stack trace of the given stack trace event name
+         * @param eventName the name of scheduling event to be added
+         * @param stackTraceEventName the stack trace event name to be used as  the blocking point
+         * @return the current builder instance
+         */
+        public Builder blockAfter(String eventName, String stackTraceEventName) {
             return withSchedulingEvent(eventName)
                     .operation(SchedulingOperation.BLOCK)
                     .after(stackTraceEventName).and();
         }
 
-        public NodeBuilder unblockBefore(String eventName, String stackTraceEventName) {
+        /**
+         * A shortcut method to add a scheduling event to unblock before the stack trace of the given stack trace event name
+         * @param eventName the name of scheduling event to be added
+         * @param stackTraceEventName the stack trace event name to be used as  the unblocking point
+         * @return the current builder instance
+         */
+        public Builder unblockBefore(String eventName, String stackTraceEventName) {
             return withSchedulingEvent(eventName)
                     .operation(SchedulingOperation.UNBLOCK)
                     .before(stackTraceEventName).and();
         }
 
-        public NodeBuilder unblockAfter(String eventName, String stackTraceEventName) {
+        /**
+         * A shortcut method to add a scheduling event to unblock after the stack trace of the given stack trace event name
+         * @param eventName the name of scheduling event to be added
+         * @param stackTraceEventName the stack trace event name to be used as  the unblocking point
+         * @return the current builder instance
+         */
+        public Builder unblockAfter(String eventName, String stackTraceEventName) {
             return withSchedulingEvent(eventName)
                     .operation(SchedulingOperation.UNBLOCK)
                     .after(stackTraceEventName).and();
         }
 
-        public GarbageCollectionEvent.GarbageCollectionEventBuilder withGarbageCollectionEvent(String name) {
-            return new GarbageCollectionEvent.GarbageCollectionEventBuilder(this, name, this.name);
+        /**
+         * Returns a garbage collection event builder to define a new garbage collection event object in the node definition
+         * @param name of the garbage collection event
+         * @return a new garbage collection event builder object initialized with the given name
+         */
+        public GarbageCollectionEvent.Builder withGarbageCollectionEvent(String name) {
+            return new GarbageCollectionEvent.Builder(this, name, this.name);
         }
 
-        public NodeBuilder garbageCollectionEvent(GarbageCollectionEvent garbageCollectionEvent) {
+        /**
+         * Returns a garbage collection event builder to change an existing garbage collection event object in the deployment
+         * definition with the given garbage collection event name
+         * @param eventName the garbage collection event name to be changed through a garbage collection event builder
+         * @return A garbage collection event builder instance already initialized with an existing garbage collection
+         * event object in the deployment definition
+         * @throws DeploymentEntityNotFound if a garbage collection event object with the given name is not present in the
+         * deployment definition
+         */
+        public GarbageCollectionEvent.Builder garbageCollectionEvent(String eventName) {
+            if (!internalEvents.containsKey(eventName) || !(internalEvents.get(eventName) instanceof GarbageCollectionEvent)) {
+                throw new DeploymentEntityNotFound(eventName, "GarbageCollectionEvent");
+            }
+            return new GarbageCollectionEvent.Builder(this,
+                    (GarbageCollectionEvent) internalEvents.get(eventName));
+        }
+
+        /**
+         * Adds a garbage collection event or changes an existing definition of a garbage collection event with the same name in the
+         * deployment definition
+         * @param garbageCollectionEvent definition to be added to the deployment
+         * @return the current builder instance
+         */
+        public Builder garbageCollectionEvent(GarbageCollectionEvent garbageCollectionEvent) {
             addInternalEvent(garbageCollectionEvent);
             return this;
         }
 
-        public NodeBuilder garbageCollection(String eventName) {
+        /**
+         * Returns a garbage collection event builder to change an existing garbage collection event object in the deployment definition
+         * with the given garbage collection event name
+         * @param eventName the garbage collection event name to be changed through a garbage collection event builder
+         * @return A garbage collection event builder instance already initialized with an existing garbage collection event object in
+         * the deployment definition
+         * @throws DeploymentEntityNotFound if a garbage collection event object with the given name is not present in the
+         * deployment definition
+         */
+        public Builder garbageCollection(String eventName) {
             return withGarbageCollectionEvent(eventName).and();
         }
 
+        /**
+         * A utility method to be used by concrete internal event creation methods to add an internal event to the node
+         * @param event the event object to be added
+         */
         private void addInternalEvent(InternalEvent event) {
             if (internalEvents.containsKey(event.getName())) {
                 logger.warn("The internal event " + event.getName() + " is being redefined in the node "
@@ -265,56 +408,111 @@ public class Node extends ReferableDeploymentEntity {
             internalEvents.put(event.getName(), event);
         }
 
-        public NodeBuilder offOnStartup() {
+        /**
+         * Mark the node to not be started in the startup
+         * @return the current builder instance
+         */
+        public Builder offOnStartup() {
             this.offOnStartup = true;
             return this;
         }
 
-        public NodeBuilder initCommand(String initCommand) {
+        /**
+         * Sets the init command for the node which will be executed only once
+         * @param initCommand the init command of the node
+         * @return the current builder instance
+         */
+        public Builder initCommand(String initCommand) {
             this.initCommand = initCommand;
             return this;
         }
 
-        public NodeBuilder startCommand(String startCommand) {
+        /**
+         * Sets the start command for the node which will be executed when starting or restarting a node
+         * @param startCommand the start command of the node
+         * @return the current builder instance
+         */
+        public Builder startCommand(String startCommand) {
             this.startCommand = startCommand;
             return this;
         }
 
-        public NodeBuilder stopCommand(String stopCommand) {
+        /**
+         * Sets the stop command for the node which will be executed when stopping or restarting a node
+         * @param stopCommand the stop command of the node
+         * @return the current builder instance
+         */
+        public Builder stopCommand(String stopCommand) {
             this.stopCommand = stopCommand;
             return this;
         }
 
-        public NodeBuilder applicationPath(String path, String targetPath) {
+        /**
+         * Adds a not changing local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath) {
             applicationPath(path, targetPath, false);
             return this;
         }
 
-        public NodeBuilder applicationPath(String path, String targetPath, Boolean willBeChanged) {
+        /**
+         * Adds a local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
+         *                      each node
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath, Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
                     path, targetPath, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 
-        public NodeBuilder environmentVariable(String name, String value) {
+        /**
+         * Adds an environment variable to the node
+         * @param name the name of the variable
+         * @param value the value of the variable
+         * @return the current builder instance
+         */
+        public Builder environmentVariable(String name, String value) {
             this.environmentVariables.put(name, value);
             return this;
         }
-        public NodeBuilder tcpPort(Integer... portNumber) {
+
+        /**
+         * Adds a tcp port to be exposed by the node's container
+         * @param portNumber the tcp port number to be exposed by the node
+         * @return the current builder instance
+         */
+        public Builder tcpPort(Integer... portNumber) {
             for (Integer port: portNumber) {
                 exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
             }
             return this;
         }
 
-
-        public NodeBuilder udpPort(Integer... portNumber) {
+        /**
+         * Adds a udp port to be exposed by the node's container
+         * @param portNumber the udp port number to be exposed by the node
+         * @return the current builder instance
+         */
+        public Builder udpPort(Integer... portNumber) {
             for (Integer port: portNumber) {
                 exposedPorts.add(new ExposedPortDefinition(port, PortType.UDP));
             }
             return this;
         }
-        public NodeBuilder logFile(String path) {
+
+        /**
+         * Adds an absolute target path in node's container to be collected as a log file into the node's local workspace
+         * @param path an absolute target log file path to be collected
+         * @return the current builder instance
+         */
+        public Builder logFile(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log file `" + path + "` path is not absolute!");
             }
@@ -322,7 +520,12 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
-        public NodeBuilder logDirectory(String path) {
+        /**
+         * Adds an absolute target path in node's container to be collected as a log directory into the node's local workspace
+         * @param path an absolute target log directory path to be collected
+         * @return the current builder instance
+         */
+        public Builder logDirectory(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
             }

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,11 @@ public abstract class ExternalEvent extends ReferableDeploymentEntity {
         super(name);
     }
 
-
+    /**
+     * This method should do whatever the extending event is supposed to when its dependencies are satisfied
+     * @param runtimeEngine the runtime engine insance to use if environmental manipulation is needed
+     * @throws Exception if something goes wrong during execution
+     */
     protected abstract void execute(LimitedRuntimeEngine runtimeEngine) throws Exception;
 
     public void start(SpiderSilkRunner spiderSilkRunner) {

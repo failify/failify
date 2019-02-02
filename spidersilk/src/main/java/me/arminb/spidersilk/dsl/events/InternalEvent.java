@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,16 +25,15 @@
 
 package me.arminb.spidersilk.dsl.events;
 
-import me.arminb.spidersilk.dsl.DeploymentEntity;
 import me.arminb.spidersilk.dsl.Instrumentable;
 import me.arminb.spidersilk.dsl.ReferableDeploymentEntity;
 import me.arminb.spidersilk.dsl.entities.Node;
 
 /**
- * This is the base class for all internal events which adds a node name to all of them for future reference in next phases
+ * This is the base class for all internal events which adds a node name to all of them to be used by sub classes
  */
 public abstract class InternalEvent extends ReferableDeploymentEntity implements Instrumentable{
-    protected final String nodeName;
+    protected final String nodeName; // the node name for the internal entity
 
     protected InternalEvent(String name, String nodeName) {
         super(name);
@@ -45,15 +44,17 @@ public abstract class InternalEvent extends ReferableDeploymentEntity implements
         return nodeName;
     }
 
-    public static abstract class InternalEventBuilder<S extends InternalEvent> extends DeploymentBuilderBase<S, Node.NodeBuilder> {
+    // the base builder class for internal events builders
+    public static abstract class InternalEventBuilder<S extends InternalEvent> extends
+            BuilderBase<S, Node.Builder> {
         protected final String nodeName;
 
-        public InternalEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
+        public InternalEventBuilder(Node.Builder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name);
             this.nodeName = nodeName;
         }
 
-        public InternalEventBuilder(Node.NodeBuilder parentBuilder, InternalEvent instance) {
+        public InternalEventBuilder(Node.Builder parentBuilder, InternalEvent instance) {
             super(parentBuilder, instance);
             nodeName = new String(instance.nodeName);
         }

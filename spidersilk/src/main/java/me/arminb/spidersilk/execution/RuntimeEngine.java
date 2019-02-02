@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -252,30 +252,15 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     private void sendEvent(String eventName) throws RuntimeEngineException {
-        if (deployment.workloadEventExists(eventName) && deployment.isInRunSequence(eventName)) {
+        if (deployment.isInRunSequence(eventName)) {
             logger.info("Sending workload event {} ...", eventName);
             SpiderSilk.getInstance().allowBlocking();
             SpiderSilk.getInstance().enforceOrder(eventName, null);
         } else {
-            throw new RuntimeEngineException("Event " + eventName + " is not a defined workload event or is not referred to" +
+            throw new RuntimeEngineException("Event " + eventName + " is not referred to" +
                     " in the run sequence. Thus, its order cannot be sent from the workload!");
         }
     }
-
-    @Override
-    public void enforceOrder(String eventName) throws RuntimeEngineException {
-        try {
-            enforceOrder(eventName, null, null);
-        } catch (TimeoutException e) {
-            // never happens here
-        }
-    }
-
-    @Override
-    public void enforceOrder(String eventName, Integer timeout) throws RuntimeEngineException, TimeoutException {
-        enforceOrder(eventName, null, timeout);
-    }
-
 
     @Override
     public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action) throws RuntimeEngineException {
@@ -289,6 +274,12 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     @Override
     public void enforceOrder(String eventName, SpiderSilkCheckedRunnable action, Integer timeout)
             throws RuntimeEngineException, TimeoutException {
+
+        if (!deployment.workloadEventExists(eventName)) {
+            throw new RuntimeEngineException("Event " + eventName + " is not a defined workload event and cannot be"
+                    + " enforced using this method!");
+        }
+
         waitFor(eventName, false, timeout);
         if (action != null) {
             action.run();

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,11 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.TimeoutException;
 
+/**
+ * This class is the main point of contact for all the test cases. Given a deployment definition this class deploys the
+ * system into the desired runtime engine. Then, it is possible to enforce workload events through this class or manipulate
+ * the deployed environment through calling runtime() method and getting access to the runtime engine
+ */
 public class SpiderSilkRunner {
     private static final Logger logger = LoggerFactory.getLogger(SpiderSilkRunner.class);
     private WorkspaceManager workspaceManager;
@@ -51,6 +56,10 @@ public class SpiderSilkRunner {
     private RuntimeEngine runtimeEngine;
     private List<InstrumentationEngine> instrumentationEngines;
 
+    /**
+     * Constructor
+     * @param deployment the deployment definition object
+     */
     public SpiderSilkRunner(Deployment deployment) {
         this.deployment = deployment;
         this.instrumentationEngines = new ArrayList<>();
@@ -67,10 +76,20 @@ public class SpiderSilkRunner {
         instrumentationEngines.add(new RunSequenceInstrumentationEngine());
     }
 
+    /**
+     * Adds additional instrumentation engine to the runner. Note that run sequence instrumentation engine is included
+     * by default
+     * @param instrumentationEngine instance to be added
+     */
     public void addInstrumentationEngine(InstrumentationEngine instrumentationEngine) {
         instrumentationEngines.add(instrumentationEngine);
     }
 
+    /**
+     * Creates a new runner instance and starts the deployment
+     * @param deployment the deployment definition object
+     * @return the created runner instance
+     */
     public static SpiderSilkRunner run(Deployment deployment) {
         logger.info("Starting SpiderSilkRunner ...");
         SpiderSilkRunner spiderSilkRunner = new SpiderSilkRunner(deployment);
@@ -78,27 +97,72 @@ public class SpiderSilkRunner {
         return spiderSilkRunner;
     }
 
-
+    /**
+     * This method waits indefinitely for the run sequence to be enforced completely, and then returns.
+     * @throws TimeoutException if either type of timeout happens
+     */
     public void waitForRunSequenceCompletion() throws TimeoutException {
         waitForRunSequenceCompletion(null,null,false);
     }
 
+    /**
+     * This method waits indefinitely for the run sequence to be enforced completely, stops the runner if required,
+     * and then returns.
+     * @param stopAfter the flag to require stopping the runner after run sequence completion
+     * @throws TimeoutException if either type of timeout happens
+     */
     public void waitForRunSequenceCompletion(boolean stopAfter) throws TimeoutException {
         waitForRunSequenceCompletion(null,null, stopAfter);
     }
 
+    /**
+     * This method waits for the run sequence to be enforced completely, and then returns. If timeout param is not null,
+     * after waiting for the expected amount the method throws an exception.
+     * @param timeout the waiting timeout in seconds
+     * @throws TimeoutException if either type of timeout happens
+     */
     public void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException {
         waitForRunSequenceCompletion(timeout,null,false);
     }
 
+    /**
+     * This method waits for the run sequence to be enforced completely, stops the runner if required, and then returns.
+     * If timeout param is not null, after waiting for the expected amount the method throws an exception.
+     * @param timeout the waiting timeout in seconds
+     * @param stopAfter the flag to require stopping the runner after run sequence completion
+     * @throws TimeoutException if either type of timeout happens
+     */
     public void waitForRunSequenceCompletion(Integer timeout, boolean stopAfter) throws TimeoutException {
         waitForRunSequenceCompletion(timeout,null, stopAfter);
     }
 
+    /**
+     * This method waits for the run sequence to be enforced completely, and then returns.
+     * If desired it is possible to specify two different types of timeout for this method. If timeout param is not null,
+     * after waiting for the expected amount the method throws an exception. If nextEventReceiptTimeout is not null, if
+     * after the expected amount of time no new event is marked as satisfied in the event server, this method throws an
+     * exception
+     * @param timeout the waiting timeout in seconds
+     * @param nextEventReceiptTimeout the number of seconds to wait until timeout the receipt of the next event in the
+     *                                run sequence
+     * @throws TimeoutException if either type of timeout happens
+     */
     public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout) throws TimeoutException {
         waitForRunSequenceCompletion(timeout,nextEventReceiptTimeout,false);
     }
 
+    /**
+     * This method waits for the run sequence to be enforced completely, stops the runner if required, and then returns.
+     * If desired it is possible to specify two different types of timeout for this method. If timeout param is not null,
+     * after waiting for the expected amount the method throws an exception. If nextEventReceiptTimeout is not null, if
+     * after the expected amount of time no new event is marked as satisfied in the event server, this method throws an
+     * exception
+     * @param timeout the waiting timeout in seconds
+     * @param nextEventReceiptTimeout the number of seconds to wait until timeout the receipt of the next event in the
+     *                                run sequence
+     * @param stopAfter the flag to require stopping the runner after run sequence completion
+     * @throws TimeoutException if either type of timeout happens
+     */
     public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout, boolean stopAfter)
             throws TimeoutException {
 
@@ -140,6 +204,9 @@ public class SpiderSilkRunner {
         return deployment;
     }
 
+    /**
+     * @return an interface to manipulate the deployed environment in the test cases
+     */
     public LimitedRuntimeEngine runtime() {
         return runtimeEngine;
     }
@@ -190,19 +257,35 @@ public class SpiderSilkRunner {
         }
     }
 
+    /**
+     * Stops the runner by killing all the deployed nodes
+     */
     public void stop() {
         stop(true, 0);
     }
 
+    /**
+     * Stops the runner by stopping or killing all the deployed nodes
+     * @param kill the flag to require killing of the nodes
+     */
     public void stop(boolean kill) {
         stop(kill, Constants.DEFAULT_SECONDS_TO_WAIT_BEFORE_FORCED_STOP);
     }
 
+    /**
+     * Stops the runner by stopping or killing all the deployed nodes
+     * @param kill the flag to require killing of the nodes
+     * @param secondsUntilForcedStop if stopping the nodes is desired, the runner will wait for this amount of time in
+     *                               seconds and then forces the stop by killing the nodes
+     */
     public void stop(boolean kill, Integer secondsUntilForcedStop) {
         logger.info("Stopping SpiderSilkRunner ...");
         runtimeEngine.stop(kill, secondsUntilForcedStop);
     }
 
+    /**
+     * @return true is the runner is stopped or not started yet, otherwise false
+     */
     public boolean isStopped() {
         if (runtimeEngine == null) {
             return false;

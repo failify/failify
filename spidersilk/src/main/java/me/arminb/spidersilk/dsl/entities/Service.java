@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,28 +36,34 @@ import java.nio.file.Paths;
 import java.util.*;
 
 /**
- * An abstraction for a service or application inside a distributed system.
+ * An abstraction for a service or application inside a distributed system. It is possible to define application paths,
+ * environment variables, log files and directories to be collected, ports to be exposed in the container of the node
+ * created out of this service (if necessary).
  */
 public class Service extends DeploymentEntity {
-    private final Map<String, PathEntry> applicationPaths;
-    // Library paths relative to the node workspace. This is useful when a directory is copied over as an application path which
-    // is not a library. But for instrumentation purposes a sub-path inside this path needs to be marked as a library path
+    private final Map<String, PathEntry> applicationPaths; // map of local paths to absolute target paths for the service
+    // Library target paths in the node's container. This is useful when a directory is added as an application path which
+    // is not a library but contains sub-paths that are a library
     private final Set<String> libraryPaths;
-    private final Set<String> logFiles;
-    private final Set<String> logDirectories;
-    private final Set<ExposedPortDefinition> exposedPorts;
-    private final Map<String, String> environmentVariables;
-    private final String dockerImage;
-    private final String dockerFileAddress;
-    private final Boolean dockerImageForceBuild;
-    private final Set<String> instrumentablePaths;
-    private final String initCommand;
-    private final String startCommand;
-    private final String stopCommand;
-    private final ServiceType serviceType;
-    private Integer pathOrderCounter;
+    private final Set<String> logFiles; // set of target log files to be collected
+    private final Set<String> logDirectories; // set of target log directories to be collected
+    private final Set<ExposedPortDefinition> exposedPorts; // set of exposed TCP or UDP ports for the node
+    private final Map<String, String> environmentVariables; // map of env vars name to value
+    private final String dockerImage; // the docker image name and tag to be used for this service
+    private final String dockerFileAddress; // the dockerfile address to be used to create the docker image for this service
+    private final Boolean dockerImageForceBuild; // the flag to force the build of the dockerfile
+    private final Set<String> instrumentablePaths; // the paths that can be changed by the service instrumentors
+    private final String initCommand; // the init command of the node which will executed only once
+    private final String startCommand; // the start command of the node which will executed when the node is started or restarted
+    private final String stopCommand; // the stop command of the node which will executed when the node is stopped or restarted
+    private final ServiceType serviceType; // the service programming language
+    private Integer pathOrderCounter; // the counter to use for applying order to application paths
 
-    private Service(ServiceBuilder builder) {
+    /**
+     * Private Constructor
+     * @param builder the builder instance to use for creating the class instance
+     */
+    private Service(Builder builder) {
         super(builder.getName());
         dockerImage = builder.dockerImage;
         dockerFileAddress = builder.dockerFileAddress;
@@ -132,8 +138,11 @@ public class Service extends DeploymentEntity {
         return exposedPorts;
     }
 
-    public static class ServiceBuilder extends DeploymentBuilderBase<Service, Deployment.DeploymentBuilder> {
-        private static Logger logger = LoggerFactory.getLogger(ServiceBuilder.class);
+    /**
+     * The builder class to build a service object
+     */
+    public static class Builder extends BuilderBase<Service, Deployment.Builder> {
+        private static Logger logger = LoggerFactory.getLogger(Builder.class);
 
         private Map<String, PathEntry> applicationPaths;
         private Set<String> libraryPaths;
@@ -151,7 +160,12 @@ public class Service extends DeploymentEntity {
         private ServiceType serviceType;
         private Integer pathOrderCounter;
 
-        public ServiceBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the service to be built
+         */
+        public Builder(Deployment.Builder parentBuilder, String name) {
             super(parentBuilder, name);
             applicationPaths = new HashMap<>();
             instrumentablePaths = new HashSet<>();
@@ -166,11 +180,20 @@ public class Service extends DeploymentEntity {
             pathOrderCounter = 0;
         }
 
-        public ServiceBuilder(String name) {
+        /**
+         * Constructor
+         * @param name the name of the service to be built
+         */
+        public Builder(String name) {
             this(null, name);
         }
 
-        public ServiceBuilder(Deployment.DeploymentBuilder parentBuilder, Service instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a service object instance to be changed
+         */
+        public Builder(Deployment.Builder parentBuilder, Service instance) {
             super(parentBuilder, instance);
             dockerImage = new String(instance.dockerImage);
             dockerFileAddress = new String(instance.dockerFileAddress);
@@ -189,22 +212,44 @@ public class Service extends DeploymentEntity {
             pathOrderCounter = new Integer(instance.pathOrderCounter);
         }
 
-        public ServiceBuilder(Service instance) {
+        /**
+         * Constructor
+         * @param instance a service object instance to be changed
+         */
+        public Builder(Service instance) {
             this(null, instance);
         }
 
-        public ServiceBuilder dockerImage(String dockerImage) {
+        /**
+         * Sets the docker image name and tag to be used for this service
+         * @param dockerImage the docker image name and tag
+         * @return the current builder instance
+         */
+        public Builder dockerImage(String dockerImage) {
             this.dockerImage = dockerImage;
             return this;
         }
 
-        public ServiceBuilder dockerFileAddress(String dockerFileAddress, Boolean forceBuild) {
+        /**
+         * Sets the Dockerfile address to be used to build the docker image for this service
+         * @param dockerFileAddress
+         * @param forceBuild
+         * @return
+         */
+        public Builder dockerFileAddress(String dockerFileAddress, Boolean forceBuild) {
             this.dockerFileAddress = Paths.get(dockerFileAddress).toAbsolutePath().normalize().toString();
             this.dockerImageForceBuild = forceBuild;
             return this;
         }
 
-        public ServiceBuilder instrumentablePath(String instrumentablePath) {
+        /**
+         * Adds an instrumentable path to the service. Instrumentable paths will be marked as changeable and are the only
+         * paths that may be changed by an instrumentor
+         * @param instrumentablePath an absolute target path in the container of a node created out of this this service to
+         *                           be marked as instrumentable
+         * @return  the current builder instance
+         */
+        public Builder instrumentablePath(String instrumentablePath) {
             if (!FileUtil.isPathAbsoluteInUnix(instrumentablePath)) {
                 throw new RuntimeException("The instrumentable path `" + instrumentablePath + "` is not absolute!");
             }
@@ -212,44 +257,97 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder startCommand(String startCommand) {
+        /**
+         * Sets the start command for the service which will be executed only once
+         * @param startCommand the start command of the service
+         * @return the current builder instance
+         */
+        public Builder startCommand(String startCommand) {
             this.startCommand = startCommand;
             return this;
         }
 
-        public ServiceBuilder initCommand(String initCommand) {
+        /**
+         * Sets the init command for the service which will be executed only once
+         * @param initCommand the init command of the service
+         * @return the current builder instance
+         */
+        public Builder initCommand(String initCommand) {
             this.initCommand = initCommand;
             return this;
         }
 
-        public ServiceBuilder stopCommand(String stopCommand) {
+        /**
+         * Sets the stop command for the service which will be executed only once
+         * @param stopCommand the stop command of the service
+         * @return the current builder instance
+         */
+        public Builder stopCommand(String stopCommand) {
             this.stopCommand = stopCommand;
             return this;
         }
 
-        public ServiceBuilder serviceType(ServiceType serviceType) {
+        /**
+         * Sets the programming language of the service to be used by the instrumentation engine
+         * @param serviceType the programming language of the service
+         * @return the current builder instance
+         */
+        public Builder serviceType(ServiceType serviceType) {
             this.serviceType = serviceType;
             return this;
         }
 
-        public ServiceBuilder applicationPath(String path, String targetPath) {
+        /**
+         * Adds a local path to the specified absolute target path in the node created out of this service and marks it
+         * as not changeable, not library and not compressed path
+         * @param path a local path
+         * @param targetPath an absolute target path in the container of the node created out of this service
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath) {
             applicationPath(path, targetPath, false, false, false);
             return this;
         }
 
-        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary) {
+        /**
+         * Adds a local path to the specified absolute target path in the node created out of this service and marks it
+         * as not changeable and not compressed path
+         * @param path a local path
+         * @param targetPath an absolute target path in the container of the node created out of this service
+         * @param isLibrary a flag to mark the path as a library to be used by the instrumentation engine
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath, Boolean isLibrary) {
             applicationPath(path, targetPath, isLibrary, false, false);
             return this;
         }
 
-        public ServiceBuilder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean shouldBeDecompressed,
+        /**
+         * Adds a local path to the specified absolute target path in the node created out of this service
+         * @param path a local path
+         * @param targetPath an absolute target path in the container of the node created out of this service
+         * @param isLibrary a flag to mark the path as a library to be used by the instrumentation engine
+         * @param shouldBeDecompressed a flag to mark the path as compressed to be decompressed before being added to the
+         *                             node created out of this service
+         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
+         *                      each node
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean shouldBeDecompressed,
                                               Boolean willBeChanged) {
             this.applicationPaths.put(path, new PathEntry(
                         path, targetPath, isLibrary, willBeChanged, shouldBeDecompressed, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 
-        public ServiceBuilder libraryPath(String path) {
+        /**
+         * Marks an absolute target path in container of a node created out of this service as a library path. This is
+         * useful when there is an application path which is not a libray path which has a sub-path that is desired to
+         * be a library path
+         * @param path an absolute target path to be marked as a library path
+         * @return
+         */
+        public Builder libraryPath(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The library path `" + path + "` is not absolute!");
             }
@@ -257,7 +355,13 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder logFile(String path) {
+        /**
+         * Adds an absolute target path in the container of the node created out of this service to be collected as a
+         * log file into the node's local workspace
+         * @param path an absolute target log file path to be collected
+         * @return the current builder instance
+         */
+        public Builder logFile(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log file `" + path + "` path is not absolute!");
             }
@@ -265,7 +369,13 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder logDirectory(String path) {
+        /**
+         * Adds an absolute target path in the container of the node created out of this service to be collected as a
+         * log file into the node's local workspace
+         * @param path an absolute target log file path to be collected
+         * @return the current builder instance
+         */
+        public Builder logDirectory(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
             }
@@ -273,20 +383,35 @@ public class Service extends DeploymentEntity {
             return this;
         }
 
-        public ServiceBuilder environmentVariable(String name, String value) {
+        /**
+         * Adds an environment variable to the service
+         * @param name the name of the variable
+         * @param value the value of the variable
+         * @return the current builder instance
+         */
+        public Builder environmentVariable(String name, String value) {
             this.environmentVariables.put(name, value);
             return this;
         }
 
-        public ServiceBuilder tcpPort(Integer... portNumber) {
+        /**
+         * Adds a tcp port to be exposed by the container of a node created out of this service
+         * @param portNumber the tcp port number to be exposed
+         * @return the current builder instance
+         */
+        public Builder tcpPort(Integer... portNumber) {
             for (Integer port: portNumber) {
                 exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
             }
             return this;
         }
 
-
-        public ServiceBuilder udpPort(Integer... portNumber) {
+        /**
+         * Adds a udp port to be exposed by the container of a node created out of this service
+         * @param portNumber the udp port number to be exposed
+         * @return the current builder instance
+         */
+        public Builder udpPort(Integer... portNumber) {
             for (Integer port: portNumber) {
                 exposedPorts.add(new ExposedPortDefinition(port, PortType.UDP));
             }

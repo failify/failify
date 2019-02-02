@@ -40,7 +40,7 @@ public class MultithreadTest {
 
     @Test
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException, TimeoutException {
-        Deployment deployment = new Deployment.DeploymentBuilder("sample-multithread")
+        Deployment deployment = new Deployment.Builder("sample-multithread")
                 // Service Definitions
                 .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
                     .startCommand("java -cp ${SPIDERSILK_JVM_CLASSPATH} me.arminb.spidersilk.samples.multithread.Main")
@@ -62,12 +62,12 @@ public class MultithreadTest {
                 .withNode("n2", "s1").offOnStartup()
                 .and()
                 // Workload Events
-                .workloadEvents("we1", "we2")
+                .workloadEvents("we1")
                 // External Events Definitions
                 .startNode("x1", "n2")
                 .restartNode("x2", "n2")
                 // Run Sequence Definition
-                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * we1 * e3 * we2 * x2 * e4")
+                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * we1 * x2 * e4")
                 .sharedDirectory("/spidersilk")
                 .build();
 
@@ -76,9 +76,8 @@ public class MultithreadTest {
         runner.runtime().waitFor("x1",10);
         runner.runtime().networkPartition("n1,n2");
         runner.runtime().clockDrift("n1", -10000);
-        runner.runtime().enforceOrder("we1", 10);
         // Removing network partition in a specific time in the test case
-        runner.runtime().enforceOrder("we2", () -> runner.runtime().removeNetworkPartition(), 10);
+        runner.runtime().enforceOrder("we1", () -> runner.runtime().removeNetworkPartition(), 10);
         runner.waitForRunSequenceCompletion(60, 20, true);
     }
 }

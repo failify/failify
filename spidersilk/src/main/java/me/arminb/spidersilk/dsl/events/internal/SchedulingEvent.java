@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,6 @@ package me.arminb.spidersilk.dsl.events.internal;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.entities.Node;
-import me.arminb.spidersilk.dsl.events.InternalEvent;
 import me.arminb.spidersilk.instrumentation.InstrumentationDefinition;
 import me.arminb.spidersilk.instrumentation.InstrumentationPoint;
 import me.arminb.spidersilk.instrumentation.SpiderSilkRuntimeOperation;
@@ -39,11 +38,11 @@ import java.util.List;
  * This is an internal event to block or unblock intentionally after or before a stack trace event
  */
 public class SchedulingEvent extends BlockingEvent {
-    private final SchedulingOperation operation;
-    private final SchedulingPoint schedulingPoint;
-    private final String targetEventName;
+    private final SchedulingOperation operation; // block or unblock operation
+    private final SchedulingPoint schedulingPoint; // after or before a method
+    private final String targetEventName; // the event name to use its stack trace
 
-    private SchedulingEvent(SchedulingEventBuilder builder) {
+    private SchedulingEvent(Builder builder) {
         super(builder.getName(), builder.getNodeName());
         operation = builder.operation;
         schedulingPoint = builder.schedulingPoint;
@@ -95,42 +94,63 @@ public class SchedulingEvent extends BlockingEvent {
         return retList;
     }
 
-    public static class SchedulingEventBuilder extends InternalEventBuilder<SchedulingEvent> {
+    /**
+     * The builder class for building a scheduling event
+     */
+    public static class Builder extends InternalEventBuilder<SchedulingEvent> {
         private SchedulingOperation operation;
         private SchedulingPoint schedulingPoint;
         private String targetEventName;
 
-        public SchedulingEventBuilder(String name, String nodeName) {
-            this(null, name, nodeName);
-        }
-
-        public SchedulingEventBuilder(Node.NodeBuilder parentBuilder, String name, String nodeName) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the scheduling event to be built
+         * @param nodeName the node name to apply scheduling operation in
+         */
+        public Builder(Node.Builder parentBuilder, String name, String nodeName) {
             super(parentBuilder, name, nodeName);
         }
 
-        public SchedulingEventBuilder(Node.NodeBuilder parentBuilder, SchedulingEvent instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a scheduling event object instance to be changed
+         */
+        public Builder(Node.Builder parentBuilder, SchedulingEvent instance) {
             super(parentBuilder, instance);
             operation = instance.operation;
             schedulingPoint = instance.schedulingPoint;
             targetEventName = instance.targetEventName;
         }
 
-        public SchedulingEventBuilder(SchedulingEvent instance) {
-            this(null, instance);
-        }
-
-        public SchedulingEventBuilder operation(SchedulingOperation operation) {
+        /**
+         * Sets the operation to either blocking or unblocking
+         * @param operation the type of operation for this event
+         * @return the current builder instance
+         */
+        public Builder operation(SchedulingOperation operation) {
             this.operation = operation;
             return this;
         }
 
-        public SchedulingEventBuilder before(String targetEventName) {
+        /**
+         * Sets the blocking after the defined stack trace of the given stack trace event name
+         * @param targetEventName a stack trace event name
+         * @return the current builder instance
+         */
+        public Builder before(String targetEventName) {
             this.targetEventName = targetEventName;
             this.schedulingPoint = SchedulingPoint.BEFORE;
             return this;
         }
 
-        public SchedulingEventBuilder after(String targetEventName) {
+        /**
+         * Sets the blocking before the defined stack trace of the given stack trace event name
+         * @param targetEventName a stack trace event name
+         * @return the current builder instance
+         */
+        public Builder after(String targetEventName) {
             this.targetEventName = targetEventName;
             this.schedulingPoint = SchedulingPoint.AFTER;
             return this;

@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,16 +25,11 @@
 
 package me.arminb.spidersilk.dsl;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.List;
-
 /**
  * All of the entities in the deployment definition should extend this class
  */
 public abstract class DeploymentEntity {
-    protected final String name;
+    protected final String name; // the name of the deployment entity
 
     protected DeploymentEntity(String name) {
         this.name = name;
@@ -50,16 +45,16 @@ public abstract class DeploymentEntity {
      * @param <T> The class that is going to be build
      * @param <S> The parent builder class
      */
-    public abstract static class DeploymentBuilderBase<T extends DeploymentEntity, S extends DeploymentBuilderBase> {
+    public abstract static class BuilderBase<T extends DeploymentEntity, S extends BuilderBase> {
         protected final String name;
         protected S parentBuilder;
 
-        public DeploymentBuilderBase(S parentBuilder, String name) {
+        public BuilderBase(S parentBuilder, String name) {
             this.name = name;
             this.parentBuilder = parentBuilder;
         }
 
-        public DeploymentBuilderBase(S parentBuilder, DeploymentEntity instance) {
+        public BuilderBase(S parentBuilder, DeploymentEntity instance) {
             this.name = new String(instance.getName());
             this.parentBuilder = parentBuilder;
         }
@@ -68,6 +63,11 @@ public abstract class DeploymentEntity {
             return name;
         }
 
+        /**
+         * This method builds the object and adds it to the parent builder. Then. it moves the control back to the parent
+         * builder.
+         * @return the parent builder instance
+         */
         public S and() {
             if (parentBuilder == null) {
                 throw new RuntimeException("and() cannot be called on a builder without parent!");
@@ -77,8 +77,18 @@ public abstract class DeploymentEntity {
 
         }
 
+        /**
+         * This method should be implemented by all of the builders and should build the object that this builder is
+         * responsible for
+         * @return
+         */
         public abstract T build();
 
+        /**
+         * This method should be implemented by all of the builders and should call a method in the parent builder to add
+         * the built object to the parent builder
+         * @param builtObj
+         */
         protected abstract void returnToParent(T builtObj);
     }
 }

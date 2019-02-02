@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,8 +32,15 @@ import java.util.HashMap;
 import java.util.List;
 
 /**
- * Any referable deployment entity that have instrumentation as part of its realization in the scenario needs to implement this interface
+ * Any referable deployment entity that has instrumentation as part of its realization in the run sequence order enforcement
+ * needs to implement this interface
  */
 public interface Instrumentable {
+    /**
+     * Given the deployment definition, this method should generate abstract instrumentation definitions for the implementing
+     * class
+     * @param deployment the deployment definition object
+     * @return a list of abstract instrumentation definitions
+     */
     public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment);
 }

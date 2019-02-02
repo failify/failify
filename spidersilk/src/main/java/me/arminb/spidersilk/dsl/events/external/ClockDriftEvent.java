@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017-2018 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -30,14 +30,21 @@ import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This is an external event to impose a clock drift in a specific node
+ */
 public class ClockDriftEvent extends ExternalEvent {
 
     private static final Logger logger = LoggerFactory.getLogger(ClockDriftEvent.class);
 
-    private final String nodeName;
-    private final Integer amount;
+    private final String nodeName; // the node name to apply the clock drift on
+    private final Integer amount; // the positive or negative amount of time offset to apply in milliseconds
 
-    protected ClockDriftEvent(ClockDriftEventBuilder builder) {
+    /**
+     * Constructor
+     * @param builder the builder instance to use for creating the class instance
+     */
+    protected ClockDriftEvent(Builder builder) {
         super(builder.getName());
         nodeName = builder.nodeName;
         amount = builder.amount;
@@ -48,27 +55,50 @@ public class ClockDriftEvent extends ExternalEvent {
         runtimeEngine.clockDrift(nodeName, amount);
     }
 
-    public static class ClockDriftEventBuilder extends DeploymentBuilderBase<ClockDriftEvent, Deployment.DeploymentBuilder> {
+    /**
+     * The builder class for building a clock drift event
+     */
+    public static class Builder extends BuilderBase<ClockDriftEvent, Deployment.Builder> {
 
         private String nodeName;
         private Integer amount;
 
-        public ClockDriftEventBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the clock drift event to be built
+         */
+        public Builder(Deployment.Builder parentBuilder, String name) {
             super(parentBuilder, name);
         }
 
-        public ClockDriftEventBuilder(Deployment.DeploymentBuilder parentBuilder, ClockDriftEvent instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a clock drift event object instance to be changed
+         */
+        public Builder(Deployment.Builder parentBuilder, ClockDriftEvent instance) {
             super(parentBuilder, instance);
             nodeName = new String(instance.nodeName);
             amount = new Integer(instance.amount);
         }
 
-        public ClockDriftEventBuilder nodeName(String nodeName) {
+        /**
+         * Sets the node name to apply the clock drift on
+         * @param nodeName the node name to apply the clock drift on
+         * @return the current builder instance
+         */
+        public Builder nodeName(String nodeName) {
             this.nodeName = nodeName;
             return this;
         }
 
-        public ClockDriftEventBuilder amount(Integer amount) {
+        /**
+         * Sets the positive or negative amount of time offset to apply in milliseconds
+         * @param amount the positive or negative amount of time offset to apply in milliseconds
+         * @return the current builder instance
+         */
+        public Builder amount(Integer amount) {
             this.amount = amount;
             return this;
         }

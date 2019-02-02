@@ -1,7 +1,7 @@
 /*
  * MIT License
  *
- * Copyright (c) 2017 Armin Balalaie
+ * Copyright (c) 2017-2019 Armin Balalaie
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -26,18 +26,20 @@ package me.arminb.spidersilk.dsl.events.external;
 
 import me.arminb.spidersilk.dsl.entities.Deployment;
 import me.arminb.spidersilk.dsl.events.ExternalEvent;
-import me.arminb.spidersilk.exceptions.RuntimeEngineException;
 import me.arminb.spidersilk.execution.LimitedRuntimeEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * This is an external event to execute a network operation including link failure and network partition
+ */
 public class NetworkOperationEvent extends ExternalEvent {
     private final static Logger logger = LoggerFactory.getLogger(NetworkOperationEvent.class);
 
-    private final String nodePartitions;
-    private final NetworkOperation networkOperation;
+    private final String nodePartitions; // the scheme of node partitions to use for operation
+    private final NetworkOperation networkOperation; // the type of the network operation
 
-    private NetworkOperationEvent(NetworkOperationEventBuilder builder) {
+    private NetworkOperationEvent(Builder builder) {
         super(builder.getName());
         nodePartitions = builder.nodePartitions;
         networkOperation = builder.networkOperation;
@@ -57,27 +59,50 @@ public class NetworkOperationEvent extends ExternalEvent {
         }
     }
 
-    public static class NetworkOperationEventBuilder extends DeploymentBuilderBase<NetworkOperationEvent, Deployment.DeploymentBuilder> {
+    /**
+     * The builder class for building a network operation event
+     */
+    public static class Builder extends BuilderBase<NetworkOperationEvent, Deployment.Builder> {
         private String nodePartitions;
         private NetworkOperation networkOperation;
 
-        public NetworkOperationEventBuilder(Deployment.DeploymentBuilder parentBuilder, String name) {
+        public Builder(Deployment.Builder parentBuilder, String name) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the network operation event to be built
+         */
             super(parentBuilder, name);
             nodePartitions = null;
         }
 
-        public NetworkOperationEventBuilder(Deployment.DeploymentBuilder parentBuilder, NetworkOperationEvent instance) {
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a network operation event object instance to be changed
+         */
+        public Builder(Deployment.Builder parentBuilder, NetworkOperationEvent instance) {
             super(parentBuilder, instance);
             nodePartitions = new String(instance.nodePartitions);
             networkOperation = instance.networkOperation;
         }
 
-        public NetworkOperationEventBuilder nodePartitions(String nodePartitions) {
+        /**
+         * Sets the scheme of node partitions to use for operation
+         * @param nodePartitions the scheme of node partitions to use for operation
+         * @return the current builder instance
+         */
+        public Builder nodePartitions(String nodePartitions) {
             this.nodePartitions = nodePartitions;
             return this;
         }
 
-        public NetworkOperationEventBuilder networkOperation(NetworkOperation networkOperation) {
+        /**
+         * Sets the type of the network operation
+         * @param networkOperation the type of the network operation
+         * @return the current builder instance
+         */
+        public Builder networkOperation(NetworkOperation networkOperation) {
             this.networkOperation = networkOperation;
             return this;
         }
