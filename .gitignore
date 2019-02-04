@@ -17,7 +17,7 @@ out/
 log/
 target/
 
-.SpiderSilk*
-.spidersilk*
+.Failify*
+.failify*
 
 dependency-reduced-pom.xml

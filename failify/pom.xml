@@ -35,28 +35,26 @@
         <version>0.4.1-SNAPSHOT</version>
     </parent>
 
-    <groupId>io.failify.samples</groupId>
-    <artifactId>sample-multithread</artifactId>
-    <name>Failify Sample - Multithread</name>
-    <description>A simple undeterministic multi thread application to test Failify functionality</description>
+    <artifactId>failify</artifactId>
+    <name>Failify</name>
+    <description>A library for regression testing of Java-based distributed systems</description>
     <url>https://github.com/failify/failify</url>
 
+    <properties>
+        <jetty.version>9.3.24.v20180605</jetty.version>
+        <jersey.version>2.22.2</jersey.version>
+    </properties>
+
     <dependencies>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.25</version>
+        </dependency>
         <dependency>
             <groupId>io.failify</groupId>
             <artifactId>failifyrt</artifactId>
             <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.failify</groupId>
-            <artifactId>failify</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.aspectj</groupId>
-            <artifactId>aspectjrt</artifactId>
-            <version>1.8.12</version>
         </dependency>
         <dependency>
             <groupId>commons-io</groupId>
@@ -64,11 +62,37 @@
             <version>2.6</version>
         </dependency>
         <dependency>
-            <groupId>ch.qos.logback</groupId>
-            <artifactId>logback-classic</artifactId>
-            <version>1.2.3</version>
-            <scope>test</scope>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>${jetty.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-servlet</artifactId>
+            <version>${jetty.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-server</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-servlet-core</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-moxy</artifactId>
+            <version>${jersey.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.spotify</groupId>
+            <artifactId>docker-client</artifactId>
+            <classifier>shaded</classifier>
+            <version>8.14.1</version>
+        </dependency>
+
     </dependencies>
 
 </project>
