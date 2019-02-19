@@ -268,14 +268,14 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     @Override
     public void enforceOrder(String eventName, FailifyCheckedRunnable action) throws RuntimeEngineException {
         try {
-            enforceOrder(eventName, action, null);
+            enforceOrder(eventName, null, action);
         } catch (TimeoutException e) {
             // never happens here
         }
     }
 
     @Override
-    public void enforceOrder(String eventName, FailifyCheckedRunnable action, Integer timeout)
+    public void enforceOrder(String eventName, Integer timeout, FailifyCheckedRunnable action)
             throws RuntimeEngineException, TimeoutException {
 
         if (!deployment.workloadEventExists(eventName)) {

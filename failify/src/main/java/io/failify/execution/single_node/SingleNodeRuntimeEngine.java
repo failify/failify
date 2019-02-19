@@ -217,11 +217,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     private void buildDockerImages() throws RuntimeEngineException {
         for (Service service: deployment.getServices().values()) {
             try {
-                if (service.getDockerImageForceBuild() ||
-                        dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImage())).isEmpty()) {
-                    logger.info("Building docker image `{}` for service {} ...", service.getDockerImage(), service.getName());
+                if (service.getDockerFileAddress() != null && (service.getDockerImageForceBuild() ||
+                        dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImageName())).isEmpty())) {
+                    logger.info("Building docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
                     Path dockerFile = Paths.get(service.getDockerFileAddress());
-                    dockerClient.build(dockerFile.getParent(), service.getDockerImage(),
+                    dockerClient.build(dockerFile.getParent(), service.getDockerImageName(),
                             new LoggingBuildHandler(),
                             DockerClient.BuildParam.forceRm(),
                             DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
@@ -279,7 +279,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         ContainerConfig.Builder containerConfigBuilder = ContainerConfig.builder();
         HostConfig.Builder hostConfigBuilder = HostConfig.builder();
         // Sets the docker image for the container
-        containerConfigBuilder.image(nodeService.getDockerImage());
+        containerConfigBuilder.image(nodeService.getDockerImageName());
         // Sets env vars for the container
         List<String> envList = new ArrayList<>();
         for (Map.Entry<String, String> envEntry: getNodeEnvironmentVariablesMap(node.getName()).entrySet()) {

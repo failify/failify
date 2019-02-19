@@ -262,6 +262,29 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         /**
+         * A shortcut method to add a new stack trace event to the node definition
+         * @param eventName the name of the stack trace event
+         * @param stack the stack trace for the event which is a set of traces combined with comma where the last method
+         *              call comes at the end of stack. For example, a.Class1.m1 calling b.Class2.m2 stack trace should be:
+         *              "a.Class1.m1,b.Class2.m2"
+         * @param blockAfter marks the event to be blocked after the last method call
+         * @return the current builder instance
+         */
+        public Builder stackTrace(String eventName, String stack, boolean blockAfter) {
+            String[] stackParts = stack.trim().split(",");
+            StackTraceEvent.Builder builder = this.withStackTraceEvent(eventName);
+            for (String part: stackParts) {
+                builder.trace(part);
+            }
+
+            if (blockAfter) {
+                builder.blockAfter();
+            }
+
+            return builder.and();
+        }
+
+        /**
          * Returns a scheduling event builder to define a new scheduling event object in the node definition
          * @param name of the scheduling event
          * @return a new scheduling event builder object initialized with the given name

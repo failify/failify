@@ -44,7 +44,7 @@ public class MultithreadTest {
                 // Service Definitions
                 .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
                     .startCommand("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.multithread.Main")
-                    .dockerImage("failify/sample-multithread")
+                    .dockerImageName("failify/sample-multithread")
                     .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)
                     .logFile("/var/log/sample1")
                     .logDirectory("/var/log/samples")
@@ -77,7 +77,7 @@ public class MultithreadTest {
         runner.runtime().networkPartition("n1,n2");
         runner.runtime().clockDrift("n1", -10000);
         // Removing network partition in a specific time in the test case
-        runner.runtime().enforceOrder("we1", () -> runner.runtime().removeNetworkPartition(), 10);
+        runner.runtime().enforceOrder("we1", 10, () -> runner.runtime().removeNetworkPartition());
         runner.waitForRunSequenceCompletion(60, 20, true);
     }
 }

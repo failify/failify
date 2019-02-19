@@ -189,12 +189,12 @@ public interface LimitedRuntimeEngine {
      * executes the given action, and finally, marks the given event name as satisfied in the event server. The wait
      * timeouts after the given timeout amount in seconds
      * @param eventName the event name to wait for
-     * @param action the action to execute after waiting is completed
      * @param timeout the timeout amount in seconds
+     * @param action the action to execute after waiting is completed
      * @throws RuntimeEngineException if something goes wrong or the event name is not referred to in the run sequence
      * or the event is not a workload event
      * @throws TimeoutException if the wait timeouts
      */
-    void enforceOrder(String eventName, FailifyCheckedRunnable action, Integer timeout)
+    void enforceOrder(String eventName, Integer timeout, FailifyCheckedRunnable action)
             throws RuntimeEngineException, TimeoutException;
 }

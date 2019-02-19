@@ -49,7 +49,7 @@ public class Service extends DeploymentEntity {
     private final Set<String> logDirectories; // set of target log directories to be collected
     private final Set<ExposedPortDefinition> exposedPorts; // set of exposed TCP or UDP ports for the node
     private final Map<String, String> environmentVariables; // map of env vars name to value
-    private final String dockerImage; // the docker image name and tag to be used for this service
+    private final String dockerImageName; // the docker image name and tag to be used for this service
     private final String dockerFileAddress; // the dockerfile address to be used to create the docker image for this service
     private final Boolean dockerImageForceBuild; // the flag to force the build of the dockerfile
     private final Set<String> instrumentablePaths; // the paths that can be changed by the service instrumentors
@@ -65,7 +65,7 @@ public class Service extends DeploymentEntity {
      */
     private Service(Builder builder) {
         super(builder.getName());
-        dockerImage = builder.dockerImage;
+        dockerImageName = builder.dockerImageName;
         dockerFileAddress = builder.dockerFileAddress;
         dockerImageForceBuild = builder.dockerImageForceBuild;
         instrumentablePaths = builder.instrumentablePaths;
@@ -82,8 +82,8 @@ public class Service extends DeploymentEntity {
         pathOrderCounter = builder.pathOrderCounter;
     }
 
-    public String getDockerImage() {
-        return dockerImage;
+    public String getDockerImageName() {
+        return dockerImageName;
     }
 
     public Boolean getDockerImageForceBuild() {
@@ -150,7 +150,7 @@ public class Service extends DeploymentEntity {
         private Set<String> logDirectories;
         private Set<ExposedPortDefinition> exposedPorts;
         private Map<String, String> environmentVariables;
-        private String dockerImage;
+        private String dockerImageName;
         private String dockerFileAddress;
         private Boolean dockerImageForceBuild;
         private Set<String> instrumentablePaths;
@@ -174,9 +174,9 @@ public class Service extends DeploymentEntity {
             logDirectories = new HashSet<>();
             exposedPorts = new HashSet<>();
             environmentVariables = new HashMap<>();
-            dockerImage = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
+            dockerImageName = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
             dockerImageForceBuild = false;
-            dockerFileAddress = "Dockerfile-" + name;
+            dockerFileAddress = null;
             pathOrderCounter = 0;
         }
 
@@ -195,7 +195,7 @@ public class Service extends DeploymentEntity {
          */
         public Builder(Deployment.Builder parentBuilder, Service instance) {
             super(parentBuilder, instance);
-            dockerImage = new String(instance.dockerImage);
+            dockerImageName = new String(instance.dockerImageName);
             dockerFileAddress = new String(instance.dockerFileAddress);
             dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
             instrumentablePaths = new HashSet<>(instance.instrumentablePaths);
@@ -221,12 +221,13 @@ public class Service extends DeploymentEntity {
         }
 
         /**
-         * Sets the docker image name and tag to be used for this service
+         * Sets the docker image name and tag to be used for this service. If dockerfile address is set for this service,
+         * this will be the name of the build docker image out of the dockerfile.
          * @param dockerImage the docker image name and tag
          * @return the current builder instance
          */
-        public Builder dockerImage(String dockerImage) {
-            this.dockerImage = dockerImage;
+        public Builder dockerImageName(String dockerImage) {
+            this.dockerImageName = dockerImage;
             return this;
         }
 
@@ -298,43 +299,29 @@ public class Service extends DeploymentEntity {
         }
 
         /**
-         * Adds a local path to the specified absolute target path in the node created out of this service and marks it
-         * as not changeable, not library and not compressed path
-         * @param path a local path
-         * @param targetPath an absolute target path in the container of the node created out of this service
-         * @return the current builder instance
-         */
-        public Builder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, false, false, false);
-            return this;
-        }
-
-        /**
-         * Adds a local path to the specified absolute target path in the node created out of this service and marks it
-         * as not changeable and not compressed path
-         * @param path a local path
-         * @param targetPath an absolute target path in the container of the node created out of this service
-         * @param isLibrary a flag to mark the path as a library to be used by the instrumentation engine
-         * @return the current builder instance
-         */
-        public Builder applicationPath(String path, String targetPath, Boolean isLibrary) {
-            applicationPath(path, targetPath, isLibrary, false, false);
-            return this;
-        }
-
-        /**
          * Adds a local path to the specified absolute target path in the node created out of this service
          * @param path a local path
          * @param targetPath an absolute target path in the container of the node created out of this service
-         * @param isLibrary a flag to mark the path as a library to be used by the instrumentation engine
-         * @param shouldBeDecompressed a flag to mark the path as compressed to be decompressed before being added to the
-         *                             node created out of this service
-         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
-         *                      each node
+         * @param pathAttrs the attributes of the path. PathAttr.LIBRARY marks the path as a library to be used by the
+         *                  instrumentation engine. PathAttr.COMPRESSED marks the path as compressed to be decompressed
+         *                  before being added to the node created out of this service. PathAttr.CHANGEABLE marks the path
+         *                  as changeable which results in a separate copy of the path for each node.
          * @return the current builder instance
          */
-        public Builder applicationPath(String path, String targetPath, Boolean isLibrary, Boolean shouldBeDecompressed,
-                                              Boolean willBeChanged) {
+        public Builder applicationPath(String path, String targetPath, PathAttr... pathAttrs) {
+            boolean isLibrary = false, willBeChanged = false, shouldBeDecompressed = false;
+
+            for (PathAttr pathAttr: pathAttrs) {
+                switch (pathAttr) {
+                    case LIBRARY:
+                        isLibrary = true; break;
+                    case CHANGEABLE:
+                        willBeChanged = true; break;
+                    case COMPRESSED:
+                        shouldBeDecompressed = true; break;
+                }
+            }
+
             this.applicationPaths.put(path, new PathEntry(
                         path, targetPath, isLibrary, willBeChanged, shouldBeDecompressed, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
@@ -344,7 +331,7 @@ public class Service extends DeploymentEntity {
          * Marks an absolute target path in container of a node created out of this service as a library path. This is
          * useful when there is an application path which is not a libray path which has a sub-path that is desired to
          * be a library path
-         * @param path an absolute target path to be marked as a library path
+         * @param path an absolute or wildcard target path to be marked as a library path
          * @return
          */
         public Builder libraryPath(String path) {

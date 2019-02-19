@@ -441,10 +441,10 @@ public class Deployment extends DeploymentEntity {
                 }
 
                 if (instrumentablePathSet.contains(Paths.get(path).toAbsolutePath().normalize().toString())) {
-                    serviceBuilder.applicationPath(path, newTargetPath, false, false, true);
+                    serviceBuilder.applicationPath(path, newTargetPath, PathAttr.CHANGEABLE);
                     serviceBuilder.instrumentablePath(newTargetPath);
                 } else {
-                    serviceBuilder.applicationPath(path, newTargetPath, true);
+                    serviceBuilder.applicationPath(path, newTargetPath, PathAttr.LIBRARY);
                 }
                 newClassPath.add(newTargetPath);
             }
