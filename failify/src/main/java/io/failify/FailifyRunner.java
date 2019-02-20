@@ -283,7 +283,9 @@ public class FailifyRunner {
      */
     public void stop(boolean kill, Integer secondsUntilForcedStop) {
         logger.info("Stopping FailifyRunner ...");
-        runtimeEngine.stop(kill, secondsUntilForcedStop);
+        if (runtimeEngine != null) {
+            runtimeEngine.stop(kill, secondsUntilForcedStop);
+        }
     }
 
     /**
@@ -291,7 +293,7 @@ public class FailifyRunner {
      */
     public boolean isStopped() {
         if (runtimeEngine == null) {
-            return false;
+            return true;
         }
         return runtimeEngine.isStopped();
     }

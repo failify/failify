@@ -88,11 +88,18 @@ public class JavaInstrumentor implements Instrumentor {
             classPathString = "\"" + classPathString + "\"";
         }
 
+        String aspectJHome = System.getenv("ASPECTJ_HOME");
+
+        if (aspectJHome == null) {
+            throw new InstrumentationException("ASPECTJ_HOME variable is not defined!");
+        }
+
+
         // Instruments instrumentable paths one by one
         for (String instrumentablePath : nodeWorkspace.getInstrumentablePaths()) {
             try {
                 Process ajcProcess = new ProcessBuilder().command(
-                        "ajc", "-inpath", instrumentablePath,
+                        Paths.get(aspectJHome, "bin", "ajc").toAbsolutePath().toString(), "-inpath", instrumentablePath,
                         "@" + Paths.get(nodeWorkspace.getRootDirectory(), "argfile").toString(),
                         "-cp", classPathString,
                         "-outjar", Paths.get(nodeWorkspace.getRootDirectory(), "woven.jar").toString())
