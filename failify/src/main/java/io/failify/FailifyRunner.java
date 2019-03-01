@@ -58,6 +58,7 @@ public class FailifyRunner {
     private final List<DeploymentVerifier> verifiers;
     private RuntimeEngine runtimeEngine;
     private List<InstrumentationEngine> instrumentationEngines;
+    private Exception externalEventException;
 
     /**
      * Constructor
@@ -77,6 +78,18 @@ public class FailifyRunner {
 
         // Add the default instrumentation engine
         instrumentationEngines.add(new RunSequenceInstrumentationEngine());
+    }
+
+    public void setExternalEventException(Exception externalEventException) {
+        if (externalEventException != null) {
+            this.externalEventException = externalEventException;
+        }
+    }
+
+    public void checkExternalEventException() {
+        if (externalEventException != null) {
+            throw new RuntimeException("An error happened while executing an external event", externalEventException);
+        }
     }
 
     /**
@@ -171,6 +184,9 @@ public class FailifyRunner {
 
         Integer originalTimeout = timeout;
         while (!isStopped() && (timeout == null || timeout > 0)) {
+            // If an error has happens in execution of one of the external events, this fails the test case
+            checkExternalEventException();
+
             if (EventService.getInstance().isTheRunSequenceCompleted()) {
                 logger.info("The run sequence is completed!");
 
@@ -211,6 +227,8 @@ public class FailifyRunner {
      * @return an interface to manipulate the deployed environment in the test cases
      */
     public LimitedRuntimeEngine runtime() {
+        // If an error has happened in execution of one of the external events, this fails the test case
+        checkExternalEventException();
         return runtimeEngine;
     }
 

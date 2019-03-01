@@ -22,14 +22,17 @@
  * SOFTWARE.
  */
 
-package io.failify.dsl.events.external;
+package io.failify.exceptions;
 
 /**
- * Available types of network operations
+ * This exception happens when a node mentioned in some operation does not exist
  */
-public enum NetworkOperation {
-    PARTITION,
-    REMOVE_PARTITION,
-    LINK_DOWN,
-    LINK_UP
+public class NodeNotFoundException extends RuntimeEngineException {
+    public NodeNotFoundException(String nodeName, Throwable cause) {
+        super("Node " + nodeName + " does not exist!", cause);
+    }
+
+    public NodeNotFoundException(String nodeName) {
+        super("Node " + nodeName + " does not exist!");
+    }
 }

@@ -29,6 +29,7 @@ import io.failify.Constants;
 import io.failify.dsl.events.external.*;
 import io.failify.exceptions.DeploymentEntityNameConflictException;
 import io.failify.exceptions.DeploymentEntityNotFound;
+import io.failify.execution.NetPart;
 import io.failify.util.FileUtil;
 import io.failify.dsl.DeploymentEntity;
 import io.failify.dsl.events.WorkloadEvent;
@@ -84,6 +85,14 @@ public class Deployment extends DeploymentEntity {
         // List of blocking type scheduling events that are present in the run sequence
         blockingSchedulingEvents = Collections.unmodifiableMap(generateBlockingSchedulingEventsMap());
         referableDeploymentEntities = Collections.unmodifiableMap(generateReferableEntitiesMap());
+    }
+
+    /**
+     * @param name the name of the deployment definition
+     * @return givem the deployment definition name, returns a deployment definition builder
+     */
+    public static Builder builder(String name) {
+        return new Builder(name);
     }
 
     /**
@@ -567,95 +576,65 @@ public class Deployment extends DeploymentEntity {
         }
 
         /**
-         * Returns a network operation event builder to define a new network operation event object in the deployment definition
+         * Returns a network partition event builder to define a new network partition event object in the deployment definition
          * @param name of the event
-         * @return a new network operation event builder object initialized with the given name
+         * @return a new network partition event builder object initialized with the given name
          */
-        public NetworkOperationEvent.Builder withNetworkOperationEvent(String name) {
-            return new NetworkOperationEvent.Builder(this, name);
+        public NetworkPartitionEvent.Builder withNetworkPartitionEvent(String name) {
+            return new NetworkPartitionEvent.Builder(this, name);
         }
 
         /**
-         * Returns a network operation event builder to change an existing network operation event object in the deployment
+         * Returns a network partition event builder to change an existing network partition event object in the deployment
          * definition with the given event name
-         * @return A network operation event builder instance already initialized with an existing network operation event object
+         * @return A network partition event builder instance already initialized with an existing network partition event object
          * in the deployment definition
-         * @throws DeploymentEntityNotFound if a network operation event object with the given name is not present in the
+         * @throws DeploymentEntityNotFound if a network partition event object with the given name is not present in the
          * deployment definition
          */
-        public NetworkOperationEvent.Builder networkOperationEvent(String eventName) {
-            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof NetworkOperationEvent)) {
-                throw new DeploymentEntityNotFound(eventName, "NetworkOperationEvent");
+        public NetworkPartitionEvent.Builder networkPartitionEvent(String eventName) {
+            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof NetworkPartitionEvent)) {
+                throw new DeploymentEntityNotFound(eventName, "NetworkPartitionEvent");
             }
-            return new NetworkOperationEvent.Builder(this,
-                    (NetworkOperationEvent) externalEvents.get(eventName));
+            return new NetworkPartitionEvent.Builder(this,
+                    (NetworkPartitionEvent) externalEvents.get(eventName));
         }
 
         /**
-         * Adds a network operation event or changes an existing definition of a network operation event with the same name in
+         * Adds a network partition event or changes an existing definition of a network partition event with the same name in
          * the deployment definition
-         * @param networkOperationEvent definition to be added to the deployment
+         * @param networkPartitionEvent definition to be added to the deployment
          * @return the current builder instance
          */
-        public Builder networkOperationEvent(NetworkOperationEvent networkOperationEvent) {
-            if (externalEvents.containsKey(networkOperationEvent.getName())) {
-                logger.warn("The network operation event " + networkOperationEvent.getName()
+        public Builder networkPartitionEvent(NetworkPartitionEvent networkPartitionEvent) {
+            if (externalEvents.containsKey(networkPartitionEvent.getName())) {
+                logger.warn("The network partition event " + networkPartitionEvent.getName()
                         + " is being redefined in the deployment definition!");
             }
-            externalEvents.put(networkOperationEvent.getName(), networkOperationEvent);
+            externalEvents.put(networkPartitionEvent.getName(), networkPartitionEvent);
             return this;
         }
 
         /**
-         * A shortcut method to add a network operation event to impose a network partition
-         * @param eventName the name of the network operation event to be added
-         * @param nodePartitions the desired scheme for the partition. Nodes should be separated with dash(-) and partitions
-         *                       should be separated with comma. "n1-n2,n3" means a network partition with n1 and n2 in one
-         *                       side and n3 at the other side. More than two partitions is also possible. For example
-         *                       "n1,n2,n3". Also, if all the nodes are not included in the string, the rest of nodes would
-         *                       be considered as another partition.
+         * A shortcut method to add a network partition event to impose a network partition
+         * @param eventName the name of the network partition event to be added
+         * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
          * @return the current builder instance
          */
-        public Builder networkPartition(String eventName, String nodePartitions) {
-            return withNetworkOperationEvent(eventName)
-                    .networkOperation(NetworkOperation.PARTITION)
-                    .nodePartitions(nodePartitions).and();
+        public Builder networkPartition(String eventName, NetPart netPart) {
+            return withNetworkPartitionEvent(eventName)
+                    .scheme(netPart).and();
         }
 
         /**
-         * A shortcut method to add a network operation event to remove the network partition, if any
-         * @param eventName the name of the network operation event to be added
+         * A shortcut method to add a network partition event to remove a network partition
+         * @param eventName the name of the network partition event to be added
+         * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
          * @return the current builder instance
          */
-        public Builder removeNetworkPartition(String eventName) {
-            return withNetworkOperationEvent(eventName)
-                    .networkOperation(NetworkOperation.REMOVE_PARTITION).and();
-        }
-
-        /**
-         * A shortcut method to add a network operation event to disconnect the network connection between two node
-         * @param eventName the name of the network operation event to be added
-         * @param node1 the first node's name
-         * @param node2 the second node's name
-         * @return the current builder instance
-         */
-        public Builder linkDown(String eventName, String node1, String node2) {
-            return withNetworkOperationEvent(eventName)
-                    .networkOperation(NetworkOperation.LINK_DOWN)
-                    .nodePartitions(node1 + "," + node2).and();
-        }
-
-        /**
-         * A shortcut method to add a network operation event to reconnect the disconnected network connection between two node
-         * @param eventName the name of the network operation event to be added
-         * @param node1 the first node's name
-         * @param node2 the second node's name
-         * @return the current builder instance
-         */
-        public Builder linkUp(String eventName, String node1, String node2) {
-            return withNetworkOperationEvent(eventName)
-                    .networkOperation(NetworkOperation.LINK_UP)
-                    .nodePartitions(node1 + "," + node2).and();
+        public Builder removeNetworkPartition(String eventName, NetPart netPart) {
+            return withNetworkPartitionEvent(eventName)
+                    .scheme(netPart).removePartition().and();
         }
 
         /**

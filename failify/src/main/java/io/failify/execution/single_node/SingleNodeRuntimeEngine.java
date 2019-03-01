@@ -25,7 +25,9 @@
 
 package io.failify.execution.single_node;
 
+import com.spotify.docker.client.LogStream;
 import com.spotify.docker.client.exceptions.ContainerNotFoundException;
+import com.spotify.docker.client.exceptions.DockerRequestException;
 import com.spotify.docker.client.shaded.com.google.common.collect.ImmutableList;
 import com.spotify.docker.client.DefaultDockerClient;
 import com.spotify.docker.client.DockerClient;
@@ -37,9 +39,12 @@ import com.spotify.docker.client.shaded.com.google.common.collect.ImmutableMap;
 import io.failify.Constants;
 import io.failify.dsl.entities.*;
 import io.failify.exceptions.NodeIsNotRunningException;
+import io.failify.exceptions.NodeNotFoundException;
+import io.failify.execution.CommandResults;
 import io.failify.execution.RuntimeEngine;
 import io.failify.util.DockerUtil;
 import io.failify.util.HostUtil;
+import io.failify.util.StreamUtil;
 import io.failify.workspace.NodeWorkspace;
 import io.failify.exceptions.RuntimeEngineException;
 import io.failify.util.OsUtil;
@@ -47,9 +52,7 @@ import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -57,13 +60,14 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class SingleNodeRuntimeEngine extends RuntimeEngine {
     private static Logger logger = LoggerFactory.getLogger(SingleNodeRuntimeEngine.class);
 
     private Map<String, DockerContainerInfo> nodeToContainerInfoMap;
-    private DockerNetworkManager networkManager;
+    private DockerNetworkManager dockerNetworkManager;
     private DockerClient dockerClient;
 
     public SingleNodeRuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
@@ -107,7 +111,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
     }
 
-    public String getNodeContainerId(String nodeName) {
+    private String getNodeContainerId(String nodeName) {
         return nodeToContainerInfoMap.get(nodeName).containerId();
     }
 
@@ -125,7 +129,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         buildDockerImages();
 
         // creates a new docker network. This will be a new one every time the runtime engine starts.
-        networkManager = new DockerNetworkManager(deployment.getName(), this, dockerClient);
+        dockerNetworkManager = new DockerNetworkManager(deployment.getName(), dockerClient);
 
         // If the client is a docker container, adds the container to the created docker network
         if (DockerUtil.isRunningInsideDocker()) {
@@ -138,15 +142,15 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             }
             logger.info("Client container id is {}", clientContainerId);
             try {
-                dockerClient.connectToNetwork(networkManager.dockerNetworkId(), NetworkConnection.builder()
+                dockerClient.connectToNetwork(dockerNetworkManager.dockerNetworkId(), NetworkConnection.builder()
                         .containerId(clientContainerId)
                         .endpointConfig(EndpointConfig.builder()
-                                .ipAddress(networkManager.getNewIpAddress())
+                                .ipAddress(dockerNetworkManager.getNewIpAddress())
                                 .build())
                         .build());
             } catch (DockerException | InterruptedException e) {
                 throw new RuntimeEngineException("Error while trying to add client container to the docker network "
-                        + networkManager.dockerNetworkId(), e);
+                        + dockerNetworkManager.dockerNetworkId(), e);
             }
         }
 
@@ -170,19 +174,18 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         nodeToContainerInfoMap = Collections.unmodifiableMap(nodeToContainerInfoMap);
     }
 
-    public long runCommandInNode(String nodeName, String command) throws RuntimeEngineException {
+    public CommandResults runCommandInNode(String nodeName, String command) throws RuntimeEngineException {
         if (!nodeToContainerInfoMap.containsKey(nodeName)) {
-            // TODO should this throw exception
-            logger.error("Node {} does not have a running container to run command {}!", nodeName, command);
-            return -1;
+            throw new NodeNotFoundException(nodeName);
         }
 
         ExecCreation execCreation;
-
+        LogStream logStream;
         try {
             execCreation = dockerClient.execCreate(nodeToContainerInfoMap.get(nodeName).containerId(),
-                    command.split("\\s+"));
-            dockerClient.execStart(execCreation.id());
+                    command.split("\\s+"), DockerClient.ExecCreateParam.attachStdin(),
+                    DockerClient.ExecCreateParam.attachStdout(), DockerClient.ExecCreateParam.attachStderr());
+            logStream = dockerClient.execStart(execCreation.id());
         } catch (InterruptedException e) {
             throw new RuntimeEngineException("Error while trying to run command " + command + " in node " + nodeName + "!", e);
         } catch (ContainerNotFoundException | IllegalStateException e) {
@@ -211,7 +214,41 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     + " in node " + nodeName + "!", e);
         }
 
-        return execState.exitCode();
+        PipedOutputStream out_pipe, err_pipe;
+        PipedInputStream out, err;
+        try {
+            out = new PipedInputStream();
+            err = new PipedInputStream();
+            out_pipe = new PipedOutputStream(out);
+            err_pipe = new PipedOutputStream(err);
+
+            AtomicReference<IOException> threadException = new AtomicReference<>();
+            Thread readThread = new Thread(() -> {
+                try {
+                    logStream.attach(out_pipe, err_pipe);
+                } catch (IOException e) {
+                    threadException.set(e);
+                }
+            });
+
+            readThread.start();
+            try {
+                readThread.join();
+            } catch (InterruptedException e) {
+                throw new RuntimeEngineException("The join for read thread of command " + command + " has been interrupted!");
+            }
+
+            if (threadException.get() != null) {
+                throw threadException.get();
+            }
+
+            String stdout = StreamUtil.pipedInputStreamToString(out);
+            String stderr = StreamUtil.pipedInputStreamToString(err);
+            return new CommandResults(nodeName, command, execState.exitCode(), stdout, stderr);
+        } catch (IOException e) {
+            throw new RuntimeEngineException("Error while reading the stdout and stderr for command " + command
+                    + " on node " + nodeName);
+        }
     }
 
     private void buildDockerImages() throws RuntimeEngineException {
@@ -252,7 +289,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     @Override protected String getEventServerIpAddress() throws RuntimeEngineException {
         if (DockerUtil.isRunningInsideDocker()) {
-            return networkManager.getClientContainerIpAddress();
+            return dockerNetworkManager.getClientContainerIpAddress();
         } else {
             try {
                 return HostUtil.getLocalIpAddress();
@@ -267,7 +304,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // TODO Add Tini init to avoid zombie processes
         Service nodeService = deployment.getService(node.getServiceName());
         NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(node.getName());
-        String newIpAddress = networkManager.getNewIpAddress();
+        String newIpAddress = dockerNetworkManager.getNewIpAddress();
 
         String clientContainerId;
         try {
@@ -293,7 +330,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         hostConfigBuilder.appendBinds(HostConfig.Bind.from(wrapperScriptAddress)
                 .to("/" + Constants.WRAPPER_SCRIPT_NAME).readOnly(true).build());
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
-        hostConfigBuilder.capAdd("NET_ADMIN").networkMode(networkManager.dockerNetworkName());
+        hostConfigBuilder.capAdd("NET_ADMIN").networkMode(dockerNetworkManager.dockerNetworkName());
         // Creates do init file in the workspace and adds a bind mount for it
         try {
             Files.write(Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME), "1".getBytes());
@@ -314,8 +351,9 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // Sets the network alias and hostname
         containerConfigBuilder.hostname(node.getName());
         Map<String, EndpointConfig> endpointConfigMap = new HashMap<>();
-        endpointConfigMap.put(networkManager.dockerNetworkName(), EndpointConfig.builder()
+        endpointConfigMap.put(dockerNetworkManager.dockerNetworkName(), EndpointConfig.builder()
                 .ipAddress(newIpAddress) // static ip address for containers
+                .ipamConfig(EndpointConfig.EndpointIpamConfig.builder().ipv4Address(newIpAddress).build())
                 .aliases(ImmutableList.<String>builder().add(node.getName()).build()).build());
         containerConfigBuilder.networkingConfig(ContainerConfig.NetworkingConfig.create(endpointConfigMap));
         // Sets exposed ports
@@ -440,7 +478,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             }
         }
 
-        if (networkManager != null) {
+        if (dockerNetworkManager != null) {
             // If the client is a docker container, removes the container from the created docker network
             if (DockerUtil.isRunningInsideDocker()) {
                 logger.info("Removing client container from the created docker network ...");
@@ -452,17 +490,18 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 }
                 if (clinetContainerId != null && !clinetContainerId.isEmpty()) {
                     try {
-                        dockerClient.disconnectFromNetwork(clinetContainerId, networkManager.dockerNetworkId());
+                        dockerClient.disconnectFromNetwork(clinetContainerId, dockerNetworkManager.dockerNetworkId());
                     } catch (DockerException | InterruptedException e) {
-                        logger.error("Error while trying to remove client container from the docker network " + networkManager.dockerNetworkId(), e);
+                        logger.error("Error while trying to remove client container from the docker network " + dockerNetworkManager
+                                .dockerNetworkId(), e);
                     }
                 }
             }
 
             // deletes the created docker network
             try {
-                logger.info("Deleting docker network {} ...", networkManager.dockerNetworkId());
-                networkManager.deleteDockerNetwork();
+                logger.info("Deleting docker network {} ...", dockerNetworkManager.dockerNetworkId());
+                dockerNetworkManager.deleteDockerNetwork();
                 logger.info("Docker network is deleted successfully!");
             } catch (RuntimeEngineException e) {
                 logger.error(e.getMessage(), e);
@@ -470,19 +509,14 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
     }
 
-    public void removeContainer(String nodeName) throws RuntimeEngineException {
-        if (nodeToContainerInfoMap.containsKey(nodeName)) {
-            logger.info("Removing container for node {} ...", nodeName);
-            try {
-                dockerClient.removeContainer(nodeToContainerInfoMap.get(nodeName).containerId(),
-                        DockerClient.RemoveContainerParam.forceKill());
-                logger.info("Node {} container is removed!", nodeName);
-            } catch (InterruptedException | DockerException e) {
-                throw new RuntimeEngineException("Error while trying to remove the container for node " + nodeName + "!", e);
-            }
-        } else {
-            // TODO should this throw exception
-            logger.error("There is no container for node {} to be removed!", nodeName);
+    private void removeContainer(String nodeName) throws RuntimeEngineException {
+        logger.info("Removing container for node {} ...", nodeName);
+        try {
+            dockerClient.removeContainer(nodeToContainerInfoMap.get(nodeName).containerId(),
+                    DockerClient.RemoveContainerParam.forceKill());
+            logger.info("Node {} container is removed!", nodeName);
+        } catch (InterruptedException | DockerException e) {
+            throw new RuntimeEngineException("Error while trying to remove the container for node " + nodeName + "!", e);
         }
     }
 
@@ -492,13 +526,17 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             logger.info("Killing node {} ...", nodeName);
             try {
                 dockerClient.killContainer(nodeToContainerInfoMap.get(nodeName).containerId());
-                logger.info("Node {} container is killed!", nodeName);
+                logger.info("Node {} is killed!", nodeName);
+            } catch (DockerRequestException e) {
+                // TODO maybe find a better way to do this
+                if (!(e.status() == 500 && e.getResponseBody().toLowerCase().contains("not running"))) {
+                    throw new RuntimeEngineException("Error while trying to kill the container for node " + nodeName + "!", e);
+                }
             } catch (InterruptedException | DockerException e) {
                 throw new RuntimeEngineException("Error while trying to kill the container for node " + nodeName + "!", e);
             }
         } else {
-            // TODO should this throw exception
-            logger.error("There is no container for node {} to be killed!", nodeName);
+            throw new NodeNotFoundException(nodeName);
         }
     }
 
@@ -510,16 +548,21 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 // Runs stop command. useful for stopping daemon processes gracefully
                 String stopCommand = getNodeStopCommand(nodeName);
                 if (stopCommand != null) {
-                    runCommandInNode(nodeName, stopCommand);
+                    try {
+                        runCommandInNode(nodeName, stopCommand);
+                    } catch (NodeIsNotRunningException e) {
+                        logger.debug("Stop command for node {} cant be executed since the node is not running", nodeName);
+                    }
                 }
                 dockerClient.stopContainer(nodeToContainerInfoMap.get(nodeName).containerId(), secondsUntilForcedStop);
-                logger.info("Node {} container is stopped!", nodeName);
+                logger.info("Node {} is stopped!", nodeName);
+            } catch (NodeIsNotRunningException | ContainerNotFoundException e) {
+                logger.debug("Node {} is not running. Node stop is not needed.");
             } catch (InterruptedException | DockerException e) {
                 throw new RuntimeEngineException("Error while trying to stop the container for node " + nodeName + "!", e);
             }
         } else {
-            // TODO should this throw exception
-            logger.error("There is no container for node {} to be stopped!", nodeName);
+            throw new NodeNotFoundException(nodeName);
         }
     }
 
@@ -568,10 +611,9 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
             updateContainerPortMapping(nodeName);
 
-            logger.info("Container {} for node {} is started!", containerId, nodeName);
+            logger.info("Node {} is started!", nodeName);
         } else {
-            // TODO should this throw exception
-            logger.error("There is no container for node {} to be started!", nodeName);
+            throw new NodeNotFoundException(nodeName);
         }
     }
 
@@ -583,23 +625,30 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 // Runs stop command. useful for restarting daemon processes gracefully
                 String stopCommand = getNodeStopCommand(nodeName);
                 if (stopCommand != null) {
-                    runCommandInNode(nodeName, stopCommand);
+                    try {
+                        runCommandInNode(nodeName, stopCommand);
+                    } catch (NodeIsNotRunningException e) {
+                        logger.debug("Stop command for node {} cant be executed since the node is not running", nodeName);
+                    }
                 }
                 dockerClient.restartContainer(nodeToContainerInfoMap.get(nodeName).containerId());
                 networkManager.reApplyIptablesRules(nodeName);
                 updateContainerPortMapping(nodeName);
-                logger.info("Container {} for node {} is restarted!", nodeToContainerInfoMap.get(nodeName).containerId(), nodeName);
+                logger.info("Node {} is restarted!", nodeName);
             } catch (InterruptedException | DockerException e) {
                 throw new RuntimeEngineException("Error while trying to restart the container for node " + nodeName + "!", e);
             }
         } else {
-            // TODO should this throw exception
-            logger.error("There is no container for node {} to be restarted!", nodeName);
+            throw new NodeNotFoundException(nodeName);
         }
     }
 
     @Override
     public void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException {
+        if (!nodeToContainerInfoMap.containsKey(nodeName)) {
+            throw new NodeNotFoundException(nodeName);
+        }
+
         logger.info("Applying clock drift {},{}", nodeName, amount);
         Path localLibFakeTimeFile = Paths.get(getLocalLibFakeTimeControllerFile(nodeName));
         String stringAmount = amount.toString();
@@ -627,26 +676,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         } catch (IOException e) {
             throw new RuntimeEngineException("Error while writing into libfaketime controller file for node " + nodeName, e);
         }
-    }
-
-    @Override
-    public void linkDown(String node1, String node2) throws RuntimeEngineException {
-        networkManager.linkDown(node1, node2);
-    }
-
-    @Override
-    public void linkUp(String node1, String node2) throws RuntimeEngineException {
-        networkManager.linkUp(node1, node2);
-    }
-
-    @Override
-    public void networkPartition(String nodePartitions) throws RuntimeEngineException {
-        networkManager.networkPartition(nodePartitions);
-    }
-
-    @Override
-    public void removeNetworkPartition() throws RuntimeEngineException {
-        networkManager.removeNetworkPartition();
     }
 
     @Override

@@ -31,4 +31,8 @@ public class NodeIsNotRunningException extends RuntimeEngineException {
     public NodeIsNotRunningException(String msg, Throwable cause) {
         super(msg, cause);
     }
+
+    public NodeIsNotRunningException(String msg) {
+        super(msg);
+    }
 }

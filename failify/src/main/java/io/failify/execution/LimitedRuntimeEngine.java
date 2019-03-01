@@ -26,6 +26,8 @@
 package io.failify.execution;
 
 import io.failify.dsl.entities.PortType;
+import io.failify.exceptions.NodeIsNotRunningException;
+import io.failify.exceptions.NodeNotFoundException;
 import io.failify.exceptions.RuntimeEngineException;
 
 import java.util.Set;
@@ -35,30 +37,36 @@ public interface LimitedRuntimeEngine {
     // Runtime Operation
 
     /**
-     * Kills a node in the deployed environment
+     * Kills a node in the deployed environment. It won't throw an exception if the node is not running
      * @param nodeName the node name to be killed
      * @throws RuntimeEngineException is something goes wrong
+     * @throws NodeNotFoundException if the node doesn't exist
      */
     void killNode(String nodeName) throws RuntimeEngineException;
 
     /**
-     * Stops a node in the deployed environment
+     * Stops a node in the deployed environment. It won't throw an exception if the node is not running
      * @param nodeName the node name to be Stopped
+     * @param secondsUntilForcedStop the number of seconds to wait until forcing a stop
      * @throws RuntimeEngineException is something goes wrong
+     * @throws NodeNotFoundException if the node doesn't exist
      */
     void stopNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
 
     /**
-     * Starts a node in the deployed environment
+     * Starts a node in the deployed environment. It won't throw an exception if the node is already started
      * @param nodeName the node name to be started
      * @throws RuntimeEngineException is something goes wrong
+     * @throws NodeNotFoundException if the node doesn't exist
      */
     void startNode(String nodeName) throws RuntimeEngineException;
 
     /**
-     * Restarts a node in the deployed environment
+     * Restarts a node in the deployed environment. It won't throw an exception if the node is not running
      * @param nodeName the node name to be restarted
+     * @param secondsUntilForcedStop the number of seconds to wait until forcing a stop
      * @throws RuntimeEngineException is something goes wrong
+     * @throws NodeNotFoundException if the node doesn't exist
      */
     void restartNode(String nodeName, Integer secondsUntilForcedStop) throws RuntimeEngineException;
 
@@ -67,51 +75,36 @@ public interface LimitedRuntimeEngine {
      * @param nodeName the node name to apply the clock drift on
      * @param amount the positive or negative amount of time offset to apply in milliseconds
      * @throws RuntimeEngineException is something goes wrong
+     * @throws NodeNotFoundException if the node doesn't exist
      */
     void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException;
 
     /**
-     * Disconnects the network connection between two nodes in the deployed environment
-     * @param node1 the first node name
-     * @param node2 the second node name
-     * @throws RuntimeEngineException if something goes wrong
-     */
-    void linkDown(String node1, String node2) throws RuntimeEngineException;
-
-    /**
-     * Connects the disconnected network connection between two nodes in the deployed environment
-     * @param node1 the first node name
-     * @param node2 the second node name
-     * @throws RuntimeEngineException if something goes wrong
-     */
-    void linkUp(String node1, String node2) throws RuntimeEngineException;
-
-    /**
      * Imposes a network partition based on the given partition scheme in the deployed environment
-     * @param nodePartitions the desired scheme for the partition. Nodes should be separated with dash(-) and partitions
-     *                       should be separated with comma. "n1-n2,n3" means a network partition with n1 and n2 in one
-     *                       side and n3 at the other side. More than two partitions is also possible. For example
-     *                       "n1,n2,n3". Also, if all the nodes are not included in the string, the rest of nodes would
-     *                       be considered as another partition.
+     * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
      * @throws RuntimeEngineException if something goes wrong
+     * @throws NodeNotFoundException if one of partitions includes a node that doesn't exist
      */
-    void networkPartition(String nodePartitions) throws RuntimeEngineException;
+    void networkPartition(NetPart netPart) throws RuntimeEngineException;
 
     /**
-     * Removes all of the imposed network blockings in the deployed environment
+     * Removes a network partition based on the given partition scheme in the deployed environment
+     * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
      * @throws RuntimeEngineException if something goes wrong
+     * @throws NodeNotFoundException if one of partitions includes a node that doesn't exist
      */
-    void removeNetworkPartition() throws RuntimeEngineException;
+    void removeNetworkPartition(NetPart netPart) throws RuntimeEngineException;
 
-    // TODO Change int to ProcessResults
     /**
      * Executes a shell command in the given node
      * @param nodeName the node name to execute the shell command into
      * @param command the command to be executed
-     * @return the exit code of shell command's process
+     * @return the command execution results including exit code, stdout and stderr
      * @throws RuntimeEngineException if something goes wrong
+     * @throws NodeIsNotRunningException if the node is not running
+     * @throws NodeNotFoundException if the node doesn't exist
      */
-    long runCommandInNode(String nodeName, String command) throws RuntimeEngineException;
+    CommandResults runCommandInNode(String nodeName, String command) throws RuntimeEngineException;
 
     // Runtime Info
 

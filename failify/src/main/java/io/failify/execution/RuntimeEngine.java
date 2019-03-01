@@ -48,23 +48,26 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected final Deployment deployment;
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
+    protected final NetworkManager networkManager;
+    private FailifyRunner failifyRunner;
 
     public RuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.stopped = true;
         this.deployment = deployment;
         this.nodeWorkspaceMap = nodeWorkspaceMap;
         eventServer = new EventServer();
+        networkManager = new NetworkManager(this);
         EventService.initialize(deployment);
     }
 
     // TODO this method should use an external configuration to detect the proper runtime engine and its corresponding configs
-    // By defualt this methos returns single node runtime engine
+    // By default this method returns single node runtime engine
     public static RuntimeEngine getRuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         return new SingleNodeRuntimeEngine(deployment, nodeWorkspaceMap);
     }
 
     public Set<String> nodeNames() {
-        return deployment.getNodes().keySet();
+        return new HashSet<>(deployment.getNodes().keySet());
     }
 
     public boolean isStopped() {
@@ -72,6 +75,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     public void start(FailifyRunner failifyRunner) throws RuntimeEngineException {
+        this.failifyRunner = failifyRunner;
+
         // Exits if nodes' workspaces is not set
         if (nodeWorkspaceMap == null || nodeWorkspaceMap.isEmpty()) {
             throw new RuntimeEngineException("NodeWorkspaces is not set!");
@@ -88,9 +93,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         // Configure local Failify runtime
         Failify.configure("127.0.0.1", String.valueOf(eventServer.getPortNumber()));
 
-        logger.info("Starting external events ...");
-        startExternalEvents(failifyRunner);
-
         try {
             logger.info("Starting nodes ...");
             stopped = false;
@@ -99,9 +101,12 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             stop(true, 0);
             throw e;
         }
+
+        logger.info("Starting external events ...");
+        startExternalEvents();
     }
 
-    protected void startExternalEvents(FailifyRunner failifyRunner) {
+    protected void startExternalEvents() {
         // Find those external events that are present in the run sequence
         List<ExternalEvent> externalEvents = new ArrayList<>();
         for (String id: deployment.getRunSequence().split("\\W+")) {
@@ -242,7 +247,20 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Waiting for event {} in workload ...", eventName);
             try {
-                Failify.getInstance().blockAndPoll(eventName, includeEvent, timeout);
+                for (int i=1; i <= timeout; i++) {
+                    try {
+                        failifyRunner.checkExternalEventException();
+                        Failify.getInstance().blockAndPoll(eventName, includeEvent, 1);
+                        break;
+                    } catch (TimeoutException e) {
+                        // if it is the last round throw e
+                        if (i == timeout) {
+                            throw e;
+                        }
+                        // Next round
+                        continue;
+                    }
+                }
             } catch (TimeoutException e) {
                 throw e;
             } catch (Exception e) {
@@ -288,6 +306,16 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             action.run();
         }
         sendEvent(eventName);
+    }
+
+    @Override
+    public void networkPartition(NetPart netPart) throws RuntimeEngineException {
+        networkManager.networkPartition(netPart);
+    }
+
+    @Override
+    public void removeNetworkPartition(NetPart netPart) throws RuntimeEngineException {
+        networkManager.removeNetworkPartition(netPart);
     }
 
     /**

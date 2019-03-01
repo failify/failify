@@ -26,11 +26,14 @@
 package io.failify.dsl.events;
 
 import io.failify.FailifyRunner;
+import io.failify.exceptions.RuntimeEngineException;
 import io.failify.execution.LimitedRuntimeEngine;
 import io.failify.rt.Failify;
 import io.failify.dsl.ReferableDeploymentEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeoutException;
 
 /**
  * This is the base class for external events which implements Template Method pattern. The child classes should implement
@@ -40,6 +43,7 @@ import org.slf4j.LoggerFactory;
 public abstract class ExternalEvent extends ReferableDeploymentEntity {
     private static Logger logger = LoggerFactory.getLogger(ExternalEvent.class);
     private Thread executionThread;
+    private boolean stop;
 
     protected ExternalEvent(String name) {
         super(name);
@@ -57,33 +61,48 @@ public abstract class ExternalEvent extends ReferableDeploymentEntity {
             @Override
             public void run() {
                 try {
-                    Failify.getInstance().blockAndPoll(name);
-                    execute(failifyRunner.runtime());
-                    Failify.getInstance().sendEvent(name);
+                    while (!stop) {
+                        try {
+                            Failify.getInstance().blockAndPoll(name, false, 1);
+                            break;
+                        } catch (TimeoutException e) {
+                            // Next round
+                            continue;
+                        }
+                    }
+
+                    if (!stop) {
+                        execute(failifyRunner.runtime());
+                    }
+
+                    if (!stop) {
+                        Failify.getInstance().sendEvent(name);
+                    }
                 } catch (Exception e) {
                     logger.error("An error happened during execution of external event {}", name, e);
-                    if (!failifyRunner.isStopped()) {
-                        // A new thread is required since this thread is going to be killed as part of the system stop
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                // TODO this should make the test case fail
-                                failifyRunner.stop();
-                            }
-                        }).start();
-                    }
+//                        if (!failifyRunner.isStopped()) {
+//                            // A new thread is required since this thread is going to be killed as part of the system stop
+//                            new Thread(new Runnable() {
+//                                @Override public void run() {
+//                                    failifyRunner.stop();
+//                                }
+//                            }).start();
+//                        }
+                    failifyRunner.setExternalEventException(new RuntimeEngineException(
+                            "An error happened during execution of external event " + name, e));
                 }
             }
         });
 
         logger.info("Starting external event {}", name);
+        stop = false;
         executionThread.start();
     }
 
     public void stop() {
         if (executionThread != null) {
-            // TODO stop is deprecated!
-            executionThread.stop();
+            this.stop = true;
+            executionThread.interrupt();
         }
     }
 }

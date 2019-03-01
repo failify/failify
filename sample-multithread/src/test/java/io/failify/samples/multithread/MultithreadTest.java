@@ -29,6 +29,7 @@ import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.ServiceType;
 import io.failify.exceptions.DeploymentVerificationException;
 import io.failify.exceptions.RuntimeEngineException;
+import io.failify.execution.NetPart;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +41,7 @@ public class MultithreadTest {
 
     @Test
     public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException, TimeoutException {
-        Deployment deployment = new Deployment.Builder("sample-multithread")
+        Deployment deployment = Deployment.builder("sample-multithread")
                 // Service Definitions
                 .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
                     .startCommand("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.multithread.Main")
@@ -59,8 +60,10 @@ public class MultithreadTest {
                     .unblockBefore("ubbe2", "e2")
                     .garbageCollection("g1")
                     .and()
-                .withNode("n2", "s1").offOnStartup()
-                .and()
+                .withNode("n2", "s1").offOnStartup().and()
+                .withNode("n3", "s1").and()
+                .withNode("n4", "s1").and()
+                .withNode("n5", "s1").and()
                 // Workload Events
                 .workloadEvents("we1")
                 // External Events Definitions
@@ -74,10 +77,14 @@ public class MultithreadTest {
         FailifyRunner runner = FailifyRunner.run(deployment);
         // Injecting network partition in a specific time in the test case
         runner.runtime().waitFor("x1",10);
-        runner.runtime().networkPartition("n1,n2");
+        NetPart netPart1 = NetPart.partitions("n1","n2").connect(1, NetPart.REST, false).build();
+        NetPart netPart2 = NetPart.partitions("n1","n2,n3").connect(1, NetPart.REST).build();
+        runner.runtime().networkPartition(netPart1);
+        runner.runtime().networkPartition(netPart2);
         runner.runtime().clockDrift("n1", -10000);
         // Removing network partition in a specific time in the test case
-        runner.runtime().enforceOrder("we1", 10, () -> runner.runtime().removeNetworkPartition());
+        runner.runtime().enforceOrder("we1", 10, () -> runner.runtime().removeNetworkPartition(netPart1));
+        runner.runtime().removeNetworkPartition(netPart2);
         runner.waitForRunSequenceCompletion(60, 20, true);
     }
 }
