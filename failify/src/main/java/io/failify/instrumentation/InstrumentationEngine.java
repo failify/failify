@@ -25,24 +25,20 @@
 package io.failify.instrumentation;
 
 import io.failify.dsl.entities.Deployment;
-import io.failify.dsl.entities.ServiceType;
 import io.failify.exceptions.InstrumentationException;
-import io.failify.instrumentation.java.JavaInstrumentor;
 import io.failify.workspace.NodeWorkspace;
 
 import java.util.Map;
 
-public abstract class InstrumentationEngine {
-
-    protected Instrumentor getInstrumentor(ServiceType serviceType) {
-        if (serviceType == ServiceType.JAVA) {
-            return new JavaInstrumentor();
-        } else {
-            return null;
-        }
-    }
-
-    // This method shouldn't change any of the application paths
-    public abstract void instrumentNodes(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap)
+public interface InstrumentationEngine {
+    /**
+     * This method should instrument the nodes based on the given definition and node workspaces. It is important that
+     * this method doesn't change any of the application paths
+     * @param deployment the deployment definition object
+     * @param nodeWorkspaceMap the map of node name to the node's workspace information
+     * @throws InstrumentationException if something goes wrong during instrumentation
+     */
+    void instrumentNodes(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap)
             throws InstrumentationException;
+
 }

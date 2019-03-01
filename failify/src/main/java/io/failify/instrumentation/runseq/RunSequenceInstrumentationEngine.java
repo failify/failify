@@ -23,9 +23,12 @@
  *
  */
 
-package io.failify.instrumentation;
+package io.failify.instrumentation.runseq;
 
 import io.failify.Constants;
+import io.failify.dsl.entities.ServiceType;
+import io.failify.instrumentation.*;
+import io.failify.instrumentation.runseq.java.JavaInstrumentor;
 import io.failify.workspace.NodeWorkspace;
 import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.Node;
@@ -40,8 +43,16 @@ import java.util.*;
 /**
  * Only non-lib binary instrumentation is possible
  */
-public class RunSequenceInstrumentationEngine extends InstrumentationEngine {
+public class RunSequenceInstrumentationEngine implements InstrumentationEngine {
     private final static Logger logger = LoggerFactory.getLogger(RunSequenceInstrumentationEngine.class);
+
+    protected Instrumentor getInstrumentor(ServiceType serviceType) {
+        if (serviceType == ServiceType.JAVA) {
+            return new JavaInstrumentor();
+        } else {
+            return null;
+        }
+    }
 
     @Override
     public void instrumentNodes(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) throws InstrumentationException {

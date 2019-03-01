@@ -23,7 +23,7 @@
  *
  */
 
-package io.failify.instrumentation.java;
+package io.failify.instrumentation.runseq.java;
 
 import io.failify.exceptions.InstrumentationException;
 import io.failify.instrumentation.InstrumentationDefinition;

@@ -23,7 +23,7 @@
  *
  */
 
-package io.failify.instrumentation;
+package io.failify.instrumentation.runseq;
 
 public enum RunSeqRuntimeOperation {
     ALLOW_BLOCKING,

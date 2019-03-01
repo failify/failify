@@ -38,7 +38,7 @@ import io.failify.execution.EventService;
 import io.failify.execution.RuntimeEngine;
 import io.failify.execution.LimitedRuntimeEngine;
 import io.failify.instrumentation.InstrumentationEngine;
-import io.failify.instrumentation.RunSequenceInstrumentationEngine;
+import io.failify.instrumentation.runseq.RunSequenceInstrumentationEngine;
 import io.failify.workspace.WorkspaceManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

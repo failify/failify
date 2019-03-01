@@ -29,7 +29,7 @@ import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.Node;
 import io.failify.instrumentation.InstrumentationDefinition;
 import io.failify.instrumentation.InstrumentationPoint;
-import io.failify.instrumentation.RunSeqRuntimeOperation;
+import io.failify.instrumentation.runseq.RunSeqRuntimeOperation;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -23,13 +23,13 @@
  *
  */
 
-package io.failify.instrumentation.java;
+package io.failify.instrumentation.runseq.java;
 
 import io.failify.Constants;
 import io.failify.instrumentation.InstrumentationDefinition;
 import io.failify.instrumentation.InstrumentationOperation;
 import io.failify.instrumentation.InstrumentationPoint;
-import io.failify.instrumentation.RunSeqRuntimeOperation;
+import io.failify.instrumentation.runseq.RunSeqRuntimeOperation;
 import io.failify.util.HashingUtil;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
