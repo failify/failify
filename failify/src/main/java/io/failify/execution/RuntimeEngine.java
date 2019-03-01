@@ -33,7 +33,6 @@ import io.failify.dsl.entities.Service;
 import io.failify.rt.Failify;
 import io.failify.workspace.NodeWorkspace;
 import io.failify.Constants;
-import io.failify.dsl.events.ExternalEvent;
 import io.failify.exceptions.RuntimeEngineException;
 import io.failify.execution.single_node.SingleNodeRuntimeEngine;
 import org.slf4j.Logger;
@@ -101,23 +100,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             stop(true, 0);
             throw e;
         }
-
-        logger.info("Starting external events ...");
-        startExternalEvents();
-    }
-
-    protected void startExternalEvents() {
-        // Find those external events that are present in the run sequence
-        List<ExternalEvent> externalEvents = new ArrayList<>();
-        for (String id: deployment.getRunSequence().split("\\W+")) {
-            if (deployment.getExternalEvent(id) != null) {
-                externalEvents.add(deployment.getExternalEvent(id));
-            }
-        }
-
-        for (ExternalEvent externalEvent: externalEvents) {
-            externalEvent.start(failifyRunner);
-        }
     }
 
     protected void startEventServer() throws RuntimeEngineException {
@@ -126,8 +108,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
 
     public void stop(boolean kill, Integer secondsUntilForcedStop) {
         logger.info("Stopping the runtime engine ...");
-        logger.info("Stopping external events ...");
-        stopExternalEvents();
         logger.info("Stopping nodes ...");
         stopNodes(kill, secondsUntilForcedStop);
         logger.info("Stopping event server ...");
@@ -137,12 +117,6 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             stopFileSharingService();
         }
         stopped = true;
-    }
-
-    protected void stopExternalEvents() {
-        for (ExternalEvent externalEvent: deployment.getExternalEvents().values()) {
-            externalEvent.stop();
-        }
     }
 
     protected void stopEventServer() {
@@ -245,22 +219,9 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     public void waitFor(String eventName, Boolean includeEvent, Integer timeout)
             throws RuntimeEngineException, TimeoutException {
         if (deployment.isInRunSequence(eventName)) {
-            logger.info("Waiting for event {} in workload ...", eventName);
+            logger.info("Waiting for event {} ...", eventName);
             try {
-                for (int i=1; i <= timeout; i++) {
-                    try {
-                        failifyRunner.checkExternalEventException();
-                        Failify.getInstance().blockAndPoll(eventName, includeEvent, 1);
-                        break;
-                    } catch (TimeoutException e) {
-                        // if it is the last round throw e
-                        if (i == timeout) {
-                            throw e;
-                        }
-                        // Next round
-                        continue;
-                    }
-                }
+                Failify.getInstance().blockAndPoll(eventName, includeEvent, timeout);
             } catch (TimeoutException e) {
                 throw e;
             } catch (Exception e) {
@@ -274,12 +235,12 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
 
     private void sendEvent(String eventName) throws RuntimeEngineException {
         if (deployment.isInRunSequence(eventName)) {
-            logger.info("Sending workload event {} ...", eventName);
+            logger.info("Sending test case event {} ...", eventName);
             Failify.getInstance().allowBlocking();
             Failify.getInstance().enforceOrder(eventName, null);
         } else {
             throw new RuntimeEngineException("Event " + eventName + " is not referred to" +
-                    " in the run sequence. Thus, its order cannot be sent from the workload!");
+                    " in the run sequence. Thus, its order cannot be sent from the test case!");
         }
     }
 
@@ -296,8 +257,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     public void enforceOrder(String eventName, Integer timeout, FailifyCheckedRunnable action)
             throws RuntimeEngineException, TimeoutException {
 
-        if (!deployment.workloadEventExists(eventName)) {
-            throw new RuntimeEngineException("Event " + eventName + " is not a defined workload event and cannot be"
+        if (!deployment.testCaseEventExists(eventName)) {
+            throw new RuntimeEngineException("Event " + eventName + " is not a defined test case event and cannot be"
                     + " enforced using this method!");
         }
 

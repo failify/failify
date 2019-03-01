@@ -27,9 +27,7 @@ package io.failify.verification;
 
 import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.Node;
-import io.failify.dsl.events.ExternalEvent;
 import io.failify.dsl.events.InternalEvent;
-import io.failify.dsl.events.external.NodeOperationEvent;
 import io.failify.dsl.events.internal.SchedulingEvent;
 import io.failify.dsl.events.internal.StackTraceEvent;
 import io.failify.exceptions.DeploymentEntityBadReferenceException;
@@ -43,7 +41,6 @@ public class InternalReferencesVerifier extends DeploymentVerifier {
     @Override
     public void verify() {
         verifyInternalEventReferences();
-        verifyNodeReferences();
         verifyServiceReferences();
     }
 
@@ -51,18 +48,6 @@ public class InternalReferencesVerifier extends DeploymentVerifier {
         for (Node node: deployment.getNodes().values()) {
             if (deployment.getService(node.getServiceName()) == null) {
                 throw new DeploymentEntityBadReferenceException("service", node.getServiceName(), "node", node.getName());
-            }
-        }
-    }
-
-    private void verifyNodeReferences() {
-        for (ExternalEvent externalEvent: deployment.getExternalEvents().values()) {
-            if (externalEvent instanceof NodeOperationEvent) {
-                NodeOperationEvent nodeOperationEvent = (NodeOperationEvent) externalEvent;
-                if (deployment.getNode(nodeOperationEvent.getNodeName()) == null) {
-                    throw new DeploymentEntityBadReferenceException("node", nodeOperationEvent.getNodeName(), "node operation event",
-                            nodeOperationEvent.getName());
-                }
             }
         }
     }

@@ -64,27 +64,31 @@ public class MultithreadTest {
                 .withNode("n3", "s1").and()
                 .withNode("n4", "s1").and()
                 .withNode("n5", "s1").and()
-                // Workload Events
-                .workloadEvents("we1")
-                // External Events Definitions
-                .startNode("x1", "n2")
-                .restartNode("x2", "n2")
+                // Test Case Events
+                .testCaseEvents("x1", "x2")
                 // Run Sequence Definition
-                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * we1 * x2 * e4")
+                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * x2 * e4")
                 .sharedDirectory("/failify")
                 .build();
 
         FailifyRunner runner = FailifyRunner.run(deployment);
-        // Injecting network partition in a specific time in the test case
-        runner.runtime().waitFor("x1",10);
+        // Starting node n2
+        runner.runtime().enforceOrder("x1",10, () -> runner.runtime().startNode("n2"));
+        // Imposing overlapping network partitions
         NetPart netPart1 = NetPart.partitions("n1","n2").connect(1, NetPart.REST, false).build();
         NetPart netPart2 = NetPart.partitions("n1","n2,n3").connect(1, NetPart.REST).build();
         runner.runtime().networkPartition(netPart1);
         runner.runtime().networkPartition(netPart2);
+        // Imposing 10 secs of clock drift in node n1
         runner.runtime().clockDrift("n1", -10000);
-        // Removing network partition in a specific time in the test case
-        runner.runtime().enforceOrder("we1", 10, () -> runner.runtime().removeNetworkPartition(netPart1));
+        // removing the first network partition and restarting node n2
+        runner.runtime().enforceOrder("x2", 10, () -> {
+            runner.runtime().removeNetworkPartition(netPart1);
+            runner.runtime().restartNode("n2", 10);
+        });
+        // removing the second network partition
         runner.runtime().removeNetworkPartition(netPart2);
+        // Waiting for the run sequence to be completed
         runner.waitForRunSequenceCompletion(60, 20, true);
     }
 }

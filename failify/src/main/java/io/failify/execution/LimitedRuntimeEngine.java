@@ -168,24 +168,24 @@ public interface LimitedRuntimeEngine {
     void waitFor(String eventName, Boolean includeEvent, Integer timeout) throws RuntimeEngineException, TimeoutException;
 
     /**
-     * This method waits indefinitely for the given workload event's dependencies to be marked as satisfied in the event server,
-     * executes the given action, and finally, marks the given event name as satisfied in the event server.
+     * This method waits indefinitely for the given test case event's dependencies to be marked as satisfied in the event
+     * server, executes the given action, and finally, marks the given event name as satisfied in the event server.
      * @param eventName the event name to wait for
      * @param action the action to execute after waiting is completed
      * @throws RuntimeEngineException if something goes wrong or the event name is not referred to in the run sequence
-     * or the event is not a workload event
+     * or the event is not a test case event
      */
     void enforceOrder(String eventName, FailifyCheckedRunnable action) throws RuntimeEngineException;
 
     /**
-     * This method waits for the given workload event's dependencies to be marked as satisfied in the event server,
+     * This method waits for the given test case event's dependencies to be marked as satisfied in the event server,
      * executes the given action, and finally, marks the given event name as satisfied in the event server. The wait
      * timeouts after the given timeout amount in seconds
      * @param eventName the event name to wait for
      * @param timeout the timeout amount in seconds
      * @param action the action to execute after waiting is completed
      * @throws RuntimeEngineException if something goes wrong or the event name is not referred to in the run sequence
-     * or the event is not a workload event
+     * or the event is not a test case event
      * @throws TimeoutException if the wait timeouts
      */
     void enforceOrder(String eventName, Integer timeout, FailifyCheckedRunnable action)

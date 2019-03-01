@@ -26,18 +26,15 @@
 package io.failify.dsl.entities;
 
 import io.failify.Constants;
-import io.failify.dsl.events.external.*;
 import io.failify.exceptions.DeploymentEntityNameConflictException;
 import io.failify.exceptions.DeploymentEntityNotFound;
-import io.failify.execution.NetPart;
 import io.failify.util.FileUtil;
 import io.failify.dsl.DeploymentEntity;
-import io.failify.dsl.events.WorkloadEvent;
+import io.failify.dsl.events.TestCaseEvent;
 import io.failify.dsl.events.internal.BlockingEvent;
 import io.failify.dsl.events.internal.SchedulingEvent;
 import io.failify.dsl.events.internal.SchedulingOperation;
 import io.failify.dsl.ReferableDeploymentEntity;
-import io.failify.dsl.events.ExternalEvent;
 import io.failify.dsl.events.InternalEvent;
 import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
@@ -51,7 +48,7 @@ import java.util.*;
 /**
  * This class defines a distributed system deployment architecture including services, nodes and shared directories.
  * Services are templates for creating a node. There is also a run sequence field which can be used to impose a specific
- * order between nodes in the runtime by combining a set of internal, external and workload events.
+ * order between nodes in the runtime by combining a set of internal and test case events.
  */
 public class Deployment extends DeploymentEntity {
     private static Logger logger = LoggerFactory.getLogger(Deployment.class);
@@ -59,8 +56,7 @@ public class Deployment extends DeploymentEntity {
     private final Map<String, Node> nodes; // map of node names to node objects
     private final Map<String, Service> services; // map of service names to service objects
     private final Set<String> sharedDirectories; // set of directories to be shared between all the nodes
-    private final Map<String, ExternalEvent> externalEvents; //  map of external event names to external events objects
-    private final Map<String, WorkloadEvent> workloadEvents; // map of workload event names to their objects
+    private final Map<String, TestCaseEvent> testCaseEvents; // map of test case event names to their objects
     private final Map<String, ReferableDeploymentEntity> referableDeploymentEntities; // map of referable deployment entities
     private final Map<String, DeploymentEntity> deploymentEntities; // map of all the deployment entities
     private final Map<String, BlockingEvent> blockingEvents; // map of blocking events
@@ -77,8 +73,7 @@ public class Deployment extends DeploymentEntity {
         nodes = Collections.unmodifiableMap(builder.nodes);
         services = Collections.unmodifiableMap(builder.services);
         sharedDirectories = Collections.unmodifiableSet(builder.sharedDorectories);
-        externalEvents = Collections.unmodifiableMap(builder.externalEvents);
-        workloadEvents = Collections.unmodifiableMap(builder.workloadEvents);
+        testCaseEvents = Collections.unmodifiableMap(builder.testCaseEvents);
         deploymentEntities = Collections.unmodifiableMap(generateDeploymentEntitiesMap());
         // List of events that potentially can impose a blockage in the run sequence
         blockingEvents = Collections.unmodifiableMap(generateBlockingEventsMap());
@@ -96,7 +91,7 @@ public class Deployment extends DeploymentEntity {
     }
 
     /**
-     * Generates a map of entities that can be referred in the run sequence including internal, external and workload
+     * Generates a map of entities that can be referred in the run sequence including internal and test case
      * events using the deployment definition
      * @return the map of referable entities
      * @throws DeploymentEntityNameConflictException if there is a name overlap
@@ -117,18 +112,11 @@ public class Deployment extends DeploymentEntity {
             }
         }
 
-        for (ExternalEvent externalEvent: externalEvents.values()) {
-            if (returnMap.containsKey(externalEvent.getName())) {
-                throw new DeploymentEntityNameConflictException(externalEvent.getName());
+        for (TestCaseEvent testCaseEvent : testCaseEvents.values()) {
+            if (returnMap.containsKey(testCaseEvent.getName())) {
+                throw new DeploymentEntityNameConflictException(testCaseEvent.getName());
             }
-            returnMap.put(externalEvent.getName(), externalEvent);
-        }
-
-        for (WorkloadEvent workloadEvent: workloadEvents.values()) {
-            if (returnMap.containsKey(workloadEvent.getName())) {
-                throw new DeploymentEntityNameConflictException(workloadEvent.getName());
-            }
-            returnMap.put(workloadEvent.getName(), workloadEvent);
+            returnMap.put(testCaseEvent.getName(), testCaseEvent);
         }
 
         return returnMap;
@@ -206,17 +194,8 @@ public class Deployment extends DeploymentEntity {
         return services.get(name);
     }
 
-    /**
-     * @param name of the external event
-     * @return the external event object for the given name
-     */
-    public ExternalEvent getExternalEvent(String name) {
-        return externalEvents.get(name);
-    }
-
-
-    public Boolean workloadEventExists(String name) {
-        return workloadEvents.containsKey(name);
+    public Boolean testCaseEventExists(String name) {
+        return testCaseEvents.containsKey(name);
     }
 
     public Map<String, BlockingEvent> getBlockingEvents() {
@@ -267,10 +246,6 @@ public class Deployment extends DeploymentEntity {
         return sharedDirectories;
     }
 
-    public Map<String, ExternalEvent> getExternalEvents() {
-        return externalEvents;
-    }
-
     public Map<String, ReferableDeploymentEntity> getReferableDeploymentEntities() {
         return referableDeploymentEntities;
     }
@@ -304,8 +279,7 @@ public class Deployment extends DeploymentEntity {
         private String runSequence;
         private Map<String, Service> services;
         private Set<String> sharedDorectories;
-        private Map<String, WorkloadEvent> workloadEvents;
-        private Map<String, ExternalEvent> externalEvents;
+        private Map<String, TestCaseEvent> testCaseEvents;
 
         /**
          * Constructor
@@ -316,8 +290,7 @@ public class Deployment extends DeploymentEntity {
             nodes = new HashMap<>();
             services = new HashMap<>();
             sharedDorectories = new HashSet<>();
-            externalEvents = new HashMap<>();
-            workloadEvents = new HashMap<>();
+            testCaseEvents = new HashMap<>();
             runSequence = "";
         }
 
@@ -330,8 +303,7 @@ public class Deployment extends DeploymentEntity {
             nodes = new HashMap<>(instance.nodes);
             services = new HashMap<>(instance.services);
             sharedDorectories = new HashSet<>(instance.sharedDirectories);
-            externalEvents = new HashMap<>(instance.externalEvents);
-            workloadEvents = new HashMap<>(instance.workloadEvents);
+            testCaseEvents = new HashMap<>(instance.testCaseEvents);
             runSequence =  new String(instance.runSequence);
         }
 
@@ -476,218 +448,15 @@ public class Deployment extends DeploymentEntity {
         }
 
         /**
-         * Returns a node operation event builder to define a new node operation event object in the deployment definition
-         * @param name of the event
-         * @return a new node operation event builder object initialized with the given name
-         */
-        public NodeOperationEvent.NodeOperationEventBuilder withNodeOperationEvent(String name) {
-            return new NodeOperationEvent.NodeOperationEventBuilder(this, name);
-        }
-
-        /**
-         * Adds workload events that can be included in the run sequence and be enforced in the test case
-         * @param events the name of the workload events
+         * Adds test case events that can be included in the run sequence and be enforced in the test case
+         * @param events the name of the test case events
          * @return the current builder instance
          */
-        public Builder workloadEvents(String... events) {
+        public Builder testCaseEvents(String... events) {
             for (String event: events) {
-                workloadEvents.put(event.trim(), new WorkloadEvent(event.trim()));
+                testCaseEvents.put(event.trim(), new TestCaseEvent(event.trim()));
             }
             return this;
-        }
-
-        /**
-         * Returns a node operation event builder to change an existing node operation event object in the deployment
-         * definition with the given event name
-         * @return A node operation event builder instance already initialized with an existing node operation event object
-         * in the deployment definition
-         * @throws DeploymentEntityNotFound if a node operation event object with the given name is not present in the
-         * deployment definition
-         */
-        public NodeOperationEvent.NodeOperationEventBuilder nodeOperationEvent(String eventName) {
-            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof NodeOperationEvent)) {
-                throw new DeploymentEntityNotFound(eventName, "NodeOperationEvent");
-            }
-            return new NodeOperationEvent.NodeOperationEventBuilder(this,
-                    (NodeOperationEvent) externalEvents.get(eventName));
-        }
-
-        /**
-         * Adds a node operation event or changes an existing definition of a node operation event with the same name in
-         * the deployment definition
-         * @param nodeOperationEvent definition to be added to the deployment
-         * @return the current builder instance
-         */
-        public Builder nodeOperationEvent(NodeOperationEvent nodeOperationEvent) {
-            if (externalEvents.containsKey(nodeOperationEvent.getName())) {
-                logger.warn("The node operation event " + nodeOperationEvent.getName() + " is being redefined in the deployment definition!");
-            }
-            externalEvents.put(nodeOperationEvent.getName(), nodeOperationEvent);
-            return this;
-        }
-
-        /**
-         * A shortcut method to add a node operation event to start the node with the given name
-         * @param eventName the name of the node operation event to be added
-         * @param nodeName the name of the node to be started
-         * @return the current builder instance
-         */
-        public Builder startNode(String eventName, String nodeName) {
-            return this.withNodeOperationEvent(eventName)
-                    .nodeOperation(NodeOperation.START)
-                    .nodeName(nodeName).and();
-        }
-
-        /**
-         * A shortcut method to add a node operation event to stop the node with the given name
-         * @param eventName the name of the node operation event to be added
-         * @param nodeName the name of the node to be stopped
-         * @return the current builder instance
-         */
-        public Builder stopNode(String eventName, String nodeName) {
-            return this.withNodeOperationEvent(eventName)
-                    .nodeOperation(NodeOperation.STOP)
-                    .nodeName(nodeName).and();
-        }
-
-        /**
-         * A shortcut method to add a node operation event to kill the node with the given name
-         * @param eventName the name of the node operation event to be added
-         * @param nodeName the name of the node to be killed
-         * @return the current builder instance
-         */
-        public Builder killNode(String eventName, String nodeName) {
-            return this.withNodeOperationEvent(eventName)
-                    .nodeOperation(NodeOperation.KILL)
-                    .nodeName(nodeName).and();
-        }
-
-
-        /**
-         * A shortcut method to add a node operation event to restart the node with the given name
-         * @param eventName the name of the node operation event to be added
-         * @param nodeName the name of the node to be restarted
-         * @return the current builder instance
-         */
-        public Builder restartNode(String eventName, String nodeName) {
-            return this.withNodeOperationEvent(eventName)
-                    .nodeOperation(NodeOperation.RESET)
-                    .nodeName(nodeName).and();
-        }
-
-        /**
-         * Returns a network partition event builder to define a new network partition event object in the deployment definition
-         * @param name of the event
-         * @return a new network partition event builder object initialized with the given name
-         */
-        public NetworkPartitionEvent.Builder withNetworkPartitionEvent(String name) {
-            return new NetworkPartitionEvent.Builder(this, name);
-        }
-
-        /**
-         * Returns a network partition event builder to change an existing network partition event object in the deployment
-         * definition with the given event name
-         * @return A network partition event builder instance already initialized with an existing network partition event object
-         * in the deployment definition
-         * @throws DeploymentEntityNotFound if a network partition event object with the given name is not present in the
-         * deployment definition
-         */
-        public NetworkPartitionEvent.Builder networkPartitionEvent(String eventName) {
-            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof NetworkPartitionEvent)) {
-                throw new DeploymentEntityNotFound(eventName, "NetworkPartitionEvent");
-            }
-            return new NetworkPartitionEvent.Builder(this,
-                    (NetworkPartitionEvent) externalEvents.get(eventName));
-        }
-
-        /**
-         * Adds a network partition event or changes an existing definition of a network partition event with the same name in
-         * the deployment definition
-         * @param networkPartitionEvent definition to be added to the deployment
-         * @return the current builder instance
-         */
-        public Builder networkPartitionEvent(NetworkPartitionEvent networkPartitionEvent) {
-            if (externalEvents.containsKey(networkPartitionEvent.getName())) {
-                logger.warn("The network partition event " + networkPartitionEvent.getName()
-                        + " is being redefined in the deployment definition!");
-            }
-            externalEvents.put(networkPartitionEvent.getName(), networkPartitionEvent);
-            return this;
-        }
-
-        /**
-         * A shortcut method to add a network partition event to impose a network partition
-         * @param eventName the name of the network partition event to be added
-         * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
-         * @return the current builder instance
-         */
-        public Builder networkPartition(String eventName, NetPart netPart) {
-            return withNetworkPartitionEvent(eventName)
-                    .scheme(netPart).and();
-        }
-
-        /**
-         * A shortcut method to add a network partition event to remove a network partition
-         * @param eventName the name of the network partition event to be added
-         * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
-         * @return the current builder instance
-         */
-        public Builder removeNetworkPartition(String eventName, NetPart netPart) {
-            return withNetworkPartitionEvent(eventName)
-                    .scheme(netPart).removePartition().and();
-        }
-
-        /**
-         * Returns a clock drift event builder to define a new clock drift event object in the deployment definition
-         * @param name of the event
-         * @return a new clock drift event builder object initialized with the given name
-         */
-        public ClockDriftEvent.Builder withClockDriftEvent(String name) {
-            return new ClockDriftEvent.Builder(this, name);
-        }
-
-        /**
-         * Returns a clock drift event builder to change an existing clock drift event object in the deployment
-         * definition with the given event name
-         * @return A clock drift event builder instance already initialized with an existing clock drift event object
-         * in the deployment definition
-         * @throws DeploymentEntityNotFound if a clock drift event object with the given name is not present in the
-         * deployment definition
-         */
-        public ClockDriftEvent.Builder clockDriftEvent(String eventName) {
-            if (!externalEvents.containsKey(eventName) || !(externalEvents.get(eventName) instanceof ClockDriftEvent)) {
-                throw new DeploymentEntityNotFound(eventName, "ClockDriftEvent");
-            }
-            return new ClockDriftEvent.Builder(this,
-                    (ClockDriftEvent) externalEvents.get(eventName));
-        }
-
-        /**
-         * Adds a clock drift event or changes an existing definition of a clock drift event with the same name in
-         * the deployment definition
-         * @param clockDriftEvent definition to be added to the deployment
-         * @return the current builder instance
-         */
-        public Builder clockDriftEvent(ClockDriftEvent clockDriftEvent) {
-            if (externalEvents.containsKey(clockDriftEvent.getName())) {
-                logger.warn("The clock drift event " + clockDriftEvent.getName()
-                        + " is being redefined in the deployment definition!");
-            }
-            externalEvents.put(clockDriftEvent.getName(), clockDriftEvent);
-            return this;
-        }
-
-        /**
-         * A shortcut method to add a clock drift event to the deployment definition
-         * @param eventName the name of the clock drift event to be added
-         * @param nodeName the name of the node to apply the clock drift on
-         * @param amount the positive or negative amount of time offset to be applied on the node
-         * @return the current builder instance
-         */
-        public Builder clockDrift(String eventName, String nodeName, Integer amount) {
-            return withClockDriftEvent(eventName)
-                    .nodeName(nodeName)
-                    .amount(amount).and();
         }
 
         /**

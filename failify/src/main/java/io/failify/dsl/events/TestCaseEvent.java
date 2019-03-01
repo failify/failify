@@ -27,11 +27,11 @@ package io.failify.dsl.events;
 import io.failify.dsl.ReferableDeploymentEntity;
 
 /**
- * This class represents workload entities to be referred to in the run sequence. These entities only need names as
- * they will be enforced by the test case itself
+ * This class represents events than can be enforced from the test case and can be referred to be referred to in the run
+ * sequence.
  */
-public class WorkloadEvent extends ReferableDeploymentEntity {
-    public WorkloadEvent(String name) {
+public class TestCaseEvent extends ReferableDeploymentEntity {
+    public TestCaseEvent(String name) {
         super(name);
     }
 }

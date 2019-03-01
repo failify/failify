@@ -48,7 +48,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * This class is the main point of contact for all the test cases. Given a deployment definition this class deploys the
- * system into the desired runtime engine. Then, it is possible to enforce workload events through this class or manipulate
+ * system into the desired runtime engine. Then, it is possible to enforce test case events through this class or manipulate
  * the deployed environment through calling runtime() method and getting access to the runtime engine
  */
 public class FailifyRunner {
@@ -58,7 +58,6 @@ public class FailifyRunner {
     private final List<DeploymentVerifier> verifiers;
     private RuntimeEngine runtimeEngine;
     private List<InstrumentationEngine> instrumentationEngines;
-    private Exception externalEventException;
 
     /**
      * Constructor
@@ -78,18 +77,6 @@ public class FailifyRunner {
 
         // Add the default instrumentation engine
         instrumentationEngines.add(new RunSequenceInstrumentationEngine());
-    }
-
-    public void setExternalEventException(Exception externalEventException) {
-        if (externalEventException != null) {
-            this.externalEventException = externalEventException;
-        }
-    }
-
-    public void checkExternalEventException() {
-        if (externalEventException != null) {
-            throw new RuntimeException("An error happened while executing an external event", externalEventException);
-        }
     }
 
     /**
@@ -184,8 +171,6 @@ public class FailifyRunner {
 
         Integer originalTimeout = timeout;
         while (!isStopped() && (timeout == null || timeout > 0)) {
-            // If an error has happens in execution of one of the external events, this fails the test case
-            checkExternalEventException();
 
             if (EventService.getInstance().isTheRunSequenceCompleted()) {
                 logger.info("The run sequence is completed!");
@@ -227,8 +212,6 @@ public class FailifyRunner {
      * @return an interface to manipulate the deployed environment in the test cases
      */
     public LimitedRuntimeEngine runtime() {
-        // If an error has happened in execution of one of the external events, this fails the test case
-        checkExternalEventException();
         return runtimeEngine;
     }
 
