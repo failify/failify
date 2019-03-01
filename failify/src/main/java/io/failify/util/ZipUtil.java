@@ -24,7 +24,8 @@
 
 package io.failify.util;
 
-import io.failify.exceptions.OsNotSupportedException;
+import net.lingala.zip4j.core.ZipFile;
+import net.lingala.zip4j.exception.ZipException;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -32,13 +33,13 @@ import java.nio.file.Paths;
 
 public class ZipUtil {
 
-    public static void unzip(String src, String dest) throws IOException, InterruptedException, OsNotSupportedException {
-        // TODO this should also support windows
-        if (OsUtil.getOS() == OsUtil.OS.LINUX || OsUtil.getOS() == OsUtil.OS.MAC) {
+    public static void unzip(String src, String dest) throws IOException, InterruptedException, ZipException {
+        if (OsUtil.getOS() == null || OsUtil.getOS() == OsUtil.OS.WINDOWS) {
+            ZipFile zipFile = new ZipFile(src);
+            zipFile.extractAll(dest);
+        } else {
             Files.createDirectories(Paths.get(dest));
             Runtime.getRuntime().exec("unzip -uqq " + src + " -d " + dest).waitFor();
-        } else {
-            throw new OsNotSupportedException(OsUtil.getOS(), "zip");
         }
     }
 }

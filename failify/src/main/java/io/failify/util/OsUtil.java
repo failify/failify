@@ -24,14 +24,9 @@
 
 package io.failify.util;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.stream.Stream;
-
 public class OsUtil {
     public enum OS {
-        WINDOWS, LINUX, MAC, SOLARIS
+        WINDOWS, LINUX, MAC, SOLARIS, FREEBSD
     }
 
     private static OS os = null;
@@ -48,6 +43,10 @@ public class OsUtil {
                 os = OS.MAC;
             } else if (operSys.contains("sunos")) {
                 os = OS.SOLARIS;
+            } else if (operSys.contains("freebsd")) {
+                os = OS.FREEBSD;
+            }else {
+                return null;
             }
         }
         return os;

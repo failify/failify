@@ -31,8 +31,8 @@ import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.Node;
 import io.failify.dsl.entities.PathEntry;
 import io.failify.dsl.entities.Service;
-import io.failify.exceptions.OsNotSupportedException;
 import io.failify.exceptions.WorkspaceException;
+import net.lingala.zip4j.exception.ZipException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,10 +149,8 @@ public class WorkspaceManager {
 
                         try {
                             ZipUtil.unzip(pathEntry.getPath(), targetDir.toString());
-                        } catch (InterruptedException | IOException e) {
+                        } catch (InterruptedException | IOException | ZipException e) {
                             throw new WorkspaceException("Error while unzipping " + pathEntry.getPath(), e);
-                        } catch (OsNotSupportedException e) {
-                            throw new WorkspaceException(e.getMessage(), e);
                         }
                         retMap.get(service.getName()).put(pathEntry.getPath(), targetDir.toString());
                     } else {

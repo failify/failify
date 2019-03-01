@@ -2,7 +2,7 @@
 
 [![Javadocs](https://www.javadoc.io/badge/io.failify/failify.svg)](https://www.javadoc.io/doc/io.failify/failify) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Maven Central](https://img.shields.io/maven-central/v/io.failify/failify.svg)](http://search.maven.org/#search%7Cgav%7C1%7Cg%3A%22io.failify%22%20AND%20a%3A%22failify%22)
 
-Failify is a new test framework for end-to-end testing of distributed systems. It can be used to deterministically inject failures during a normal test case execution. Currently, node failure, network partition, and clock drift is supported. For a few supported languages, it is possible to enforce a specific order between nodes in order to reproduce a specific time-sensitive scenario and inject failures before or after a specific method is called when a specific stack trace is present. For more information, please refer to the documentation
+Failify is a test framework for end-to-end testing of distributed systems. It can be used to deterministically inject failures during a normal test case execution. Currently, node failure, network partition, and clock drift is supported. For a few supported languages, it is possible to enforce a specific order between nodes in order to reproduce a specific time-sensitive scenario and inject failures before or after a specific method is called when a specific stack trace is present. For more information, please refer to the documentation
 
 # Questions
 
