@@ -17,7 +17,9 @@ out/
 log/
 target/
 
-.SpiderSilk*
-.spidersilk*
+.Failify*
+.failify*
+
+docs/_build
 
 dependency-reduced-pom.xml

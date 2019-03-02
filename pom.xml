@@ -29,16 +29,16 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>me.arminb.spidersilk</groupId>
-    <artifactId>spidersilk-parent</artifactId>
-    <version>0.4.0</version>
+    <groupId>io.failify</groupId>
+    <artifactId>failify-parent</artifactId>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
-    <name>SpiderSilk parent POM</name>
-    <description>Parent POM for SpiderSilk testing library</description>
-    <url>https://github.com/arminbalalaie/SpiderSilk</url>
+    <name>Failify parent POM</name>
+    <description>Parent POM for Failify testing library</description>
+    <url>https://github.com/failify/failify</url>
 
     <issueManagement>
-        <url>https://github.com/arminbalalaie/SpiderSilk/issues</url>
+        <url>https://github.com/failify/failify/issues</url>
         <system>GitHub Issues</system>
     </issueManagement>
 
@@ -51,9 +51,9 @@
     </licenses>
 
     <scm>
-        <url>https://github.com/arminbalalaie/SpiderSilk</url>
-        <connection>scm:git:git@github.com/arminbalalaie/SpiderSilk.git</connection>
-        <developerConnection>scm:git:ssh://github.com:arminbalalaie/SpiderSilk.git</developerConnection>
+        <url>https://github.com/failify/failify</url>
+        <connection>scm:git:git@github.com/failify/failify.git</connection>
+        <developerConnection>scm:git:ssh://github.com:failify/failify.git</developerConnection>
     </scm>
 
     <developers>
@@ -86,8 +86,8 @@
     </dependencies>
 
     <modules>
-        <module>spidersilkrt</module>
-        <module>spidersilk</module>
+        <module>failifyrt</module>
+        <module>failify</module>
         <module>sample-multithread</module>
     </modules>
 
