@@ -44,7 +44,6 @@ for child in root:
 extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.extlinks',
-    'javasphinx'
 ]
 
 extlinks = {'javadoc': ('https://static.javadoc.io/io.failify/failify/' + version + '%s',
