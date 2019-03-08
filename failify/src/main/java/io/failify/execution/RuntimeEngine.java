@@ -47,7 +47,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected final Deployment deployment;
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
-    protected final NetworkManager networkManager;
+    protected final NetworkPartitionManager networkPartitionManager;
+    protected final NetworkOperationManager networkOperationManager;
     private FailifyRunner failifyRunner;
 
     public RuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
@@ -55,7 +56,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         this.deployment = deployment;
         this.nodeWorkspaceMap = nodeWorkspaceMap;
         eventServer = new EventServer();
-        networkManager = new NetworkManager(this);
+        networkPartitionManager = new NetworkPartitionManager(this);
+        networkOperationManager = new NetworkOperationManager(this);
         EventService.initialize(deployment);
     }
 
@@ -271,12 +273,19 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
 
     @Override
     public void networkPartition(NetPart netPart) throws RuntimeEngineException {
-        networkManager.networkPartition(netPart);
+        networkPartitionManager.networkPartition(netPart);
     }
 
     @Override
     public void removeNetworkPartition(NetPart netPart) throws RuntimeEngineException {
-        networkManager.removeNetworkPartition(netPart);
+        networkPartitionManager.removeNetworkPartition(netPart);
+    }
+
+    @Override
+    public void networkOperation(String nodeName, NetOp.BuilderBase... netOpBuilders) throws RuntimeEngineException {
+        for (NetOp.BuilderBase netOpBuilder: netOpBuilders) {
+            networkOperationManager.networkOperation(nodeName, netOpBuilder.build());
+        }
     }
 
     /**

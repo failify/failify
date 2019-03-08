@@ -8,9 +8,10 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class NetworkManager {
+public class NetworkPartitionManager {
 
-    private final static Logger logger = LoggerFactory.getLogger(NetworkManager.class);
+    private final static Logger logger = LoggerFactory.getLogger(NetworkPartitionManager.class);
+    private final Object synchronizer;
 
     enum IpTablesCommand {
         APPEND("A"),
@@ -30,9 +31,10 @@ public class NetworkManager {
     private final LimitedRuntimeEngine runtimeEngine;
     private Map<String, Map<String, Integer>> blockedNodesMap;
 
-    public NetworkManager(LimitedRuntimeEngine runtimeEngine) {
+    public NetworkPartitionManager(LimitedRuntimeEngine runtimeEngine) {
         this.runtimeEngine = runtimeEngine;
         blockedNodesMap = new HashMap<>();
+        synchronizer = new Object();
 
         // initializes blocked nodes for each node
         for (String nodeName: runtimeEngine.nodeNames()) {
@@ -62,12 +64,16 @@ public class NetworkManager {
 
     public void networkPartition(NetPart netPart) throws RuntimeEngineException {
         logger.info("Applying network partition {} ...", netPart.getPartitionsString());
-        networkPartitionOpetation(netPart, false);
+        synchronized (synchronizer) {
+            networkPartitionOpetation(netPart, false);
+        }
     }
 
     public void removeNetworkPartition(NetPart netPart) throws RuntimeEngineException {
         logger.info("Removing network partition {} ...", netPart.getPartitionsString());
-        networkPartitionOpetation(netPart, true);
+        synchronized (synchronizer) {
+            networkPartitionOpetation(netPart, true);
+        }
     }
 
     private void networkPartitionOpetation(NetPart netPart, boolean removePartition)
@@ -153,7 +159,7 @@ public class NetworkManager {
     }
 
     // This is useful when start/restarting a node when a network partition is in place
-    public void reApplyIptablesRules(String nodeName) throws RuntimeEngineException {
+    public void reApplyNetworkPartition(String nodeName) throws RuntimeEngineException {
         if (!blockedNodesMap.get(nodeName).isEmpty()) {
             executeIpTablesBlockCommand(IpTablesCommand.APPEND, nodeName, blockedNodesMap.get(nodeName).keySet());
         }
@@ -176,8 +182,9 @@ public class NetworkManager {
         try {
             CommandResults commandResults = runtimeEngine.runCommandInNode(host, outputCommand);
             if (commandResults.exitCode() != 0) {
-                throw new RuntimeEngineException("Error while adding iptables rules to node " + host + "! command: " + outputCommand + "exit code: " +
-                        commandResults.exitCode() + " out: " + commandResults.stdOut() + " err: " + commandResults.stdErr());
+                throw new RuntimeEngineException("Error while adding iptables rules to node " + host + "! command: "
+                        + outputCommand + " exit code: " + commandResults.exitCode() + " out: "
+                        + commandResults.stdOut() + " err: " + commandResults.stdErr());
             }
         } catch (NodeIsNotRunningException e) {
             logger.debug("Cannot apply network blockage rules on node {} because it is not running", host);

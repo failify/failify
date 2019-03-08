@@ -183,7 +183,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         LogStream logStream;
         try {
             execCreation = dockerClient.execCreate(nodeToContainerInfoMap.get(nodeName).containerId(),
-                    command.split("\\s+"), DockerClient.ExecCreateParam.attachStdin(),
+                    new String[] { "sh", "-c", command }, DockerClient.ExecCreateParam.attachStdin(),
                     DockerClient.ExecCreateParam.attachStdout(), DockerClient.ExecCreateParam.attachStderr());
             logStream = dockerClient.execStart(execCreation.id());
         } catch (InterruptedException e) {
@@ -592,7 +592,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
             try {
                 dockerClient.startContainer(containerId);
-                networkManager.reApplyIptablesRules(nodeName);
+                networkOperationManager.reApplyNetworkOperations(nodeName);
+                networkPartitionManager.reApplyNetworkPartition(nodeName);
             } catch (InterruptedException | DockerException e) {
                 throw new RuntimeEngineException("Error while trying to start the container for node " + nodeName + "!", e);
             }
@@ -632,7 +633,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                     }
                 }
                 dockerClient.restartContainer(nodeToContainerInfoMap.get(nodeName).containerId());
-                networkManager.reApplyIptablesRules(nodeName);
+                networkOperationManager.reApplyNetworkOperations(nodeName);
+                networkPartitionManager.reApplyNetworkPartition(nodeName);
                 updateContainerPortMapping(nodeName);
                 logger.info("Node {} is restarted!", nodeName);
             } catch (InterruptedException | DockerException e) {
@@ -644,7 +646,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     @Override
-    public void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException {
+    public synchronized void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException {
         if (!nodeToContainerInfoMap.containsKey(nodeName)) {
             throw new NodeNotFoundException(nodeName);
         }

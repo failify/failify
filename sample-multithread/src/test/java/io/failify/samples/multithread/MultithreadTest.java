@@ -29,6 +29,7 @@ import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.ServiceType;
 import io.failify.exceptions.DeploymentVerificationException;
 import io.failify.exceptions.RuntimeEngineException;
+import io.failify.execution.NetOp;
 import io.failify.execution.NetPart;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -81,6 +82,8 @@ public class MultithreadTest {
         runner.runtime().networkPartition(netPart2);
         // Imposing 10 secs of clock drift in node n1
         runner.runtime().clockDrift("n1", -10000);
+        // Applying network delay and loss on node n2 before restarting it
+        runner.runtime().networkOperation("n2", NetOp.delay(50).jitter(10), NetOp.loss(30));
         // removing the first network partition and restarting node n2
         runner.runtime().enforceOrder("x2", 10, () -> {
             runner.runtime().removeNetworkPartition(netPart1);
@@ -88,6 +91,10 @@ public class MultithreadTest {
         });
         // removing the second network partition
         runner.runtime().removeNetworkPartition(netPart2);
+        // Applying different kinds of network operations in different orders
+        runner.runtime().networkOperation("n1", NetOp.delay(100).jitter(10), NetOp.loss(30),
+                NetOp.removeDelay(), NetOp.delay(10).jitter(4), NetOp.removeLoss(),
+                NetOp.removeDelay(), NetOp.loss(20), NetOp.removeLoss());
         // Waiting for the run sequence to be completed
         runner.waitForRunSequenceCompletion(60, 20, true);
     }

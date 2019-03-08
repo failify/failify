@@ -81,7 +81,7 @@ public interface LimitedRuntimeEngine {
 
     /**
      * Imposes a network partition based on the given partition scheme in the deployed environment
-     * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
+     * @param netPart the desired scheme for the partition. Take a look at {@link NetPart} class for more information
      * @throws RuntimeEngineException if something goes wrong
      * @throws NodeNotFoundException if one of partitions includes a node that doesn't exist
      */
@@ -89,10 +89,20 @@ public interface LimitedRuntimeEngine {
 
     /**
      * Removes a network partition based on the given partition scheme in the deployed environment
-     * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
+     * @param netPart the desired scheme for the partition. Take a look at {@link NetPart} class for more information
      * @throws RuntimeEngineException if something goes wrong
      * @throws NodeNotFoundException if one of partitions includes a node that doesn't exist
      */
+
+    /**
+     * Applies a network operation including network delay and loss addition and removal on a node
+     * @param netOpBuilder the specifics of the network operation. Take a look a {@link NetOp} class for more information.
+     *                     {@link NetOp} static methods should be used to create objects of this type.
+     * @param nodeName the node to apply the network operation on
+     * @throws RuntimeEngineException if something goes wrong
+     */
+    void networkOperation(String nodeName, NetOp.BuilderBase... netOpBuilder) throws RuntimeEngineException;
+
     void removeNetworkPartition(NetPart netPart) throws RuntimeEngineException;
 
     /**
