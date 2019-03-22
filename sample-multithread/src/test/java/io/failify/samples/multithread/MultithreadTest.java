@@ -74,7 +74,7 @@ public class MultithreadTest {
 
         FailifyRunner runner = FailifyRunner.run(deployment);
         // Starting node n2
-        runner.runtime().enforceOrder("x1",10, () -> runner.runtime().startNode("n2"));
+        runner.runtime().enforceOrder("x1",15, () -> runner.runtime().startNode("n2"));
         // Imposing overlapping network partitions
         NetPart netPart1 = NetPart.partitions("n1","n2").connect(1, NetPart.REST, false).build();
         NetPart netPart2 = NetPart.partitions("n1","n2,n3").connect(1, NetPart.REST).build();

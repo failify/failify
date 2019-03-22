@@ -56,8 +56,6 @@ public class Failify {
                     System.getenv("FAILIFY_EVENT_SERVER_PORT_NUMBER"));
         }
 
-        instance.initializeAllowBlocking();
-
         return instance;
     }
 
@@ -70,7 +68,7 @@ public class Failify {
         this.hostname = hostname;
         this.port = port;
         this.stackMatcher = new StackMatcher();
-        this.allowBlocking = new ThreadLocal<>();
+        this.allowBlocking = ThreadLocal.withInitial(() -> true);
     }
 
     /**
@@ -81,17 +79,6 @@ public class Failify {
     public static void configure(String hostname, String port) {
         if (instance == null) {
             instance = new Failify(hostname, port);
-        }
-
-        instance.initializeAllowBlocking();
-    }
-
-    /**
-     * this method initializes the thread local allow blocking attribute so each thread is allowed to block for the first time
-     */
-    private void initializeAllowBlocking() {
-        if (allowBlocking.get() == null) {
-            allowBlocking.set(true);
         }
     }
 
@@ -252,10 +239,10 @@ public class Failify {
                 if (connection.getResponseCode() == 200) {
                     break;
                 }
-                Thread.sleep(5);
+                Thread.sleep(10);
 
                 if (timeout != null) {
-                    timeout -= 5;
+                    timeout -= 10;
                 }
             } catch (MalformedURLException e) {
                 e.printStackTrace();

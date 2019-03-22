@@ -68,13 +68,22 @@ Creating a Dockerfile
 
 Next, you need to create a Dockerfile for your application and that Dockerfile should add any dependency that may be
 needed by your application. In case you want to use the network partition capability
-of |projectName|, you need to install ``iptables`` package as well. Network delay and loss will also need the ``iproute`` package to be installed. Here, we assume the application under test is written in Java.
+of |projectName|, you need to install ``iptables`` package as well. Network delay and loss will also need the ``iproute``
+package to be installed. Here, we assume the application under test is written in Java.
 So, we create a Dockerfile in the ``docker/Dockerfile`` address with the following content:
 
 .. code-block:: docker
 
     FROM java:8-jre
     RUN apt update && apt install -y iptables iproute
+
+.. important::
+
+    In case you are using Docker Toolbox (and consequently boot2docker) on Windows or Mac, be aware that the customized
+    Tiny Core Linux created for the boot2docker misses ``sched_netem`` kernel module which is included in most of the
+    linux distributions and is needed for ``tc`` command in the ``iproute`` package to work. So, unless you manually add
+    that kernel module to the installed virtual machine by Docker Toolbox, you won't be able to use the network operation
+    capabilities of |projectName|.
 
 Adding a Test Case
 ==================

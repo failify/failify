@@ -12,7 +12,7 @@ public class NetworkOperationManager {
     private final Map<String, NetOp.Delay> netDelayMap;
     private final Map<String, NetOp.Loss> netLossMap;
     private final LimitedRuntimeEngine runtimeEngine;
-    private final static String IFACE_LIST_COMMAND = "ip -o link | sed 's/[0-9]*: \\([a-z0-9@\\-]*\\):.*/\\1/; s/@.*//;"
+    private final static String IFACE_LIST_COMMAND = "ip -o link | sed 's/[0-9]*: \\([A-Za-z0-9@\\-]*\\):.*/\\1/; s/@.*//;"
             + " /^\\(lo\\|\\)$/d'";
 
     public NetworkOperationManager(LimitedRuntimeEngine runtimeEngine) {
@@ -84,7 +84,7 @@ public class NetworkOperationManager {
 
         command += "'";
 
-        logger.info("Applying network operation " + netOp);
+        logger.info("Applying network operation " + netOp + " on node " + nodeName);
 
         CommandResults commandResults = runtimeEngine.runCommandInNode(nodeName, command);
         if (commandResults.exitCode() != 0) {
