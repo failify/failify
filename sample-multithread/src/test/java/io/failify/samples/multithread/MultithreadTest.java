@@ -96,6 +96,6 @@ public class MultithreadTest {
                 NetOp.removeDelay(), NetOp.delay(10).jitter(4), NetOp.removeLoss(),
                 NetOp.removeDelay(), NetOp.loss(20), NetOp.removeLoss());
         // Waiting for the run sequence to be completed
-        runner.waitForRunSequenceCompletion(60, 20, true);
+        runner.runtime().waitForRunSequenceCompletion(60, 20);
     }
 }

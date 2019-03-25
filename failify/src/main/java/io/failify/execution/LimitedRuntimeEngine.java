@@ -200,4 +200,31 @@ public interface LimitedRuntimeEngine {
      */
     void enforceOrder(String eventName, Integer timeout, FailifyCheckedRunnable action)
             throws RuntimeEngineException, TimeoutException;
+
+    /**
+     * This method waits indefinitely for the run sequence to be enforced completely, and then returns.
+     * @throws TimeoutException if either type of timeout happens
+     */
+    void waitForRunSequenceCompletion() throws TimeoutException;
+
+    /**
+     * This method waits for the run sequence to be enforced completely, and then returns. If timeout param is not null,
+     * after waiting for the expected amount the method throws an exception.
+     * @param timeout the waiting timeout in seconds
+     * @throws TimeoutException if either type of timeout happens
+     */
+    void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException;
+
+    /**
+     * This method waits for the run sequence to be enforced completely, and then returns.
+     * If desired it is possible to specify two different types of timeout for this method. If timeout param is not null,
+     * after waiting for the expected amount the method throws an exception. If nextEventReceiptTimeout is not null, if
+     * after the expected amount of time no new event is marked as satisfied in the event server, this method throws an
+     * exception
+     * @param timeout the waiting timeout in seconds
+     * @param nextEventReceiptTimeout the number of seconds to wait until timeout the receipt of the next event in the
+     *                                run sequence
+     * @throws TimeoutException if either type of timeout happens
+     */
+    void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout) throws TimeoutException;
 }

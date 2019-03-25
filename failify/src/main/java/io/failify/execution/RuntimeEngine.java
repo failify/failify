@@ -50,15 +50,17 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     protected final NetworkPartitionManager networkPartitionManager;
     protected final NetworkOperationManager networkOperationManager;
     private FailifyRunner failifyRunner;
+    private EventService eventService;
+    private Failify failifyClient;
 
     public RuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.stopped = true;
         this.deployment = deployment;
         this.nodeWorkspaceMap = nodeWorkspaceMap;
-        eventServer = new EventServer();
+        eventService = new EventService(deployment);
+        eventServer = new EventServer(eventService);
         networkPartitionManager = new NetworkPartitionManager(this);
         networkOperationManager = new NetworkOperationManager(this);
-        EventService.initialize(deployment);
     }
 
     // TODO this method should use an external configuration to detect the proper runtime engine and its corresponding configs
@@ -92,7 +94,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         startEventServer();
 
         // Configure local Failify runtime
-        Failify.configure("127.0.0.1", String.valueOf(eventServer.getPortNumber()));
+        failifyClient = new Failify("127.0.0.1", String.valueOf(eventServer.getPortNumber()));
 
         try {
             logger.info("Starting nodes ...");
@@ -223,7 +225,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Waiting for event {} ...", eventName);
             try {
-                Failify.getInstance().blockAndPoll(eventName, includeEvent, timeout);
+                failifyClient.blockAndPoll(eventName, includeEvent, timeout);
             } catch (TimeoutException e) {
                 throw e;
             } catch (Exception e) {
@@ -238,8 +240,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private void sendEvent(String eventName) throws RuntimeEngineException {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Sending test case event {} ...", eventName);
-            Failify.getInstance().allowBlocking();
-            Failify.getInstance().enforceOrder(eventName, null);
+            failifyClient.allowBlocking();
+            failifyClient.enforceOrder(eventName, null);
         } else {
             throw new RuntimeEngineException("Event " + eventName + " is not referred to" +
                     " in the run sequence. Thus, its order cannot be sent from the test case!");
@@ -269,6 +271,47 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
             action.run();
         }
         sendEvent(eventName);
+    }
+
+    public void waitForRunSequenceCompletion() throws TimeoutException {
+        waitForRunSequenceCompletion(null,null);
+    }
+
+    public void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException {
+        waitForRunSequenceCompletion(timeout,null);
+    }
+
+    public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout)
+            throws TimeoutException {
+
+        Integer originalTimeout = timeout;
+        while (!isStopped() && (timeout == null || timeout > 0)) {
+
+            if (eventService.isTheRunSequenceCompleted()) {
+                logger.info("The run sequence is completed!");
+                return;
+            }
+
+            if (deployment.getRunSequence() != null && !deployment.getRunSequence().isEmpty() &&
+                    eventService.isLastEventReceivedTimeoutPassed(nextEventReceiptTimeout)) {
+                throw new TimeoutException("The timeout for receiving the next event (" + nextEventReceiptTimeout + " seconds) is passed!");
+            }
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // TODO is this the best thing to do ?
+                logger.warn("The run sequence completion wait sleep thread is interrupted");
+            }
+
+            if (timeout != null) {
+                timeout--;
+            }
+        }
+
+        if (timeout != null && timeout <= 0) {
+            throw new TimeoutException("The Wait timeout for run sequence completion (" + originalTimeout + " seconds) is passed!");
+        }
     }
 
     @Override

@@ -64,22 +64,11 @@ public class Failify {
      * @param hostname the hostname or ip address of the event server
      * @param port the port number for the event server
      */
-    private Failify(String hostname, String port) {
+    public Failify(String hostname, String port) {
         this.hostname = hostname;
         this.port = port;
         this.stackMatcher = new StackMatcher();
         this.allowBlocking = ThreadLocal.withInitial(() -> true);
-    }
-
-    /**
-     * This method initializes the Failify singleton instance with the given ip and port
-     * @param hostname the hostname or ip address of the event server
-     * @param port the port number for the event server
-     */
-    public static void configure(String hostname, String port) {
-        if (instance == null) {
-            instance = new Failify(hostname, port);
-        }
     }
 
     /**

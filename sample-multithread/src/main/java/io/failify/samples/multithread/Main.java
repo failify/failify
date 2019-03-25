@@ -33,11 +33,6 @@ import java.util.Date;
 import java.util.Random;
 
 public class Main {
-    private static Main instance;
-    public static Main getInstance() {
-        return instance;
-    }
-
     public static void main(String[] args) {
         new Main().start();
     }
