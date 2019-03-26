@@ -1,5 +1,6 @@
 package io.failify.execution;
 
+import io.failify.dsl.entities.Node;
 import io.failify.exceptions.NodeIsNotRunningException;
 import io.failify.exceptions.RuntimeEngineException;
 import org.slf4j.Logger;
@@ -124,6 +125,8 @@ public class NetworkPartitionManager {
         for (String node: originalList) {
             if (blockedNodesMap.get(host).getOrDefault(node, 0) - 1 == 0) {
                 finalList.add(node);
+            } else if (blockedNodesMap.get(host).getOrDefault(node, 0) <= 0) {
+                logger.warn("Node {} has no network blockage for node {} to be removed!", host, node);
             }
         }
 
@@ -154,8 +157,13 @@ public class NetworkPartitionManager {
                 }
             }
         } else {
-            logger.debug("Node {} has no network blockage to be removed!", host);
+            logger.warn("Node {} has no network blockage for nodes {} to be removed!", host, blockedNodes);
         }
+    }
+
+    // TODO this should add new iptables rules for already introduced network partitions
+    public void addNewNode(Node node) {
+        blockedNodesMap.put(node.getName(), new HashMap<>());
     }
 
     // This is useful when start/restarting a node when a network partition is in place

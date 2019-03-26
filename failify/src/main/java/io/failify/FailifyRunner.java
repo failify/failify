@@ -25,6 +25,7 @@
 
 package io.failify;
 
+import io.failify.dsl.entities.Node;
 import io.failify.verification.DeploymentVerifier;
 import io.failify.verification.InternalReferencesVerifier;
 import io.failify.verification.RunSequenceVerifier;
@@ -193,6 +194,12 @@ public class FailifyRunner {
             return true;
         }
         return runtimeEngine.isStopped();
+    }
+
+    public void addNode(Node.LimitedBuilder limitedBuilder) throws WorkspaceException, RuntimeEngineException {
+        Node node = limitedBuilder.build();
+        NodeWorkspace nodeWorkspace = workspaceManager.createNodeWorkspace(node);
+        runtimeEngine.addNewNode(node, nodeWorkspace);
     }
 }
 

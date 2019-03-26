@@ -111,10 +111,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
     }
 
-    private String getNodeContainerId(String nodeName) {
-        return nodeToContainerInfoMap.get(nodeName).containerId();
-    }
 
+    // TODO this method can be split up into fine-grained methods to be implemented by runtime engine children
     @Override
     protected void startNodes() throws RuntimeEngineException {
         // Creates the docker client
@@ -155,7 +153,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
 
         logger.info("Creating a container for each of the nodes ...");
-        for (Node node: deployment.getNodes().values()) {
+        for (Node node: nodeMap.values()) {
             // Creates a container for the node
             createNodeContainer(node);
             // Starts the container if it is not off on startup
@@ -169,9 +167,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         for (String nodeName: nodeToContainerInfoMap.keySet()) {
             logger.info("Node {} ip address is: {}", nodeName, nodeToContainerInfoMap.get(nodeName).ip());
         }
-
-        // We don't want any other change in this map later
-        nodeToContainerInfoMap = Collections.unmodifiableMap(nodeToContainerInfoMap);
     }
 
     public CommandResults runCommandInNode(String nodeName, String command) throws RuntimeEngineException {
@@ -278,7 +273,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // Disables offset caching for libfaketime
         environment.put("FAKETIME_NO_CACHE", "1");
         // Adds additional libfaketime config for java
-        if (deployment.getService(deployment.getNode(nodeName).getServiceName()).getServiceType() == ServiceType.JAVA) {
+        if (deployment.getService(nodeMap.get(nodeName).getServiceName()).getServiceType() == ServiceType.JAVA) {
             environment.put("DONT_FAKE_MONOTONIC", "1");
         }
         // Adds controller file config for libfaketime
@@ -300,7 +295,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     }
 
     // This should only work for linux containers
-    private void createNodeContainer(Node node) throws RuntimeEngineException {
+    @Override
+    protected void createNodeContainer(Node node) throws RuntimeEngineException {
         // TODO Add Tini init to avoid zombie processes
         Service nodeService = deployment.getService(node.getServiceName());
         NodeWorkspace nodeWorkspace = nodeWorkspaceMap.get(node.getName());

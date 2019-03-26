@@ -48,6 +48,9 @@ public class WorkspaceManager {
 
     private final Deployment deployment;
     private final Path workingDirectory;
+    private Map<String, String> fakeTimePathMap;
+    private Map<String, Map<String, String>> serviceToMapOfCompressedToDecompressedMap;
+    private Map<String, String> sharedDirectoriesMap;
 
     public WorkspaceManager(Deployment deployment) {
         this(deployment, Constants.DEFAULT_WORKING_DIRECTORY_NAME);
@@ -60,11 +63,7 @@ public class WorkspaceManager {
                 simpleDateFormat.format(new Date())).toAbsolutePath().normalize();
     }
 
-    public Path getWorkingDirectory() {
-        return workingDirectory;
-    }
-
-    public Map<String, NodeWorkspace> createWorkspace(Deployment deployment) throws WorkspaceException {
+    public Map<String, NodeWorkspace> createWorkspace() throws WorkspaceException {
         Map<String, NodeWorkspace> retMap = new HashMap<>();
 
         // Creates the working directory
@@ -76,19 +75,17 @@ public class WorkspaceManager {
         }
 
         // Creates the shared directories
-        Map<String, String> sharedDirectoriesMap = createSharedDirectories();
+        sharedDirectoriesMap = createSharedDirectories();
 
         // Decompress compressed application paths in services
-        Map<String, Map<String, String>> serviceToMapOfCompressedToDecompressedMap = decompressCompressedApplicationPaths();
+        serviceToMapOfCompressedToDecompressedMap = decompressCompressedApplicationPaths();
 
         // Copies over libfaketime binaries to the working directory
-        Map<String, String> fakeTimePathMap = copyOverLibFakeTime(workingDirectory);
+        fakeTimePathMap = copyOverLibFakeTime(workingDirectory);
 
         // Creates the nodes' workspaces
         for (Node node: deployment.getNodes().values()) {
-            logger.info("Creating workspace for node {}", node.getName());
-            retMap.put(node.getName(), createNodeWorkspace(node, sharedDirectoriesMap,
-                    serviceToMapOfCompressedToDecompressedMap.get(node.getServiceName()), fakeTimePathMap));
+            retMap.put(node.getName(), createNodeWorkspace(node));
         }
 
         return Collections.unmodifiableMap(retMap);
@@ -163,9 +160,13 @@ public class WorkspaceManager {
         return retMap;
     }
 
-    private NodeWorkspace createNodeWorkspace(Node node, Map<String, String> sharedDirectoriesMap
-            , Map<String, String> compressedToDecompressedMap, Map<String,String> fakeTimePathMap)
+    // TODO should this be public?
+    public NodeWorkspace createNodeWorkspace(Node node)
             throws WorkspaceException {
+        logger.info("Creating workspace for node {}", node.getName());
+
+        Map<String, String> compressedToDecompressedMap = serviceToMapOfCompressedToDecompressedMap.get(node.getServiceName());
+
         // Creates the node's working directory
         Path nodeWorkingDirectory = workingDirectory.resolve(node.getName());
         try {

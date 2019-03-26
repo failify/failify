@@ -26,9 +26,11 @@ package io.failify.samples.multithread;
 
 import io.failify.FailifyRunner;
 import io.failify.dsl.entities.Deployment;
+import io.failify.dsl.entities.Node;
 import io.failify.dsl.entities.ServiceType;
 import io.failify.exceptions.DeploymentVerificationException;
 import io.failify.exceptions.RuntimeEngineException;
+import io.failify.exceptions.WorkspaceException;
 import io.failify.execution.NetOp;
 import io.failify.execution.NetPart;
 import org.junit.Test;
@@ -41,7 +43,7 @@ public class MultithreadTest {
     public static final Logger logger = LoggerFactory.getLogger(MultithreadTest.class);
 
     @Test
-    public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException, TimeoutException {
+    public void simpleDefinition() throws DeploymentVerificationException, RuntimeEngineException, TimeoutException, WorkspaceException {
         Deployment deployment = Deployment.builder("sample-multithread")
                 // Service Definitions
                 .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
@@ -64,7 +66,6 @@ public class MultithreadTest {
                 .withNode("n2", "s1").offOnStartup().and()
                 .withNode("n3", "s1").and()
                 .withNode("n4", "s1").and()
-                .withNode("n5", "s1").and()
                 // Test Case Events
                 .testCaseEvents("x1", "x2")
                 // Run Sequence Definition
@@ -75,6 +76,8 @@ public class MultithreadTest {
         FailifyRunner runner = FailifyRunner.run(deployment);
         // Starting node n2
         runner.runtime().enforceOrder("x1",15, () -> runner.runtime().startNode("n2"));
+        // Adding new nodes to the deployed environment
+        runner.addNode(Node.limitedBuilder("n5", "s1"));
         // Imposing overlapping network partitions
         NetPart netPart1 = NetPart.partitions("n1","n2").connect(1, NetPart.REST, false).build();
         NetPart netPart2 = NetPart.partitions("n1","n2,n3").connect(1, NetPart.REST).build();

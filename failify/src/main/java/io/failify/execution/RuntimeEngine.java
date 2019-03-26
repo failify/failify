@@ -45,6 +45,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private final static Logger logger = LoggerFactory.getLogger(RuntimeEngine.class);
     private final EventServer eventServer;
     protected final Deployment deployment;
+    protected Map<String, Node> nodeMap;
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
     protected final NetworkPartitionManager networkPartitionManager;
@@ -56,7 +57,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     public RuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.stopped = true;
         this.deployment = deployment;
-        this.nodeWorkspaceMap = nodeWorkspaceMap;
+        nodeMap = new HashMap<>(deployment.getNodes());
+        this.nodeWorkspaceMap = new HashMap<>(nodeWorkspaceMap);
         eventService = new EventService(deployment);
         eventServer = new EventServer(eventService);
         networkPartitionManager = new NetworkPartitionManager(this);
@@ -70,7 +72,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     public Set<String> nodeNames() {
-        return new HashSet<>(deployment.getNodes().keySet());
+        return new HashSet<>(nodeMap.keySet());
     }
 
     public boolean isStopped() {
@@ -123,12 +125,20 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         stopped = true;
     }
 
+    public void addNewNode(Node node, NodeWorkspace nodeWorkspace) throws RuntimeEngineException {
+        nodeMap.put(node.getName(), node);
+        nodeWorkspaceMap.put(node.getName(), nodeWorkspace);
+        createNodeContainer(node);
+        networkPartitionManager.addNewNode(node);
+        startNode(node.getName());
+    }
+
     protected void stopEventServer() {
         eventServer.stop();
     }
 
     protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName, Map<String, String> environment) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         for (Map.Entry<String, String> entry: nodeService.getEnvironmentVariables().entrySet()) {
@@ -158,7 +168,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected Set<ExposedPortDefinition> getNodeExposedPorts(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         Set<ExposedPortDefinition> ports = new HashSet<>(nodeService.getExposedPorts());
@@ -167,7 +177,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected String getNodeInitCommand(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         if (node.getInitCommand() != null) {
@@ -177,7 +187,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected String getNodeStartCommand(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         if (node.getStartCommand() != null) {
@@ -187,7 +197,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected String getNodeStopCommand(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         if (node.getStopCommand() != null) {
@@ -346,6 +356,12 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      * @throws RuntimeEngineException if something goes wrong
      */
     protected abstract String getEventServerIpAddress() throws RuntimeEngineException;
+    /**
+     * This method should create a container based on the given node definition.
+     * @param node the node definition to create a container upon
+     * @throws RuntimeEngineException if something goes wrong
+     */
+    protected abstract void createNodeContainer(Node node) throws RuntimeEngineException;
     /**
      * This method should start all of the nodes. In case of a problem in startup of a node, all of the started nodes should be
      * stopped and a RuntimeEngine Exception should be thrown

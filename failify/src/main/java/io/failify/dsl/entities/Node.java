@@ -58,6 +58,10 @@ public class Node extends ReferableDeploymentEntity {
     private final Boolean offOnStartup; // the flag to start the node on start up or not
     private final Integer pathOrderCounter; // the counter to use for applying order to application paths
 
+    public static Node.LimitedBuilder limitedBuilder(String nodeName, String serviceName) {
+        return new Node.LimitedBuilder(nodeName, serviceName);
+    }
+
     /**
      * Private Constructor
      * @param builder the builder instance to use for creating the class instance
@@ -70,6 +74,26 @@ public class Node extends ReferableDeploymentEntity {
         stopCommand = builder.stopCommand;
         internalEvents = Collections.unmodifiableMap(builder.internalEvents);
         offOnStartup = builder.offOnStartup;
+        applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
+        exposedPorts = builder.exposedPorts;
+        environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
+        logFiles = Collections.unmodifiableSet(builder.logFiles);
+        logDirectories = builder.logDirectories;
+        pathOrderCounter = builder.pathOrderCounter;
+    }
+
+    /**
+     * Private Constructor
+     * @param builder the builder instance to use for creating the class instance
+     */
+    private Node(LimitedBuilder builder) {
+        super(builder.getName());
+        serviceName = builder.serviceName;
+        initCommand = builder.initCommand;
+        startCommand = builder.startCommand;
+        stopCommand = builder.stopCommand;
+        internalEvents = Collections.unmodifiableMap(new HashMap<>());
+        offOnStartup = false;
         applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
         exposedPorts = builder.exposedPorts;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
@@ -133,21 +157,202 @@ public class Node extends ReferableDeploymentEntity {
     /**
      * The builder class to build a node object
      */
-    public static class Builder extends BuilderBase<Node, Deployment.Builder> {
+    public static class LimitedBuilder extends BuilderBase<Node, Deployment.Builder> {
+        private static Logger logger = LoggerFactory.getLogger(LimitedBuilder.class);
+
+        protected Map<String, PathEntry> applicationPaths;
+        protected Set<ExposedPortDefinition> exposedPorts;
+        protected Map<String, String> environmentVariables;
+        protected Set<String> logFiles;
+        protected Set<String> logDirectories;
+        protected final String serviceName;
+        protected String initCommand;
+        protected String startCommand;
+        protected String stopCommand;
+        protected Integer pathOrderCounter;
+
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param name the name of the node to be built
+         * @param serviceName the service name for the node
+         */
+        protected LimitedBuilder(Deployment.Builder parentBuilder, String name, String serviceName) {
+            super(parentBuilder, name);
+
+            if (serviceName == null) {
+                throw new NullPointerException("Service name for node " + name + " cannot be null");
+            }
+
+            this.serviceName = serviceName;
+            applicationPaths = new HashMap<>();
+            exposedPorts = new HashSet<>();
+            environmentVariables = new HashMap<>();
+            logFiles = new HashSet<>();
+            logDirectories = new HashSet<>();
+            pathOrderCounter = 0;
+        }
+
+        /**
+         * Constructor
+         * @param name the name of the node to be built
+         * @param serviceName the service name for the node
+         */
+        public LimitedBuilder(String name, String serviceName) {
+            this(null, name, serviceName);
+        }
+
+        /**
+         * Constructor
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a node object instance to be changed
+         */
+        protected LimitedBuilder(Deployment.Builder parentBuilder, Node instance) {
+            super(parentBuilder, instance);
+            serviceName = new String(instance.serviceName);
+            initCommand = new String(instance.initCommand);
+            startCommand = new String(instance.startCommand);
+            stopCommand = new String(instance.stopCommand);
+            applicationPaths = new HashMap<>(instance.applicationPaths);
+            exposedPorts = new HashSet<>(instance.exposedPorts);
+            environmentVariables = new HashMap<>(instance.environmentVariables);
+            logFiles = new HashSet<>(instance.logFiles);
+            logDirectories = new HashSet<>(instance.logDirectories);
+            pathOrderCounter = new Integer(instance.pathOrderCounter);
+        }
+
+        /**
+         * Sets the init command for the node which will be executed only once
+         * @param initCommand the init command of the node
+         * @return the current builder instance
+         */
+        public LimitedBuilder initCommand(String initCommand) {
+            this.initCommand = initCommand;
+            return this;
+        }
+
+        /**
+         * Sets the start command for the node which will be executed when starting or restarting a node
+         * @param startCommand the start command of the node
+         * @return the current builder instance
+         */
+        public LimitedBuilder startCommand(String startCommand) {
+            this.startCommand = startCommand;
+            return this;
+        }
+
+        /**
+         * Sets the stop command for the node which will be executed when stopping or restarting a node
+         * @param stopCommand the stop command of the node
+         * @return the current builder instance
+         */
+        public LimitedBuilder stopCommand(String stopCommand) {
+            this.stopCommand = stopCommand;
+            return this;
+        }
+
+        /**
+         * Adds a not changing local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @return the current builder instance
+         */
+        public LimitedBuilder applicationPath(String path, String targetPath) {
+            applicationPath(path, targetPath, false);
+            return this;
+        }
+
+        /**
+         * Adds a local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
+         *                      each node
+         * @return the current builder instance
+         */
+        public LimitedBuilder applicationPath(String path, String targetPath, Boolean willBeChanged) {
+            this.applicationPaths.put(path, new PathEntry(
+                    path, targetPath, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
+            return this;
+        }
+
+        /**
+         * Adds an environment variable to the node
+         * @param name the name of the variable
+         * @param value the value of the variable
+         * @return the current builder instance
+         */
+        public LimitedBuilder environmentVariable(String name, String value) {
+            this.environmentVariables.put(name, value);
+            return this;
+        }
+
+        /**
+         * Adds a tcp port to be exposed by the node's container
+         * @param portNumber the tcp port number to be exposed by the node
+         * @return the current builder instance
+         */
+        public LimitedBuilder tcpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
+            }
+            return this;
+        }
+
+        /**
+         * Adds a udp port to be exposed by the node's container
+         * @param portNumber the udp port number to be exposed by the node
+         * @return the current builder instance
+         */
+        public LimitedBuilder udpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.UDP));
+            }
+            return this;
+        }
+
+        /**
+         * Adds an absolute target path in node's container to be collected as a log file into the node's local workspace
+         * @param path an absolute target log file path to be collected
+         * @return the current builder instance
+         */
+        public LimitedBuilder logFile(String path) {
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log file `" + path + "` path is not absolute!");
+            }
+            logFiles.add(FilenameUtils.normalizeNoEndSeparator(path, true));
+            return this;
+        }
+
+        /**
+         * Adds an absolute target path in node's container to be collected as a log directory into the node's local workspace
+         * @param path an absolute target log directory path to be collected
+         * @return the current builder instance
+         */
+        public LimitedBuilder logDirectory(String path) {
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
+            }
+            this.logDirectories.add(FilenameUtils.normalizeNoEndSeparator(path, true));
+            return this;
+        }
+
+        @Override
+        public Node build() {
+            return new Node(this);
+        }
+
+        @Override
+        protected void returnToParent(Node builtObj) {
+            parentBuilder.node(builtObj);
+        }
+    }
+
+    public static class Builder extends LimitedBuilder {
         private static Logger logger = LoggerFactory.getLogger(Builder.class);
 
-        private Map<String, PathEntry> applicationPaths;
-        private Set<ExposedPortDefinition> exposedPorts;
-        private Map<String, String> environmentVariables;
-        private Set<String> logFiles;
-        private Set<String> logDirectories;
-        private final String serviceName;
-        private String initCommand;
-        private String startCommand;
-        private String stopCommand;
         private Map<String, InternalEvent> internalEvents;
         private Boolean offOnStartup;
-        private Integer pathOrderCounter;
 
         /**
          * Constructor
@@ -156,16 +361,9 @@ public class Node extends ReferableDeploymentEntity {
          * @param serviceName the service name for the node
          */
         public Builder(Deployment.Builder parentBuilder, String name, String serviceName) {
-            super(parentBuilder, name);
-            this.serviceName = serviceName;
+            super(parentBuilder, name, serviceName);
             offOnStartup = false;
             internalEvents = new HashMap<>();
-            applicationPaths = new HashMap<>();
-            exposedPorts = new HashSet<>();
-            environmentVariables = new HashMap<>();
-            logFiles = new HashSet<>();
-            logDirectories = new HashSet<>();
-            pathOrderCounter = 0;
         }
 
         /**
@@ -184,18 +382,8 @@ public class Node extends ReferableDeploymentEntity {
          */
         public Builder(Deployment.Builder parentBuilder, Node instance) {
             super(parentBuilder, instance);
-            serviceName = new String(instance.serviceName);
-            initCommand = new String(instance.initCommand);
-            startCommand = new String(instance.startCommand);
-            stopCommand = new String(instance.stopCommand);
             offOnStartup = new Boolean(instance.offOnStartup);
             internalEvents = new HashMap<>(instance.internalEvents);
-            applicationPaths = new HashMap<>(instance.applicationPaths);
-            exposedPorts = new HashSet<>(instance.exposedPorts);
-            environmentVariables = new HashMap<>(instance.environmentVariables);
-            logFiles = new HashSet<>(instance.logFiles);
-            logDirectories = new HashSet<>(instance.logDirectories);
-            pathOrderCounter = new Integer(instance.pathOrderCounter);
         }
 
         /**
@@ -440,130 +628,9 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
-        /**
-         * Sets the init command for the node which will be executed only once
-         * @param initCommand the init command of the node
-         * @return the current builder instance
-         */
-        public Builder initCommand(String initCommand) {
-            this.initCommand = initCommand;
-            return this;
-        }
-
-        /**
-         * Sets the start command for the node which will be executed when starting or restarting a node
-         * @param startCommand the start command of the node
-         * @return the current builder instance
-         */
-        public Builder startCommand(String startCommand) {
-            this.startCommand = startCommand;
-            return this;
-        }
-
-        /**
-         * Sets the stop command for the node which will be executed when stopping or restarting a node
-         * @param stopCommand the stop command of the node
-         * @return the current builder instance
-         */
-        public Builder stopCommand(String stopCommand) {
-            this.stopCommand = stopCommand;
-            return this;
-        }
-
-        /**
-         * Adds a not changing local path to the specified absolute target path in the node
-         * @param path a local path
-         * @param targetPath an absolute target path in the node's container
-         * @return the current builder instance
-         */
-        public Builder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, false);
-            return this;
-        }
-
-        /**
-         * Adds a local path to the specified absolute target path in the node
-         * @param path a local path
-         * @param targetPath an absolute target path in the node's container
-         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
-         *                      each node
-         * @return the current builder instance
-         */
-        public Builder applicationPath(String path, String targetPath, Boolean willBeChanged) {
-            this.applicationPaths.put(path, new PathEntry(
-                    path, targetPath, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
-            return this;
-        }
-
-        /**
-         * Adds an environment variable to the node
-         * @param name the name of the variable
-         * @param value the value of the variable
-         * @return the current builder instance
-         */
-        public Builder environmentVariable(String name, String value) {
-            this.environmentVariables.put(name, value);
-            return this;
-        }
-
-        /**
-         * Adds a tcp port to be exposed by the node's container
-         * @param portNumber the tcp port number to be exposed by the node
-         * @return the current builder instance
-         */
-        public Builder tcpPort(Integer... portNumber) {
-            for (Integer port: portNumber) {
-                exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
-            }
-            return this;
-        }
-
-        /**
-         * Adds a udp port to be exposed by the node's container
-         * @param portNumber the udp port number to be exposed by the node
-         * @return the current builder instance
-         */
-        public Builder udpPort(Integer... portNumber) {
-            for (Integer port: portNumber) {
-                exposedPorts.add(new ExposedPortDefinition(port, PortType.UDP));
-            }
-            return this;
-        }
-
-        /**
-         * Adds an absolute target path in node's container to be collected as a log file into the node's local workspace
-         * @param path an absolute target log file path to be collected
-         * @return the current builder instance
-         */
-        public Builder logFile(String path) {
-            if (!FileUtil.isPathAbsoluteInUnix(path)) {
-                throw new RuntimeException("The log file `" + path + "` path is not absolute!");
-            }
-            logFiles.add(FilenameUtils.normalizeNoEndSeparator(path, true));
-            return this;
-        }
-
-        /**
-         * Adds an absolute target path in node's container to be collected as a log directory into the node's local workspace
-         * @param path an absolute target log directory path to be collected
-         * @return the current builder instance
-         */
-        public Builder logDirectory(String path) {
-            if (!FileUtil.isPathAbsoluteInUnix(path)) {
-                throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
-            }
-            this.logDirectories.add(FilenameUtils.normalizeNoEndSeparator(path, true));
-            return this;
-        }
-
         @Override
         public Node build() {
             return new Node(this);
-        }
-
-        @Override
-        protected void returnToParent(Node builtObj) {
-            parentBuilder.node(builtObj);
         }
     }
 }

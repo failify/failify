@@ -31,5 +31,6 @@ called when a specific stack trace is present.
     pages/quickstart
     pages/deterministic
     pages/runseq
+    pages/newnode
     pages/jvmservice
     pages/docker
