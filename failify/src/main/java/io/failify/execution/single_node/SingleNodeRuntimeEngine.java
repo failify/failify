@@ -273,7 +273,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // Disables offset caching for libfaketime
         environment.put("FAKETIME_NO_CACHE", "1");
         // Adds additional libfaketime config for java
-        if (deployment.getService(nodeMap.get(nodeName).getServiceName()).getServiceType() == ServiceType.JAVA) {
+        if (deployment.getService(nodeMap.get(nodeName).getServiceName()).getServiceType().isJvmType()) {
             environment.put("DONT_FAKE_MONOTONIC", "1");
         }
         // Adds controller file config for libfaketime

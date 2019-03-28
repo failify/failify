@@ -52,3 +52,30 @@ Finally, you need to mark:
         .instrumentablePath("/project/libs/main.jar") // This is a target path in the node
         .instrumentablePath("/project/libs/classes")
     .and()
+
+
+Scala
+=====
+
+The requirements for Scala is the same as Java as again `AspectJ <https://www.eclipse.org/aspectj/>`_ is used for the
+instrumentation. You also need to choose ``ServiceType.SCALA`` as your service type. There is only a subtle point when
+specifying the stack traces with Scala. When it is intended to instrument a Scala ``object``, you need to add a trailing
+``$`` to the name of the object. This is because internally when such a code compiles to JVM bytecodes, a new class with
+trailing ``$`` will be created and the original class will proxy calls to itself to that class. However, if internal methods
+of your Scala ``object`` call each other, the proxy class will be bypassed. As such, in order to be in the safe corner,
+it is advisable to use a trailing ``$`` when referring to an Scala ``object`` in your stack traces. Here is an example:
+
+.. code-block:: scala
+
+    object Object1 {
+        def method1(): Unit = {
+            ..
+        }
+    }
+
+    ..
+
+    withNode("n1", "service1")
+        .stackTrace("e1", "Object1$.method1")
+
+As you can see, when defining the stack trace ``e1``, a ``$`` is present after the name of ``Object1`` object.
