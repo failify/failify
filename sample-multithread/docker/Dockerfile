@@ -20,6 +20,6 @@
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #SOFTWARE.
 
-FROM java:8-jre
+FROM openjdk:8-stretch
 
 RUN apt update && apt install -y iptables
