@@ -15,7 +15,6 @@
 
 
   <properties>
-    <encoding>UTF-8</encoding>
     <scala.version>2.12.8</scala.version>
     <scala.compat.version>2.12</scala.compat.version>
   </properties>
@@ -84,6 +83,13 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.sonatype.plugins</groupId>
+        <artifactId>nexus-staging-maven-plugin</artifactId>
+        <configuration>
+          <skipNexusStagingDeployMojo>true</skipNexusStagingDeployMojo>
+        </configuration>
       </plugin>
     </plugins>
   </build>
