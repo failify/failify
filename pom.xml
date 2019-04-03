@@ -89,6 +89,7 @@
         <module>failifyrt</module>
         <module>failify</module>
         <module>sample-multithread</module>
+        <module>sample-scala</module>
     </modules>
 
     <build>

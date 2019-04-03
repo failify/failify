@@ -55,9 +55,12 @@ public class MultithreadTest {
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
                 .withNode("n1", "s1")
-                    .stackTrace("e1", "io.failify.samples.multithread.Main.helloWorld1")
-                    .stackTrace("e2", "io.failify.samples.multithread.Main.helloWorld2")
-                    .stackTrace("e3", "io.failify.samples.multithread.Main.helloWorld3")
+                    .stackTrace("e1", "io.failify.samples.multithread.Main.helloWorld1," +
+                            "io.failify.samples.multithread.Main.hello")
+                    .stackTrace("e2", "io.failify.samples.multithread.Main.helloWorld2," +
+                            "io.failify.samples.multithread.Main.helloWorld")
+                    .stackTrace("e3", "io.failify.samples.multithread.Main.helloWorld3," +
+                            "io.failify.samples.multithread.Main.hello")
                     .stackTrace("e4", "org.apache.commons.io.FilenameUtils.normalize")
                     .blockBefore("bbe2", "e2")
                     .unblockBefore("ubbe2", "e2")
