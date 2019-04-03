@@ -44,6 +44,7 @@ for child in root:
 extensions = [
     'sphinx.ext.githubpages',
     'sphinx.ext.extlinks',
+    'sphinx.ext.ifconfig'
 ]
 
 extlinks = {'javadoc': ('https://static.javadoc.io/io.failify/failify/' + version + '%s',
@@ -76,9 +77,15 @@ exclude_patterns = [u'_build', 'Thumbs.db', '.DS_Store']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
 
+version_warning = ""
+
+if version.endswith("SNAPSHOT"):
+    version_warning = ".. caution:: This is the latest development version. It is recommended to use the stable version."
+
 rst_prolog = """
 .. |projectName| replace:: %s
-""" % (project)
+%s
+""" % (project, version_warning)
 
 
 # -- Options for HTML output -------------------------------------------------

@@ -50,6 +50,10 @@ public abstract class DeploymentEntity {
         protected S parentBuilder;
 
         public BuilderBase(S parentBuilder, String name) {
+            if (name == null) {
+                throw new NullPointerException("A deployment entity name cannot be null");
+            }
+
             this.name = name;
             this.parentBuilder = parentBuilder;
         }

@@ -47,7 +47,7 @@ public class RunSequenceInstrumentationEngine implements InstrumentationEngine {
     private final static Logger logger = LoggerFactory.getLogger(RunSequenceInstrumentationEngine.class);
 
     protected Instrumentor getInstrumentor(ServiceType serviceType) {
-        if (serviceType == ServiceType.JAVA) {
+        if (serviceType == ServiceType.JAVA || serviceType == ServiceType.SCALA) {
             return new JavaInstrumentor();
         } else {
             return null;

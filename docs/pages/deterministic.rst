@@ -18,7 +18,7 @@ Available internal events are:
 * **Scheduling Event**: This event can be of type *BLOCKING* or *UNBLOCKING* and can happen before or after a specific
   stack trace. The stack trace should come from a stack trace event definition. When defining this kind of events, the
   definition should be a pair of blocking and unblocking events. Basically, make sure to finally unblock everything that
-  has been blocked. This event is useful when it is needed to block all of the threads for a specific stack trace, do some
+  has been blocked. This event is useful when it is needed to block all the threads for a specific stack trace, do some
   other stuff or let the other threads make progress, and then, unblock the blocked threads.
 
 .. code-block:: java
@@ -38,9 +38,16 @@ Available internal events are:
     .and()
 
 * **Stack Trace Event**: This event is kind of like a scheduling event except that nothing happens between blocking and
-  unblocking. All of the threads with the defined stack trace will be blocked until the dependencies of the event are
+  unblocking. All the threads with the defined stack trace will be blocked until the dependencies of the event are
   satisfied (based on the defined run sequence). The blocking can happen before or after a method. This event can act as
-  an indicator that the program has reached a specific method with a specific stack trace.
+  an indicator that the program has reached a specific method with a specific stack trace. To specify the stack traces,
+  the default is to have a list of method signatures with ``[package].[class].[method]`` where the last called method comes
+  at the end. As some languages may not have the concept of class or package, you may want to check :doc:`runseq` as well
+  for additional instructions for specific languages.
+
+  It is important to note that, the method signatures are not required to be present exactly in the given indices in the
+  current stack trace. Only the right order of appearance is sufficient.
+
 
 .. code-block:: java
 
@@ -64,7 +71,7 @@ Available internal events are:
 Test Case Events
 ================
 
-Test case events are the connection point between the test case and the |projectName|'s runtime engine. Internal events's
+Test case events are the connection point between the test case and the |projectName|'s runtime engine. Internal events'
 orders are enforced by the runtime engine, but it is the test case responsibility to enforce the test case events if they
 are included in the run sequence.
 
@@ -83,7 +90,7 @@ respectively.
 .. code-block:: java
 
     new Deployment.Builder("sample")
-        .runSequence("bast1 * w1 * ubast1 * (gc1 | x1)")
+        .runSequence("bast1 * tc1 * ubast1 * (gc1 | x1)")
 
 This run sequence blocks all the threads in node ``n1`` with the stack trace of event ``st1`` (``bast1``), waits for the
 test case to enforce ``tc1``, unblcoks the blocked threads in node ``n1`` (``ubast1``), and finally, in parallel, performs
@@ -97,7 +104,7 @@ injecting a failure.
 
     runner.runtime().enforceOrder("tc1", 10, () -> runner.runtime().clockDrift("n1", -100));
 
-Here, when the dependencies of event ``tc1`` are satisified, a clock drift in the amount -100ms will be applied to node
+Here, when the dependencies of event ``tc1`` are satisified, a clock drift in the amount of -100ms will be applied to node
 ``n1``, and ``tc1`` event will be marked as satisfied. If after 10 seconds the dependencies of ``tc1`` are not satisfied,
 a ``TimeoutException`` will be thrown. If the only thing that the test case needs is to wait for an event or its
 dependencies to be satisfied the ``waitFor`` method can be used.

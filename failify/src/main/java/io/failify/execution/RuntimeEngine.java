@@ -45,18 +45,24 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private final static Logger logger = LoggerFactory.getLogger(RuntimeEngine.class);
     private final EventServer eventServer;
     protected final Deployment deployment;
+    protected Map<String, Node> nodeMap;
     protected Map<String, NodeWorkspace> nodeWorkspaceMap;
     protected boolean stopped;
-    protected final NetworkManager networkManager;
+    protected final NetworkPartitionManager networkPartitionManager;
+    protected final NetworkOperationManager networkOperationManager;
     private FailifyRunner failifyRunner;
+    private EventService eventService;
+    private Failify failifyClient;
 
     public RuntimeEngine(Deployment deployment, Map<String, NodeWorkspace> nodeWorkspaceMap) {
         this.stopped = true;
         this.deployment = deployment;
-        this.nodeWorkspaceMap = nodeWorkspaceMap;
-        eventServer = new EventServer();
-        networkManager = new NetworkManager(this);
-        EventService.initialize(deployment);
+        nodeMap = new HashMap<>(deployment.getNodes());
+        this.nodeWorkspaceMap = new HashMap<>(nodeWorkspaceMap);
+        eventService = new EventService(deployment);
+        eventServer = new EventServer(eventService);
+        networkPartitionManager = new NetworkPartitionManager(this);
+        networkOperationManager = new NetworkOperationManager(this);
     }
 
     // TODO this method should use an external configuration to detect the proper runtime engine and its corresponding configs
@@ -66,7 +72,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     public Set<String> nodeNames() {
-        return new HashSet<>(deployment.getNodes().keySet());
+        return new HashSet<>(nodeMap.keySet());
     }
 
     public boolean isStopped() {
@@ -90,7 +96,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         startEventServer();
 
         // Configure local Failify runtime
-        Failify.configure("127.0.0.1", String.valueOf(eventServer.getPortNumber()));
+        failifyClient = new Failify("127.0.0.1", String.valueOf(eventServer.getPortNumber()));
 
         try {
             logger.info("Starting nodes ...");
@@ -119,12 +125,20 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         stopped = true;
     }
 
+    public void addNewNode(Node node, NodeWorkspace nodeWorkspace) throws RuntimeEngineException {
+        nodeMap.put(node.getName(), node);
+        nodeWorkspaceMap.put(node.getName(), nodeWorkspace);
+        createNodeContainer(node);
+        networkPartitionManager.addNewNode(node);
+        startNode(node.getName());
+    }
+
     protected void stopEventServer() {
         eventServer.stop();
     }
 
     protected Map<String, String> getNodeEnvironmentVariablesMap(String nodeName, Map<String, String> environment) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         for (Map.Entry<String, String> entry: nodeService.getEnvironmentVariables().entrySet()) {
@@ -154,7 +168,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected Set<ExposedPortDefinition> getNodeExposedPorts(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         Set<ExposedPortDefinition> ports = new HashSet<>(nodeService.getExposedPorts());
@@ -163,7 +177,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected String getNodeInitCommand(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         if (node.getInitCommand() != null) {
@@ -173,7 +187,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected String getNodeStartCommand(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         if (node.getStartCommand() != null) {
@@ -183,7 +197,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     }
 
     protected String getNodeStopCommand(String nodeName) {
-        Node node = deployment.getNode(nodeName);
+        Node node = nodeMap.get(nodeName);
         Service nodeService = deployment.getService(node.getServiceName());
 
         if (node.getStopCommand() != null) {
@@ -221,7 +235,7 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Waiting for event {} ...", eventName);
             try {
-                Failify.getInstance().blockAndPoll(eventName, includeEvent, timeout);
+                failifyClient.blockAndPoll(eventName, includeEvent, timeout);
             } catch (TimeoutException e) {
                 throw e;
             } catch (Exception e) {
@@ -236,8 +250,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private void sendEvent(String eventName) throws RuntimeEngineException {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Sending test case event {} ...", eventName);
-            Failify.getInstance().allowBlocking();
-            Failify.getInstance().enforceOrder(eventName, null);
+            failifyClient.allowBlocking();
+            failifyClient.enforceOrder(eventName, null);
         } else {
             throw new RuntimeEngineException("Event " + eventName + " is not referred to" +
                     " in the run sequence. Thus, its order cannot be sent from the test case!");
@@ -269,14 +283,62 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         sendEvent(eventName);
     }
 
+    public void waitForRunSequenceCompletion() throws TimeoutException {
+        waitForRunSequenceCompletion(null,null);
+    }
+
+    public void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException {
+        waitForRunSequenceCompletion(timeout,null);
+    }
+
+    public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout)
+            throws TimeoutException {
+
+        Integer originalTimeout = timeout;
+        while (!isStopped() && (timeout == null || timeout > 0)) {
+
+            if (eventService.isTheRunSequenceCompleted()) {
+                logger.info("The run sequence is completed!");
+                return;
+            }
+
+            if (deployment.getRunSequence() != null && !deployment.getRunSequence().isEmpty() &&
+                    eventService.isLastEventReceivedTimeoutPassed(nextEventReceiptTimeout)) {
+                throw new TimeoutException("The timeout for receiving the next event (" + nextEventReceiptTimeout + " seconds) is passed!");
+            }
+
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // TODO is this the best thing to do ?
+                logger.warn("The run sequence completion wait sleep thread is interrupted");
+            }
+
+            if (timeout != null) {
+                timeout--;
+            }
+        }
+
+        if (timeout != null && timeout <= 0) {
+            throw new TimeoutException("The Wait timeout for run sequence completion (" + originalTimeout + " seconds) is passed!");
+        }
+    }
+
     @Override
     public void networkPartition(NetPart netPart) throws RuntimeEngineException {
-        networkManager.networkPartition(netPart);
+        networkPartitionManager.networkPartition(netPart);
     }
 
     @Override
     public void removeNetworkPartition(NetPart netPart) throws RuntimeEngineException {
-        networkManager.removeNetworkPartition(netPart);
+        networkPartitionManager.removeNetworkPartition(netPart);
+    }
+
+    @Override
+    public void networkOperation(String nodeName, NetOp.BuilderBase... netOpBuilders) throws RuntimeEngineException {
+        for (NetOp.BuilderBase netOpBuilder: netOpBuilders) {
+            networkOperationManager.networkOperation(nodeName, netOpBuilder.build());
+        }
     }
 
     /**
@@ -294,6 +356,12 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
      * @throws RuntimeEngineException if something goes wrong
      */
     protected abstract String getEventServerIpAddress() throws RuntimeEngineException;
+    /**
+     * This method should create a container based on the given node definition.
+     * @param node the node definition to create a container upon
+     * @throws RuntimeEngineException if something goes wrong
+     */
+    protected abstract void createNodeContainer(Node node) throws RuntimeEngineException;
     /**
      * This method should start all of the nodes. In case of a problem in startup of a node, all of the started nodes should be
      * stopped and a RuntimeEngine Exception should be thrown

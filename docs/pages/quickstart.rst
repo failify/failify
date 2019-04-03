@@ -12,6 +12,23 @@ Adding dependencies
 
 First, create a simple Maven application and add |projectName|'s dependency to your pom file.
 
+.. ifconfig:: version.endswith("SNAPSHOT")
+
+    .. code-block:: xml
+
+        <repositories>
+            <repository>
+                <id>oss.sonatype</id>
+                <url>http://oss.sonatype.org/content/repositories/snapshots</url>
+                <releases>
+                    <enabled>false</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>true</enabled>
+                </snapshots>
+            </repository>
+        </repositories>
+
 .. parsed-literal::
 
     <dependency>
@@ -51,13 +68,22 @@ Creating a Dockerfile
 
 Next, you need to create a Dockerfile for your application and that Dockerfile should add any dependency that may be
 needed by your application. In case you want to use the network partition capability
-of |projectName|, you need to install ``iptables`` package as well. Here, we assume the application under test is written in Java.
+of |projectName|, you need to install ``iptables`` package as well. Network delay and loss will also need the ``iproute``
+package to be installed. Here, we assume the application under test is written in Java.
 So, we create a Dockerfile in the ``docker/Dockerfile`` address with the following content:
 
 .. code-block:: docker
 
     FROM java:8-jre
-    RUN apt update && apt install -y iptables
+    RUN apt update && apt install -y iptables iproute
+
+.. important::
+
+    In case you are using Docker Toolbox (and consequently boot2docker) on Windows or Mac, be aware that your currently
+    installed boot2docker image may be missing ``sched_netem`` kernel module which is included in most of the
+    linux distributions and is needed for ``tc`` command in the ``iproute`` package to work. So, unless you upgrade your
+    boot2docker image (normally through running ``docker-machine upgrade [machine_name]``, you won't be able to use the
+    network operation capabilities of |projectName|.
 
 Adding a Test Case
 ==================
@@ -80,7 +106,8 @@ directory which contains a ``start.sh`` file to start the application.
                 // Service Definition
                 .withService("service1")
                     .applicationPath("target/project.zip", "/project", PathAttr.COMPRESSED)
-                    .startCommand("/project/project-" + projectVersion + "/bin/start.sh -conf /config.cfg")
+                    .startCommand("/project/project-" + projectVersion +
+                         "/bin/start.sh -conf /config.cfg")
                     .dockerImage("project/sampleTest:" + projectVersion)
                     .dockerFileAddress("docker/Dockerfile", false)
                     .tcpPort(8765)
@@ -90,6 +117,8 @@ directory which contains a ``start.sh`` file to start the application.
                     .applicationPath("config/n1.cfg", "/config.cfg".and()
                 .withNode("n2", "service1")
                     .applicationPath("config/n2.cfg", "/config.cfg".and()
+                .withNode("n3", "service1")
+                    .applicationPath("config/n3.cfg", "/config.cfg".and()
                 .build();
 
             FailifyRunner runner = FailifyRunner.run(deployment);
@@ -108,6 +137,12 @@ directory which contains a ``start.sh`` file to start the application.
             ..
             runner.runtime().clockDrift("n1", 100);
             ..
+            runner.runtime().networkPartition(NetPart.partitions("n1", "n2", "n3")
+                .connect(1,3));
+            ..
+            runner.runtime().networkOperation("n2", NetOp.delay(100).jitter(10),
+                 NetOp.loss(10));
+            ..
         }
     }
 
@@ -116,26 +151,30 @@ of service and node definitions. A Service is a node template and defines the do
 command, required environment variables, common paths, etc. for a specific type of node. For additional info about available
 options for a service check :javadoc:`ServiceBuilder's JavaDoc </io/failify/dsl/entities/Service.ServiceBuilder.html>`.
 
-Line 9-15 defines ``service1`` service. Line 10 adds the zip file to the service at the ``/project`` address and also
+Line 9-16 defines ``service1`` service. Line 10 adds the zip file to the service at the ``/project`` address and also
 marks it as compressed so |projectName| decompresses it before adding it to the node (**In Windows and Mac, you should make sure
 the local path you are using here is shared with the Docker VM**). Line 11 defines the start command for the
 node, and in this case, it is using the ``start.sh`` bash file and it feeding it with ``-conf /config.cfg`` argument. This
-config file will be provided separately through node definitions later. Line 14 marks tcp port ``8765`` to be exposed for the
+config file will be provided separately through node definitions later. Line 15 marks tcp port ``8765`` to be exposed for the
 service. This is specially important when using |projectName| in Windows and Mac as the only way to connect to the Docker containers
-in those platforms is through port forwarding. Line 15 concludes the service definition by marking it as a Java application.
+in those platforms is through port forwarding. Line 16 concludes the service definition by marking it as a Java application.
 If the programming language in use is listed in ``ServiceType`` enum, make sure to mark your application with the right
 ``ServiceType``.
 
-Lines 17-20 defines two nodes named ``n1`` and ``n2`` from ``service1`` service and is adding a separate local config file
+Lines 18-23 defines two nodes named ``n1``, ``n2`` and ``n3`` from ``service1`` service and is adding a separate local config file
 to each of them which will be located at the same target address ``/config.cfg``. Most of the service configuration can be
 overriden by nodes. For more information about available options for a node check
 :javadoc:`Node Builder's JavaDoc </io/failify/dsl/entities/Node.NodeBuilder.html>`.
 
-Line 23 starts the defined deployment and line 29 stops the deployment after all tests are executed.
+Line 26 starts the defined deployment and line 32 stops the deployment after all tests are executed.
 
-Line 34-35 shows how the ``runner`` object can be used to get the ip address and port mappings for each node to be potentially
-used by a client. Line 37 shows a simple example of how |projectName| can manipulate the deployed environment by just a method call. In
-this case, a clock dirft of 100ms will be applied to node ``n1``. For more information about available runtime
+Line 37-38 shows how the ``runner`` object can be used to get the ip address and port mappings for each node to be potentially
+used by a client. Line 40 shows a simple example of how |projectName| can manipulate the deployed environment by just a method call. In
+this case, a clock dirft of 100ms will be applied to node ``n1``. Line 42 shows how a network partition can be defined
+and imposed. Here, each of the nodes will be in a separate partition and the first (``n1``) and third (``n3``) partition will be
+connected together. Line 45 shows an example of imposing network delay and loss on all the interfaces of a specific node.
+Here, a network delay from a uniform distribution with mean=100 and variance=10 will be applied on ``n2`` and 10% of the
+packets will be lost. For more information about available runtime
 manipulation operations check :javadoc:`LimitedRuntimeEngine's JavaDoc </io/failify/execution/LimitedRuntimeEngine.html>`.
 
 Logger Configuration

@@ -81,7 +81,7 @@ public interface LimitedRuntimeEngine {
 
     /**
      * Imposes a network partition based on the given partition scheme in the deployed environment
-     * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
+     * @param netPart the desired scheme for the partition. Take a look at {@link NetPart} class for more information
      * @throws RuntimeEngineException if something goes wrong
      * @throws NodeNotFoundException if one of partitions includes a node that doesn't exist
      */
@@ -89,10 +89,20 @@ public interface LimitedRuntimeEngine {
 
     /**
      * Removes a network partition based on the given partition scheme in the deployed environment
-     * @param netPart the desired scheme for the partition. Take a look at NetPart class for more information
+     * @param netPart the desired scheme for the partition. Take a look at {@link NetPart} class for more information
      * @throws RuntimeEngineException if something goes wrong
      * @throws NodeNotFoundException if one of partitions includes a node that doesn't exist
      */
+
+    /**
+     * Applies a network operation including network delay and loss addition and removal on a node
+     * @param netOpBuilder the specifics of the network operation. Take a look a {@link NetOp} class for more information.
+     *                     {@link NetOp} static methods should be used to create objects of this type.
+     * @param nodeName the node to apply the network operation on
+     * @throws RuntimeEngineException if something goes wrong
+     */
+    void networkOperation(String nodeName, NetOp.BuilderBase... netOpBuilder) throws RuntimeEngineException;
+
     void removeNetworkPartition(NetPart netPart) throws RuntimeEngineException;
 
     /**
@@ -190,4 +200,31 @@ public interface LimitedRuntimeEngine {
      */
     void enforceOrder(String eventName, Integer timeout, FailifyCheckedRunnable action)
             throws RuntimeEngineException, TimeoutException;
+
+    /**
+     * This method waits indefinitely for the run sequence to be enforced completely, and then returns.
+     * @throws TimeoutException if either type of timeout happens
+     */
+    void waitForRunSequenceCompletion() throws TimeoutException;
+
+    /**
+     * This method waits for the run sequence to be enforced completely, and then returns. If timeout param is not null,
+     * after waiting for the expected amount the method throws an exception.
+     * @param timeout the waiting timeout in seconds
+     * @throws TimeoutException if either type of timeout happens
+     */
+    void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException;
+
+    /**
+     * This method waits for the run sequence to be enforced completely, and then returns.
+     * If desired it is possible to specify two different types of timeout for this method. If timeout param is not null,
+     * after waiting for the expected amount the method throws an exception. If nextEventReceiptTimeout is not null, if
+     * after the expected amount of time no new event is marked as satisfied in the event server, this method throws an
+     * exception
+     * @param timeout the waiting timeout in seconds
+     * @param nextEventReceiptTimeout the number of seconds to wait until timeout the receipt of the next event in the
+     *                                run sequence
+     * @throws TimeoutException if either type of timeout happens
+     */
+    void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout) throws TimeoutException;
 }

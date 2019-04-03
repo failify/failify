@@ -29,5 +29,13 @@ package io.failify.dsl.entities;
  * The programming languages supported to be used by the instrumentation engines
  */
 public enum ServiceType {
-    JAVA
+    JAVA,
+    SCALA;
+
+    public boolean isJvmType() {
+        if (this == SCALA || this == JAVA) {
+            return true;
+        }
+        return false;
+    }
 }

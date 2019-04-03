@@ -25,6 +25,7 @@
 
 package io.failify;
 
+import io.failify.dsl.entities.Node;
 import io.failify.verification.DeploymentVerifier;
 import io.failify.verification.InternalReferencesVerifier;
 import io.failify.verification.RunSequenceVerifier;
@@ -100,110 +101,6 @@ public class FailifyRunner {
         return failifyRunner;
     }
 
-    /**
-     * This method waits indefinitely for the run sequence to be enforced completely, and then returns.
-     * @throws TimeoutException if either type of timeout happens
-     */
-    public void waitForRunSequenceCompletion() throws TimeoutException {
-        waitForRunSequenceCompletion(null,null,false);
-    }
-
-    /**
-     * This method waits indefinitely for the run sequence to be enforced completely, stops the runner if required,
-     * and then returns.
-     * @param stopAfter the flag to require stopping the runner after run sequence completion
-     * @throws TimeoutException if either type of timeout happens
-     */
-    public void waitForRunSequenceCompletion(boolean stopAfter) throws TimeoutException {
-        waitForRunSequenceCompletion(null,null, stopAfter);
-    }
-
-    /**
-     * This method waits for the run sequence to be enforced completely, and then returns. If timeout param is not null,
-     * after waiting for the expected amount the method throws an exception.
-     * @param timeout the waiting timeout in seconds
-     * @throws TimeoutException if either type of timeout happens
-     */
-    public void waitForRunSequenceCompletion(Integer timeout) throws TimeoutException {
-        waitForRunSequenceCompletion(timeout,null,false);
-    }
-
-    /**
-     * This method waits for the run sequence to be enforced completely, stops the runner if required, and then returns.
-     * If timeout param is not null, after waiting for the expected amount the method throws an exception.
-     * @param timeout the waiting timeout in seconds
-     * @param stopAfter the flag to require stopping the runner after run sequence completion
-     * @throws TimeoutException if either type of timeout happens
-     */
-    public void waitForRunSequenceCompletion(Integer timeout, boolean stopAfter) throws TimeoutException {
-        waitForRunSequenceCompletion(timeout,null, stopAfter);
-    }
-
-    /**
-     * This method waits for the run sequence to be enforced completely, and then returns.
-     * If desired it is possible to specify two different types of timeout for this method. If timeout param is not null,
-     * after waiting for the expected amount the method throws an exception. If nextEventReceiptTimeout is not null, if
-     * after the expected amount of time no new event is marked as satisfied in the event server, this method throws an
-     * exception
-     * @param timeout the waiting timeout in seconds
-     * @param nextEventReceiptTimeout the number of seconds to wait until timeout the receipt of the next event in the
-     *                                run sequence
-     * @throws TimeoutException if either type of timeout happens
-     */
-    public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout) throws TimeoutException {
-        waitForRunSequenceCompletion(timeout,nextEventReceiptTimeout,false);
-    }
-
-    /**
-     * This method waits for the run sequence to be enforced completely, stops the runner if required, and then returns.
-     * If desired it is possible to specify two different types of timeout for this method. If timeout param is not null,
-     * after waiting for the expected amount the method throws an exception. If nextEventReceiptTimeout is not null, if
-     * after the expected amount of time no new event is marked as satisfied in the event server, this method throws an
-     * exception
-     * @param timeout the waiting timeout in seconds
-     * @param nextEventReceiptTimeout the number of seconds to wait until timeout the receipt of the next event in the
-     *                                run sequence
-     * @param stopAfter the flag to require stopping the runner after run sequence completion
-     * @throws TimeoutException if either type of timeout happens
-     */
-    public void waitForRunSequenceCompletion(Integer timeout, Integer nextEventReceiptTimeout, boolean stopAfter)
-            throws TimeoutException {
-
-        Integer originalTimeout = timeout;
-        while (!isStopped() && (timeout == null || timeout > 0)) {
-
-            if (EventService.getInstance().isTheRunSequenceCompleted()) {
-                logger.info("The run sequence is completed!");
-
-                if (stopAfter && !isStopped()) {
-                    stop();
-                }
-
-                return;
-            }
-
-            if (deployment.getRunSequence() != null && !deployment.getRunSequence().isEmpty() &&
-                    EventService.getInstance().isLastEventReceivedTimeoutPassed(nextEventReceiptTimeout)) {
-                throw new TimeoutException("The timeout for receiving the next event (" + nextEventReceiptTimeout + " seconds) is passed!");
-            }
-
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-                // TODO is this the best thing to do ?
-                logger.warn("The run sequence completion wait sleep thread is interrupted");
-            }
-
-            if (timeout != null) {
-                timeout--;
-            }
-        }
-
-        if (timeout != null && timeout <= 0) {
-            throw new TimeoutException("The Wait timeout for run sequence completion (" + originalTimeout + " seconds) is passed!");
-        }
-    }
-
     public Deployment getDeployment() {
         return deployment;
     }
@@ -228,7 +125,7 @@ public class FailifyRunner {
 
             // Setup the nodes' workspaces
             logger.info("Creating the nodes' workspaces ...");
-            Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace(deployment);
+            Map<String, NodeWorkspace> nodeWorkspaceMap = workspaceManager.createWorkspace();
 
             // Instrument the nodes binaries. This shouldn't change any of the application paths
             logger.info("Starting the instrumentation process ...");
@@ -297,6 +194,12 @@ public class FailifyRunner {
             return true;
         }
         return runtimeEngine.isStopped();
+    }
+
+    public void addNode(Node.LimitedBuilder limitedBuilder) throws WorkspaceException, RuntimeEngineException {
+        Node node = limitedBuilder.build();
+        NodeWorkspace nodeWorkspace = workspaceManager.createNodeWorkspace(node);
+        runtimeEngine.addNewNode(node, nodeWorkspace);
     }
 }
 

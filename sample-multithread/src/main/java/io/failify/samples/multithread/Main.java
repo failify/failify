@@ -33,11 +33,6 @@ import java.util.Date;
 import java.util.Random;
 
 public class Main {
-    private static Main instance;
-    public static Main getInstance() {
-        return instance;
-    }
-
     public static void main(String[] args) {
         new Main().start();
     }
@@ -69,13 +64,21 @@ public class Main {
         }
     }
 
+    public void helloWorld(String msg) {
+        hello(msg);
+    }
+
+public void hello(String msg) {
+        System.out.println(msg);
+    }
+
     public void helloWorld1() {
         try {
             Thread.sleep(new Random().nextInt(50));
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        System.out.println("Hello World 1!");
+        helloWorld("Hello World 1!");
         System.out.println(new Date());
     }
 
@@ -86,7 +89,7 @@ public class Main {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        System.out.println("Hello World 2!");
+        helloWorld("Hello World 2!");
     }
 
     public void helloWorld3() {
@@ -95,7 +98,7 @@ public class Main {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        System.out.println("Hello World 3!");
+        helloWorld("Hello World 3!");
         System.out.println(new Date());
     }
 

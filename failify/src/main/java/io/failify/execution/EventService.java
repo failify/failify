@@ -38,24 +38,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EventService {
     private static Logger logger = LoggerFactory.getLogger(EventService.class);
 
-    private static EventService instance;
     private ConcurrentHashMap<String, Boolean> eventCheckList;
     private final Deployment deployment;
     private Instant lastTimeEventReceived;
 
-    public static EventService initialize(Deployment deployment) {
-        instance = new EventService(deployment);
-        return instance;
-    }
-
-    public static EventService getInstance() {
-        if (instance == null) {
-            throw new RuntimeException("You should first initialize the instance");
-        }
-        return instance;
-    }
-
-    private EventService(Deployment deployment) {
+    EventService(Deployment deployment) {
         this.deployment = deployment;
         eventCheckList = new ConcurrentHashMap<>();
         lastTimeEventReceived = Instant.now();

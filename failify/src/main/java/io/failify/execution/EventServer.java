@@ -29,6 +29,7 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,20 +39,18 @@ public class EventServer {
     private Integer portNumber;
     private Boolean stopped;
 
-    public EventServer() {
+    public EventServer(EventService eventService) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
+        context.setAttribute("io.failify.EventService", eventService);
 
         jettyServer = new Server(0);
         jettyServer.setHandler(context);
 
-        ServletHolder jerseyServlet = context.addServlet(
-                org.glassfish.jersey.servlet.ServletContainer.class, "/*");
-        jerseyServlet.setInitOrder(0);
-
-        jerseyServlet.setInitParameter(
-                "jersey.config.server.provider.classnames",
-                JerseyEndPoint.class.getCanonicalName());
+        ServletHolder jerseyServletHolder = context.addServlet(ServletContainer.class, "/*");
+        jerseyServletHolder.setInitOrder(0);
+        jerseyServletHolder.setInitParameter(
+                "jersey.config.server.provider.classnames", JerseyEndPoint.class.getCanonicalName());
         stopped = true;
     }
 

@@ -33,7 +33,6 @@ import java.util.List;
  * This class is responsible for matching a given stack trace against the current stack trace
  */
 public class StackMatcher {
-    // TODO change this so it returns true if the stack traces exist in the right order
 
     /**
      * This method matches the given stack arg against the current stack trace
@@ -46,13 +45,18 @@ public class StackMatcher {
         List<String> inputList = Arrays.asList(inputTraces);
         Collections.reverse(inputList);
         inputTraces = inputList.toArray(new String[inputList.size()]);
-        for (int i=0; i<inputTraces.length; i++) {
-            // +4 is needed to get rid of method signatures to call this method
-            if (!getFullTraceString(elements[i+4]).equals(inputTraces[i].trim())) {
-                return false;
+
+        int curIndexToMatch = 0;
+        // i=2 is needed to get rid of getStackTrace and match method signatures
+        for (int i=2; i<elements.length; i++) {
+            if (getFullTraceString(elements[i]).equals(inputTraces[curIndexToMatch].trim())) {
+                curIndexToMatch++;
+                if (curIndexToMatch == inputTraces.length) {
+                    return true;
+                }
             }
         }
-        return true;
+        return false;
     }
 
     /**
