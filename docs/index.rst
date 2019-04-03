@@ -24,7 +24,7 @@ called when a specific stack trace is present.
 
 .. toctree::
     :caption: Table of Contents
-    :maxdepth: 2
+    :maxdepth: 1
     :glob:
 
     pages/prereq
@@ -34,3 +34,4 @@ called when a specific stack trace is present.
     pages/newnode
     pages/jvmservice
     pages/docker
+    pages/changelog
