@@ -149,7 +149,7 @@ directory which contains a ``start.sh`` file to start the application.
 Each |projectName| test case should start with defining a new ``Deployment`` object. A deployment definition consists of a a set
 of service and node definitions. A Service is a node template and defines the docker image for the node, the start bash
 command, required environment variables, common paths, etc. for a specific type of node. For additional info about available
-options for a service check :javadoc:`ServiceBuilder's JavaDoc </io/failify/dsl/entities/Service.ServiceBuilder.html>`.
+options for a service check :javadoc:`ServiceBuilder's JavaDoc </io/failify/dsl/entities/Service.Builder.html>`.
 
 Line 9-16 defines ``service1`` service. Line 10 adds the zip file to the service at the ``/project`` address and also
 marks it as compressed so |projectName| decompresses it before adding it to the node (**In Windows and Mac, you should make sure
@@ -164,7 +164,7 @@ If the programming language in use is listed in ``ServiceType`` enum, make sure 
 Lines 18-23 defines two nodes named ``n1``, ``n2`` and ``n3`` from ``service1`` service and is adding a separate local config file
 to each of them which will be located at the same target address ``/config.cfg``. Most of the service configuration can be
 overriden by nodes. For more information about available options for a node check
-:javadoc:`Node Builder's JavaDoc </io/failify/dsl/entities/Node.NodeBuilder.html>`.
+:javadoc:`Node Builder's JavaDoc </io/failify/dsl/entities/Node.Builder.html>`.
 
 Line 26 starts the defined deployment and line 32 stops the deployment after all tests are executed.
 
