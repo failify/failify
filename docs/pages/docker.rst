@@ -9,6 +9,9 @@ Why it may be needed?
 There could be two reasons that you want to run |projectName| test cases in a Docker container:
 
 * Your CI nodes are Docker containers and you don't have any other options
+* You are developing in a non-Linux operating system (e.g. MacOS or Windows) and the final binary is native to your build
+  environment. As such, you are not able to run the built artifact in a docker container which is Linux-based. This will
+  require doing the whole build for testing inside a container.
 * Your client needs to access the nodes using their hostname or on any port number (without exposing them).
   Either of these cases requires the client to be in the same network namespace as the nodes and that is only
   possible if you run |projectName| in a Docker container.
