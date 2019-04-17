@@ -91,6 +91,11 @@ public class RunSequenceInstrumentationEngine implements InstrumentationEngine {
 
                 // Performs the actual instrumentation and receives the new instrumented file name
                 Instrumentor instrumentor = getInstrumentor(service.getServiceType());
+
+                if (instrumentor == null) {
+                    throw new InstrumentationException("Cannot find an instrumentor for service type " + service.getServiceType());
+                }
+
                 instrumentor.instrument(
                         nodeWorkspaceMap.get(node.getName()),
                         instrumentationDefinitions

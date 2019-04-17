@@ -30,7 +30,8 @@ package io.failify.dsl.entities;
  */
 public enum ServiceType {
     JAVA,
-    SCALA;
+    SCALA,
+    OTHER;
 
     public boolean isJvmType() {
         if (this == SCALA || this == JAVA) {

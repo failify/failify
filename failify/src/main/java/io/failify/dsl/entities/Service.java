@@ -178,6 +178,7 @@ public class Service extends DeploymentEntity {
             dockerImageForceBuild = false;
             dockerFileAddress = null;
             pathOrderCounter = 0;
+            serviceType = ServiceType.OTHER;
         }
 
         /**
