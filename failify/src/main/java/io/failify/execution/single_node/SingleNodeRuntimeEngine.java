@@ -87,7 +87,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             if (OsUtil.getOS() == OsUtil.OS.LINUX) {
                 return nodeToContainerInfoMap.get(nodeName).ip();
             } else {
-                return "127.0.0.1";
+                return dockerNetworkManager.getHostIpAddress();
             }
         }
     }

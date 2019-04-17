@@ -2,7 +2,7 @@
 <!--
   ~ MIT License
   ~
-  ~ Copyright (c) 2017 Armin Balalaie
+  ~ Copyright (c) 2017-2019 Armin Balalaie
   ~
   ~ Permission is hereby granted, free of charge, to any person obtaining a copy
   ~ of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@
     <parent>
         <groupId>io.failify</groupId>
         <artifactId>failify-parent</artifactId>
-        <version>0.2.0</version>
+        <version>0.2.1</version>
     </parent>
 
     <groupId>io.failify.samples</groupId>

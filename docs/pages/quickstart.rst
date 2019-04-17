@@ -161,6 +161,9 @@ in those platforms is through port forwarding. Line 16 concludes the service def
 If the programming language in use is listed in ``ServiceType`` enum, make sure to mark your application with the right
 ``ServiceType``.
 
+.. important:: If your program runs on JVM and your programming language in use is not listed in  the ``ServiceType``
+          enum, just choose ``ServiceType.Java`` as the service type.
+
 Lines 18-23 defines two nodes named ``n1``, ``n2`` and ``n3`` from ``service1`` service and is adding a separate local config file
 to each of them which will be located at the same target address ``/config.cfg``. Most of the service configuration can be
 overriden by nodes. For more information about available options for a node check
