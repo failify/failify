@@ -82,7 +82,7 @@ public class DockerNetworkManager {
         }
 
         dockerNetworkId = tempNetworkId;
-        hostIp = gateway;
+        hostIp = dockerClient.getHost();
         ipPrefix = tempIpPrefix;
         currentIp = 2;
         logger.info("Gateway is {}", gateway);
