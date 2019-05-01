@@ -57,6 +57,7 @@ public class Service extends DeploymentEntity {
     private final String startCommand; // the start command of the node which will executed when the node is started or restarted
     private final String stopCommand; // the stop command of the node which will executed when the node is stopped or restarted
     private final ServiceType serviceType; // the service programming language
+    private final Boolean disableClockDrift; // the flag to disable clock drift capability
     private Integer pathOrderCounter; // the counter to use for applying order to application paths
 
     /**
@@ -80,6 +81,7 @@ public class Service extends DeploymentEntity {
         exposedPorts = builder.exposedPorts;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         pathOrderCounter = builder.pathOrderCounter;
+        disableClockDrift = builder.disableClockDrift;
     }
 
     public String getDockerImageName() {
@@ -138,6 +140,10 @@ public class Service extends DeploymentEntity {
         return exposedPorts;
     }
 
+    public Boolean isClockDriftEnabled() {
+        return !disableClockDrift;
+    }
+
     /**
      * The builder class to build a service object
      */
@@ -157,6 +163,7 @@ public class Service extends DeploymentEntity {
         private String initCommand;
         private String startCommand;
         private String stopCommand;
+        private Boolean disableClockDrift;
         private ServiceType serviceType;
         private Integer pathOrderCounter;
 
@@ -179,6 +186,7 @@ public class Service extends DeploymentEntity {
             dockerFileAddress = null;
             pathOrderCounter = 0;
             serviceType = ServiceType.OTHER;
+            disableClockDrift = false;
         }
 
         /**
@@ -211,6 +219,7 @@ public class Service extends DeploymentEntity {
             exposedPorts = new HashSet<>(instance.exposedPorts);
             environmentVariables = new HashMap<>(instance.environmentVariables);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
+            disableClockDrift = new Boolean(instance.disableClockDrift);
         }
 
         /**
@@ -391,6 +400,26 @@ public class Service extends DeploymentEntity {
             for (Integer port: portNumber) {
                 exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
             }
+            return this;
+        }
+
+        /**
+         * The clock drift capability is being supported through the libfaketime library. This library has limitations and
+         * may cause unexpected errors with some binaries. If you are seeing unexpected error messages that you normally
+         * don't see, you should try disabling clock drift capability by calling this method.
+         * @return the current builder instance
+         */
+        public Builder disableClockDrift() {
+            this.disableClockDrift = true;
+            return this;
+        }
+
+        /**
+         * Enables clock drift capability (enabled by default. Only call this if you have disabled it somewhere else)
+         * @return the current builder instance
+         */
+        public Builder enableClockDrift() {
+            this.disableClockDrift = false;
             return this;
         }
 

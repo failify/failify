@@ -268,16 +268,18 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     protected Map<String, String> improveEnvironmentVariablesMapForEngine(String nodeName, Map<String, String> environment)
             throws RuntimeEngineException {
 
-        // Adds preload for libfaketime
-        environment.put("LD_PRELOAD", Constants.FAKETIME_TARGET_BASE_PATH + Constants.FAKETIMEMT_LIB_FILE_NAME);
-        // Disables offset caching for libfaketime
-        environment.put("FAKETIME_NO_CACHE", "1");
-        // Adds additional libfaketime config for java
-        if (deployment.getService(nodeMap.get(nodeName).getServiceName()).getServiceType().isJvmType()) {
-            environment.put("DONT_FAKE_MONOTONIC", "1");
+        if (isClockDriftEnabledInNode(nodeName)) {
+            // Adds preload for libfaketime
+            environment.put("LD_PRELOAD", Constants.FAKETIME_TARGET_BASE_PATH + Constants.FAKETIMEMT_LIB_FILE_NAME);
+            // Disables offset caching for libfaketime
+            environment.put("FAKETIME_NO_CACHE", "1");
+            // Adds additional libfaketime config for java
+            if (deployment.getService(nodeMap.get(nodeName).getServiceName()).getServiceType().isJvmType()) {
+                environment.put("DONT_FAKE_MONOTONIC", "1");
+            }
+            // Adds controller file config for libfaketime
+            environment.put("FAKETIME_TIMESTAMP_FILE", "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME);
         }
-        // Adds controller file config for libfaketime
-        environment.put("FAKETIME_TIMESTAMP_FILE", "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME);
 
         return environment;
     }
@@ -645,6 +647,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     public synchronized void clockDrift(String nodeName, Integer amount) throws RuntimeEngineException {
         if (!nodeToContainerInfoMap.containsKey(nodeName)) {
             throw new NodeNotFoundException(nodeName);
+        }
+
+        if (!isClockDriftEnabledInNode(nodeName)) {
+            logger.warn("Clock drift is not enabled in node {}. Operation ignored!", nodeName);
+            return;
         }
 
         logger.info("Applying clock drift {},{}", nodeName, amount);
