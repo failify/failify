@@ -206,6 +206,12 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
         return nodeService.getStopCommand();
     }
 
+    protected boolean isClockDriftEnabledInNode(String nodeName) {
+        Node node = nodeMap.get(nodeName);
+        Service service = deployment.getService(node.getServiceName());
+        return node.isClockDriftEnabled() && service.isClockDriftEnabled();
+    }
+
     @Override
     public void waitFor(String eventName) throws RuntimeEngineException {
         try {

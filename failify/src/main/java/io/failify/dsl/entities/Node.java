@@ -56,6 +56,7 @@ public class Node extends ReferableDeploymentEntity {
     private final String stopCommand; // the stop command of the node which will executed when the node is stopped or restarted
     private final Map<String, InternalEvent> internalEvents; // the map of internal event names to their objects
     private final Boolean offOnStartup; // the flag to start the node on start up or not
+    private final Boolean disableClockDrift; // the flag to disable clock drift capability
     private final Integer pathOrderCounter; // the counter to use for applying order to application paths
 
     public static Node.LimitedBuilder limitedBuilder(String nodeName, String serviceName) {
@@ -79,6 +80,7 @@ public class Node extends ReferableDeploymentEntity {
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
+        disableClockDrift = builder.disableClockDrift;
         pathOrderCounter = builder.pathOrderCounter;
     }
 
@@ -99,6 +101,7 @@ public class Node extends ReferableDeploymentEntity {
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
+        disableClockDrift = builder.disableClockDrift;
         pathOrderCounter = builder.pathOrderCounter;
     }
 
@@ -154,6 +157,10 @@ public class Node extends ReferableDeploymentEntity {
         return exposedPorts;
     }
 
+    public Boolean isClockDriftEnabled() {
+        return !disableClockDrift;
+    }
+
     /**
      * The builder class to build a node object
      */
@@ -169,6 +176,7 @@ public class Node extends ReferableDeploymentEntity {
         protected String initCommand;
         protected String startCommand;
         protected String stopCommand;
+        protected Boolean disableClockDrift; // the flag to disable clock drift capability
         protected Integer pathOrderCounter;
 
         /**
@@ -190,6 +198,7 @@ public class Node extends ReferableDeploymentEntity {
             environmentVariables = new HashMap<>();
             logFiles = new HashSet<>();
             logDirectories = new HashSet<>();
+            disableClockDrift = false;
             pathOrderCounter = 0;
         }
 
@@ -218,6 +227,7 @@ public class Node extends ReferableDeploymentEntity {
             environmentVariables = new HashMap<>(instance.environmentVariables);
             logFiles = new HashSet<>(instance.logFiles);
             logDirectories = new HashSet<>(instance.logDirectories);
+            disableClockDrift = new Boolean(instance.disableClockDrift);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
         }
 
@@ -248,6 +258,26 @@ public class Node extends ReferableDeploymentEntity {
          */
         public LimitedBuilder stopCommand(String stopCommand) {
             this.stopCommand = stopCommand;
+            return this;
+        }
+
+        /**
+         * The clock drift capability is being supported through the libfaketime library. This library has limitations and
+         * may cause unexpected errors with some binaries. If you are seeing unexpected error messages that you normally
+         * don't see, you should try disabling clock drift capability by calling this method.
+         * @return the current builder instance
+         */
+        public LimitedBuilder disableClockDrift() {
+            this.disableClockDrift = true;
+            return this;
+        }
+
+        /**
+         * Enables clock drift capability (enabled by default. Only call this if you have disabled it somewhere else)
+         * @return the current builder instance
+         */
+        public LimitedBuilder enableClockDrift() {
+            this.disableClockDrift = false;
             return this;
         }
 
