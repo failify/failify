@@ -13,6 +13,7 @@ if [ $(cat /failify_do_init) = "1" ]; then
 fi
 
 # run the start command
+echo "# {{START_COMMAND}}"
 {{START_COMMAND}}
 status=$?
 if [ $status -ne 0 ]; then

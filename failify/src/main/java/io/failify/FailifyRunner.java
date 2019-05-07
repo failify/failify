@@ -146,8 +146,11 @@ public class FailifyRunner {
                 stop();
             }
             throw new RuntimeException(e);
-        } catch (WorkspaceException | InstrumentationException e) {
+        } catch (InstrumentationException e) {
             logger.error("An error happened while instrumenting the nodes", e);
+            throw new RuntimeException(e);
+        } catch (WorkspaceException e) {
+            logger.error("An error happened while creating workspace for the nodes", e);
             throw new RuntimeException(e);
         } catch (Throwable e) {
             logger.error("An unexpected error has happened. Stopping ...", e);

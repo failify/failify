@@ -26,13 +26,12 @@ package io.failify.workspace;
 
 import io.failify.Constants;
 import io.failify.util.FileUtil;
-import io.failify.util.ZipUtil;
+import io.failify.util.TarGzipUtil;
 import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.Node;
 import io.failify.dsl.entities.PathEntry;
 import io.failify.dsl.entities.Service;
 import io.failify.exceptions.WorkspaceException;
-import net.lingala.zip4j.exception.ZipException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -140,20 +139,26 @@ public class WorkspaceManager {
             retMap.put(service.getName(), new HashMap<>());
             for (PathEntry pathEntry: service.getApplicationPaths().values()) {
                 if (pathEntry.shouldBeDecompressed()) {
+                    File targetDir = decompressedDirectory.resolve(service.getName())
+                            .resolve(pathToStringWithoutSlashes(pathEntry.getPath())).toFile();
+                    targetDir.mkdirs();
                     if (pathEntry.getPath().endsWith(".zip")) {
-                        File targetDir = decompressedDirectory.resolve(service.getName())
-                                .resolve(pathToStringWithoutSlashes(pathEntry.getPath())).toFile();
-
                         try {
-                            ZipUtil.unzip(pathEntry.getPath(), targetDir.toString());
-                        } catch (InterruptedException | IOException | ZipException e) {
+                            TarGzipUtil.unzip(pathEntry.getPath(), targetDir.toString());
+                        } catch (IOException e) {
                             throw new WorkspaceException("Error while unzipping " + pathEntry.getPath(), e);
                         }
-                        retMap.get(service.getName()).put(pathEntry.getPath(), targetDir.toString());
+                    } else if (pathEntry.getPath().endsWith(".tar.gz")) {
+                        try {
+                            TarGzipUtil.unTarGzip(pathEntry.getPath(), targetDir.toString());
+                        } catch (IOException e) {
+                            throw new WorkspaceException("Error while extracting " + pathEntry.getPath(), e);
+                        }
                     } else {
                         throw new WorkspaceException("Decompression is only supported for zip files!"
                                 + pathEntry.getPath() + " is not a zip file.");
                     }
+                    retMap.get(service.getName()).put(pathEntry.getPath(), targetDir.toString());
                 }
             }
         }
