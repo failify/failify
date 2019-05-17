@@ -296,6 +296,20 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
     }
 
+    private String getDockerApiVersion() throws RuntimeEngineException {
+        try {
+            return dockerClient.version().apiVersion();
+        } catch (DockerException | InterruptedException e) {
+            throw new RuntimeEngineException("Error while getting docker version");
+        }
+    }
+
+    private String bindMountString(String from, String to, boolean readonly) throws RuntimeEngineException {
+        String apiVersion = getDockerApiVersion();
+        String extra = Integer.parseInt(apiVersion.split(".")[2]) >= 28 ? ":delegated" : "";
+        return from + ":" + to + extra;
+    }
+
     // This should only work for linux containers
     @Override
     protected void createNodeContainer(Node node) throws RuntimeEngineException {
@@ -325,8 +339,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         String wrapperFile = createWrapperScriptForNode(node);
         String wrapperScriptAddress = DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId,
                 wrapperFile);
-        hostConfigBuilder.appendBinds(HostConfig.Bind.from(wrapperScriptAddress)
-                .to("/" + Constants.WRAPPER_SCRIPT_NAME).readOnly(true).build());
+        hostConfigBuilder.appendBinds(bindMountString(wrapperScriptAddress, "/" + Constants.WRAPPER_SCRIPT_NAME, true));
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
         hostConfigBuilder.capAdd("NET_ADMIN").networkMode(dockerNetworkManager.dockerNetworkName());
         // Creates do init file in the workspace and adds a bind mount for it
@@ -335,16 +348,14 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         } catch (IOException e) {
             throw new RuntimeEngineException("Error while creating failify do init file in node " + node.getName() + " workspace!", e);
         }
-        hostConfigBuilder.appendBinds(HostConfig.Bind
-                .from(DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId,
-                        Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME).toAbsolutePath().toString()))
-                .to("/" + Constants.DO_INIT_FILE_NAME).readOnly(false).build());
+        hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId,
+                        Paths.get(nodeWorkspace.getWorkingDirectory(), Constants.DO_INIT_FILE_NAME).toAbsolutePath().toString())
+                ,"/" + Constants.DO_INIT_FILE_NAME, false));
         // Adds all of the path mappings to the container
         for (NodeWorkspace.PathMappingEntry pathMappingEntry: nodeWorkspace.getPathMappingList()) {
             // TODO The readonly should come from path mapping. Right now docker wouldn't work with sub-path that are not readonly
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
-                    clientContainerId, pathMappingEntry.getSource()))
-                    .to(pathMappingEntry.getDestination()).readOnly(false).build());
+            hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, pathMappingEntry.getSource()), pathMappingEntry.getDestination(), false));
         }
         // Sets the network alias and hostname
         containerConfigBuilder.hostname(node.getName());
@@ -368,25 +379,25 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         } catch (IOException e) {
             throw new RuntimeEngineException("Error while creating initial console log file for node " + node.getName() + "!", e);
         }
-        hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
-                clientContainerId, localConsoleFile)).to("/" + Constants.CONSOLE_OUTERR_FILE_NAME).build());
+        hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                clientContainerId, localConsoleFile), "/" + Constants.CONSOLE_OUTERR_FILE_NAME, false));
         // Adds bind mounts for shared directories
         for (String localSharedDirectory: nodeWorkspace.getSharedDirectoriesMap().keySet()) {
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
-                    clientContainerId, localSharedDirectory)).to(nodeWorkspace.getSharedDirectoriesMap()
-                    .get(localSharedDirectory)).readOnly(false).build());
+            hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, localSharedDirectory), nodeWorkspace.getSharedDirectoriesMap()
+                    .get(localSharedDirectory), false));
         }
         // Adds bind mounts for log directories
         for (String localLogDirectory: nodeWorkspace.getLogDirectoriesMap().keySet()) {
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
-                    clientContainerId, localLogDirectory)).to(nodeWorkspace.getLogDirectoriesMap()
-                    .get(localLogDirectory)).readOnly(false).build());
+            hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, localLogDirectory), nodeWorkspace.getLogDirectoriesMap()
+                    .get(localLogDirectory), false));
         }
         // Adds bind mounts for log files
         for (String localLogFile: nodeWorkspace.getLogFilesMap().keySet()) {
-            hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
-                    clientContainerId, localLogFile)).to(nodeWorkspace.getLogFilesMap()
-                    .get(localLogFile)).readOnly(false).build());
+            hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                    clientContainerId, localLogFile), nodeWorkspace.getLogFilesMap()
+                    .get(localLogFile), false));
         }
         // Adds bind mount for libfaketime controller file
         // TODO file creation should be moved to WorkspaceManager
@@ -396,8 +407,8 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         } catch (IOException e) {
             throw new RuntimeEngineException("Error while creating libfaketime controller file for node " + node.getName() + "!", e);
         }
-        hostConfigBuilder.appendBinds(HostConfig.Bind.from(DockerUtil.mapDockerPathToHostPath(dockerClient,
-                clientContainerId, localLibFakeTimeFile)).to("/" + Constants.FAKETIME_CONTROLLER_FILE_NAME).build());
+        hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
+                clientContainerId, localLibFakeTimeFile), "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME, false));
 
         // Sets the wrapper script as the starting command
         containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
