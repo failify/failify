@@ -42,6 +42,7 @@ import io.failify.exceptions.NodeIsNotRunningException;
 import io.failify.exceptions.NodeNotFoundException;
 import io.failify.execution.CommandResults;
 import io.failify.execution.RuntimeEngine;
+import io.failify.execution.ULimit;
 import io.failify.util.DockerUtil;
 import io.failify.util.HostUtil;
 import io.failify.util.StreamUtil;
@@ -417,6 +418,14 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         // Sets the wrapper script as the starting command
         containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
                 Constants.CONSOLE_OUTERR_FILE_NAME + " 2>&1");
+        // Sets ulimits for the container
+        List<HostConfig.Ulimit> ulimits = new ArrayList<>();
+        for (ULimit ulimit: nodeService.ulimits().keySet()) {
+            ULimit.Values values = nodeService.ulimits().get(ulimit);
+            ulimits.add(HostConfig.Ulimit.builder().name(ulimit.name().toLowerCase())
+                    .soft(values.soft()).hard(values.hard()).build());
+        }
+        hostConfigBuilder.ulimits(ulimits);
         // Finalizing host config
         containerConfigBuilder.hostConfig(hostConfigBuilder.build());
         // Creates the container

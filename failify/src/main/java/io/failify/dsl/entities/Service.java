@@ -26,6 +26,7 @@
 package io.failify.dsl.entities;
 
 import io.failify.Constants;
+import io.failify.execution.ULimit;
 import io.failify.util.FileUtil;
 import io.failify.dsl.DeploymentEntity;
 import org.apache.commons.io.FilenameUtils;
@@ -60,6 +61,7 @@ public class Service extends DeploymentEntity {
     private final Boolean disableClockDrift; // the flag to disable clock drift capability
     private Integer pathOrderCounter; // the counter to use for applying order to application paths
     private final String workDir; // the working directory in the container
+    private final Map<ULimit, ULimit.Values> ulimits; // the ulimits map for the container
 
     /**
      * Private Constructor
@@ -84,6 +86,7 @@ public class Service extends DeploymentEntity {
         pathOrderCounter = builder.pathOrderCounter;
         disableClockDrift = builder.disableClockDrift;
         workDir = builder.workDir;
+        ulimits = Collections.unmodifiableMap(builder.ulimits);
     }
 
     public String getDockerImageName() {
@@ -150,6 +153,10 @@ public class Service extends DeploymentEntity {
         return workDir;
     }
 
+    public Map<ULimit, ULimit.Values> ulimits() {
+        return ulimits;
+    }
+
     /**
      * The builder class to build a service object
      */
@@ -173,6 +180,7 @@ public class Service extends DeploymentEntity {
         private ServiceType serviceType;
         private Integer pathOrderCounter;
         private String workDir;
+        private Map<ULimit, ULimit.Values> ulimits;
 
         /**
          * Constructor
@@ -195,6 +203,7 @@ public class Service extends DeploymentEntity {
             serviceType = ServiceType.OTHER;
             disableClockDrift = false;
             workDir = null;
+            ulimits = new HashMap<>();
         }
 
         /**
@@ -229,6 +238,7 @@ public class Service extends DeploymentEntity {
             pathOrderCounter = new Integer(instance.pathOrderCounter);
             disableClockDrift = new Boolean(instance.disableClockDrift);
             workDir = new String(instance.workDir);
+            ulimits = new HashMap<>(instance.ulimits);
         }
 
         /**
@@ -440,6 +450,29 @@ public class Service extends DeploymentEntity {
          */
         public Builder workDir(String workDir) {
             this.workDir = workDir;
+            return this;
+        }
+
+        /**
+         * Creates a ulimit for the node container using the given parameters. for unlimited use -1
+         * @param soft the soft limit
+         * @param hard the hard limit
+         * @return the current builder instance
+         */
+        public Builder ulimit(ULimit name, long soft, long hard) {
+            if (hard != -1 && soft > hard) hard = soft;
+            ulimits.put(name, new ULimit.Values(soft, hard));
+            return this;
+        }
+
+        /**
+         * Creates a ulimit for the node container using the given parameter. for unlimited use -1.
+         * The same value will be used for hard limit
+         * @param soft the soft limit
+         * @return the current builder instance
+         */
+        public Builder ulimit(ULimit name, long soft) {
+            ulimits.put(name, new ULimit.Values(soft, soft));
             return this;
         }
 
