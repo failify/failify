@@ -58,6 +58,7 @@ public class Node extends ReferableDeploymentEntity {
     private final Boolean offOnStartup; // the flag to start the node on start up or not
     private final Boolean disableClockDrift; // the flag to disable clock drift capability
     private final Integer pathOrderCounter; // the counter to use for applying order to application paths
+    private final String workDir; // the working directory in the container
 
     public static Node.LimitedBuilder limitedBuilder(String nodeName, String serviceName) {
         return new Node.LimitedBuilder(nodeName, serviceName);
@@ -82,6 +83,7 @@ public class Node extends ReferableDeploymentEntity {
         logDirectories = builder.logDirectories;
         disableClockDrift = builder.disableClockDrift;
         pathOrderCounter = builder.pathOrderCounter;
+        workDir = builder.workDir;
     }
 
     /**
@@ -103,6 +105,7 @@ public class Node extends ReferableDeploymentEntity {
         logDirectories = builder.logDirectories;
         disableClockDrift = builder.disableClockDrift;
         pathOrderCounter = builder.pathOrderCounter;
+        workDir = builder.workDir;
     }
 
     public String getServiceName() {
@@ -161,6 +164,10 @@ public class Node extends ReferableDeploymentEntity {
         return !disableClockDrift;
     }
 
+    public String getWorkDir() {
+        return workDir;
+    }
+
     /**
      * The builder class to build a node object
      */
@@ -178,6 +185,7 @@ public class Node extends ReferableDeploymentEntity {
         protected String stopCommand;
         protected Boolean disableClockDrift; // the flag to disable clock drift capability
         protected Integer pathOrderCounter;
+        protected String workDir;
 
         /**
          * Constructor
@@ -200,6 +208,7 @@ public class Node extends ReferableDeploymentEntity {
             logDirectories = new HashSet<>();
             disableClockDrift = false;
             pathOrderCounter = 0;
+            workDir = null;
         }
 
         /**
@@ -229,6 +238,7 @@ public class Node extends ReferableDeploymentEntity {
             logDirectories = new HashSet<>(instance.logDirectories);
             disableClockDrift = new Boolean(instance.disableClockDrift);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
+            workDir = new String(instance.workDir);
         }
 
         /**
@@ -269,6 +279,17 @@ public class Node extends ReferableDeploymentEntity {
          */
         public LimitedBuilder disableClockDrift() {
             this.disableClockDrift = true;
+            return this;
+        }
+
+        /**
+         * Sets the working directory for the container. This can help minimize the start, stop and init commands. Also,
+         * it can help when running a command inside container.
+         * @param workDir the working directory
+         * @return the current builder instance
+         */
+        public LimitedBuilder workDir(String workDir) {
+            this.workDir = workDir;
             return this;
         }
 

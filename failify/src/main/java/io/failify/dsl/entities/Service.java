@@ -59,6 +59,7 @@ public class Service extends DeploymentEntity {
     private final ServiceType serviceType; // the service programming language
     private final Boolean disableClockDrift; // the flag to disable clock drift capability
     private Integer pathOrderCounter; // the counter to use for applying order to application paths
+    private final String workDir; // the working directory in the container
 
     /**
      * Private Constructor
@@ -82,6 +83,7 @@ public class Service extends DeploymentEntity {
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         pathOrderCounter = builder.pathOrderCounter;
         disableClockDrift = builder.disableClockDrift;
+        workDir = builder.workDir;
     }
 
     public String getDockerImageName() {
@@ -144,6 +146,10 @@ public class Service extends DeploymentEntity {
         return !disableClockDrift;
     }
 
+    public String getWorkDir() {
+        return workDir;
+    }
+
     /**
      * The builder class to build a service object
      */
@@ -166,6 +172,7 @@ public class Service extends DeploymentEntity {
         private Boolean disableClockDrift;
         private ServiceType serviceType;
         private Integer pathOrderCounter;
+        private String workDir;
 
         /**
          * Constructor
@@ -187,6 +194,7 @@ public class Service extends DeploymentEntity {
             pathOrderCounter = 0;
             serviceType = ServiceType.OTHER;
             disableClockDrift = false;
+            workDir = null;
         }
 
         /**
@@ -220,6 +228,7 @@ public class Service extends DeploymentEntity {
             environmentVariables = new HashMap<>(instance.environmentVariables);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
             disableClockDrift = new Boolean(instance.disableClockDrift);
+            workDir = new String(instance.workDir);
         }
 
         /**
@@ -420,6 +429,17 @@ public class Service extends DeploymentEntity {
          */
         public Builder enableClockDrift() {
             this.disableClockDrift = false;
+            return this;
+        }
+
+        /**
+         * Sets the working directory for the container. This can help minimize the start, stop and init commands. Also,
+         * it can help when running a command inside container.
+         * @param workDir the working directory
+         * @return the current builder instance
+         */
+        public Builder workDir(String workDir) {
+            this.workDir = workDir;
             return this;
         }
 
