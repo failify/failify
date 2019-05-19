@@ -26,6 +26,7 @@
 package io.failify.dsl.entities;
 
 import io.failify.Constants;
+import io.failify.FailifyRunner;
 import io.failify.exceptions.DeploymentEntityNameConflictException;
 import io.failify.exceptions.DeploymentEntityNotFound;
 import io.failify.util.FileUtil;
@@ -84,10 +85,22 @@ public class Deployment extends DeploymentEntity {
 
     /**
      * @param name the name of the deployment definition
-     * @return givem the deployment definition name, returns a deployment definition builder
+     * @return given the deployment definition name, returns a deployment definition builder
      */
     public static Builder builder(String name) {
         return new Builder(name);
+    }
+
+    /**
+     * @param instance an instance of the deployment definition to be changed using the builder
+     * @return given the deployment definition instance, returns a deployment definition builder
+     */
+    public static Builder builder(Deployment instance) {
+        return new Builder(instance);
+    }
+
+    public FailifyRunner start() {
+        return FailifyRunner.run(this);
     }
 
     /**
