@@ -8,7 +8,7 @@ current JVM classpath to create a service.
 .. code-block:: java
     :linenos:
 
-    new Deployment.Builder("sample")
+    Deployment.builder("sample")
         .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
             .startCommand("java -cp ${FAILIFY_JVM_CLASSPATH} my.package.Main")
         .and()

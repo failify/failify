@@ -102,7 +102,7 @@ directory which contains a ``start.sh`` file to start the application.
         @BeforeClass
         public static void before() throws RuntimeEngineException {
             String projectVersion = "0.2.1";
-            Deployment deployment = Deployment.builder("sampleTest")
+            FailifyRunner runner = Deployment.builder("sampleTest")
                 // Service Definition
                 .withService("service1")
                     .applicationPath("target/project.zip", "/project", PathAttr.COMPRESSED)
@@ -119,9 +119,7 @@ directory which contains a ``start.sh`` file to start the application.
                     .applicationPath("config/n2.cfg", "/config.cfg".and()
                 .withNode("n3", "service1")
                     .applicationPath("config/n3.cfg", "/config.cfg".and()
-                .build();
-
-            FailifyRunner runner = FailifyRunner.run(deployment);
+                .build().start();
         }
 
         @AfterClass

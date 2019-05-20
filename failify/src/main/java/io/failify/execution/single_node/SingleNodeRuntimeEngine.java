@@ -307,7 +307,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
     private String bindMountString(String from, String to, boolean readonly) throws RuntimeEngineException {
         String apiVersion = getDockerApiVersion();
-        String extra = Integer.parseInt(apiVersion.split(".")[2]) >= 28 ? ":delegated" : "";
+        String extra = Integer.parseInt(apiVersion.split("\\.")[1]) >= 28 ? ":delegated" : "";
         return from + ":" + to + extra;
     }
 

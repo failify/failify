@@ -18,7 +18,7 @@ are available.
         @BeforeClass
         public static void before() throws RuntimeEngineException {
             String projectVersion = "0.2.1";
-            Deployment deployment = Deployment.builder("sampleTest")
+            FailifyRunner runner = Deployment.builder("sampleTest")
                 // Service Definition
                 .withService("service1")
                     .applicationPath("target/project.zip", "/project", PathAttr.COMPRESSED)
@@ -28,9 +28,7 @@ are available.
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
                 .withNode("n1", "service1").and()
-                .build();
-
-            FailifyRunner runner = FailifyRunner.run(deployment);
+                .build().start();
         }
 
         @AfterClass
