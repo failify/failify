@@ -33,6 +33,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.nio.file.Paths;
 import java.util.*;
 
@@ -42,7 +43,7 @@ import java.util.*;
  * created out of this service (if necessary).
  */
 public class Service extends DeploymentEntity {
-    private final Map<String, PathEntry> applicationPaths; // map of local paths to absolute target paths for the service
+    private final Map<String, PathEntry> applicationPaths; // map of target paths to path entries for the service
     // Library target paths in the node's container. This is useful when a directory is added as an application path which
     // is not a library but contains sub-paths that are a library
     private final Set<String> libraryPaths;
@@ -283,6 +284,9 @@ public class Service extends DeploymentEntity {
             if (!FileUtil.isPathAbsoluteInUnix(instrumentablePath)) {
                 throw new RuntimeException("The instrumentable path `" + instrumentablePath + "` is not absolute!");
             }
+
+            instrumentablePath = FilenameUtils.normalizeNoEndSeparator(instrumentablePath, true);
+
             this.instrumentablePaths.add(Paths.get(instrumentablePath).normalize().toString());
             return this;
         }
@@ -338,6 +342,24 @@ public class Service extends DeploymentEntity {
          * @return the current builder instance
          */
         public Builder applicationPath(String path, String targetPath, PathAttr... pathAttrs) {
+            return applicationPath(path, targetPath, null, pathAttrs);
+        }
+
+        /**
+         * Adds a local path to the specified absolute target path in the node created out of this service
+         * @param path a local path
+         * @param targetPath an absolute target path in the container of the node created out of this service
+         * @param pathAttrs the attributes of the path. PathAttr.LIBRARY marks the path as a library to be used by the
+         *                  instrumentation engine. PathAttr.COMPRESSED marks the path as compressed to be decompressed
+         *                  before being added to the node created out of this service. PathAttr.CHANGEABLE marks the path
+         *                  as changeable which results in a separate copy of the path for each node.
+         * @param replacements a map of string to string where all keys in the form of ``{{key}}`` will be replaced by the
+         *                     corresponding value in the local path. If not null, a new file will be generated with the
+         *                     replaced values. This option can only be used when the local path is file, is not a library
+         *                     and is not going to be decompressed.
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath, Map<String, String> replacements, PathAttr... pathAttrs) {
             boolean isLibrary = false, willBeChanged = false, shouldBeDecompressed = false;
 
             for (PathAttr pathAttr: pathAttrs) {
@@ -351,8 +373,15 @@ public class Service extends DeploymentEntity {
                 }
             }
 
-            this.applicationPaths.put(path, new PathEntry(
-                        path, targetPath, isLibrary, willBeChanged, shouldBeDecompressed, pathOrderCounter++)); // TODO Make this thread-safe
+            if (replacements != null && (!new File(path).isFile() || isLibrary || shouldBeDecompressed)) {
+                throw new RuntimeException("Replacements map only works when the source path is a non-library" +
+                        " and non-compressed file!");
+            }
+
+            targetPath = FilenameUtils.normalizeNoEndSeparator(targetPath, true);
+
+            this.applicationPaths.put(targetPath, new PathEntry(
+                    path, targetPath, replacements, isLibrary, willBeChanged, shouldBeDecompressed, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 

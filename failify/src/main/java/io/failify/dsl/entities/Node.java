@@ -37,6 +37,7 @@ import org.apache.commons.io.FilenameUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.util.*;
 
 /**
@@ -45,7 +46,7 @@ import java.util.*;
  * to be exposed in the node's container (if necessary).
  */
 public class Node extends ReferableDeploymentEntity {
-    private final Map<String, PathEntry> applicationPaths; // map of local paths to absolute target paths for the node
+    private final Map<String, PathEntry> applicationPaths; // map of target paths to path entries for the node
     private final Set<ExposedPortDefinition> exposedPorts; // set of exposed TCP or UDP ports for the node
     private final Map<String, String> environmentVariables; // map of env vars name to value
     private final Set<String> logFiles; // set of target log files to be collected
@@ -309,7 +310,22 @@ public class Node extends ReferableDeploymentEntity {
          * @return the current builder instance
          */
         public LimitedBuilder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, false);
+            applicationPath(path, targetPath, null,false);
+            return this;
+        }
+
+        /**
+         * Adds a not changing local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @param replacements a map of string to string where all keys in the form of ``{{key}}`` will be replaced by the
+         *                     corresponding value in the local path. If not null, a new file will be generated with the
+         *                     replaced values. This option can only be used when the local path is file, is not a library
+         *                     and is not going to be decompressed.
+         * @return the current builder instance
+         */
+        public LimitedBuilder applicationPath(String path, String targetPath, Map<String, String> replacements) {
+            applicationPath(path, targetPath, replacements, false);
             return this;
         }
 
@@ -322,8 +338,30 @@ public class Node extends ReferableDeploymentEntity {
          * @return the current builder instance
          */
         public LimitedBuilder applicationPath(String path, String targetPath, Boolean willBeChanged) {
-            this.applicationPaths.put(path, new PathEntry(
-                    path, targetPath, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
+            return applicationPath(path, targetPath, null, willBeChanged);
+        }
+
+        /**
+         * Adds a local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @param replacements a map of string to string where all keys in the form of ``{{key}}`` will be replaced by the
+         *                     corresponding value in the local path. If not null, a new file will be generated with the
+         *                     replaced values. This option can only be used when the local path is file, is not a library
+         *                     and is not going to be decompressed.
+         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
+         *                      each node
+         * @return the current builder instance
+         */
+        public LimitedBuilder applicationPath(String path, String targetPath, Map<String, String> replacements, Boolean willBeChanged) {
+            if (replacements != null && !new File(path).isFile()) {
+                throw new RuntimeException("Replacements map only works when the source path is a file");
+            }
+
+            targetPath = FilenameUtils.normalizeNoEndSeparator(targetPath, true);
+
+            this.applicationPaths.put(targetPath, new PathEntry(
+                    path, targetPath, replacements, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
             return this;
         }
 

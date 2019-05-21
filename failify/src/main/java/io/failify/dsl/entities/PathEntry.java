@@ -31,6 +31,8 @@ import org.apache.commons.io.FilenameUtils;
 
 import java.io.File;
 import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.Map;
 
 /**
  * All of the application paths defined in each service or node is an instance on this class to be used by the workspace
@@ -42,6 +44,7 @@ public class PathEntry {
     private final Boolean library; // is this path a library path to be used by the instrumentor
     private final Boolean copyOverToWorkspace; // if copyOverToWorkspace the path will be copied over to the node's workspace
     private final Boolean shouldBeDecompressed; // if this path needs to be decompressed e.g. a zip file
+    private final Map<String,String> replacements; // a map of string to string to make replacements in the source file
     private final Integer order; // the order in which the paths will be applied when being added to the container. it is
                                  // important for the overlapping target paths
 
@@ -49,14 +52,15 @@ public class PathEntry {
      * Constructor
      * @param path the local path to be added to the node's container
      * @param targetPath the target path in the node's container to map the local path to
+     * @param replacements a map of string to string to make replacements in the source file
      * @param library if the path is library path to be used by the instrumentor
      * @param copyOverToWorkspace if the path is changeable and should be copied to the node's workspace
      * @param shouldBeDecompressed if the path needs to be decompressed before being added to the node
      * @param order the order in which the paths will be applied when being added to the container. it is important for
      *              the overlapping target paths
      */
-    public PathEntry(String path, String targetPath, Boolean library, Boolean copyOverToWorkspace, Boolean shouldBeDecompressed,
-                     Integer order) {
+    public PathEntry(String path, String targetPath, Map<String, String> replacements, Boolean library,
+                     Boolean copyOverToWorkspace, Boolean shouldBeDecompressed, Integer order) {
         if (!new File(path).exists()) {
             throw new PathNotFoundException(path);
         }
@@ -75,6 +79,7 @@ public class PathEntry {
         this.library = library;
         this.copyOverToWorkspace = copyOverToWorkspace;
         this.shouldBeDecompressed = shouldBeDecompressed;
+        this.replacements = replacements == null ? null : Collections.unmodifiableMap(replacements);
         this.order = order;
     }
 
@@ -102,6 +107,10 @@ public class PathEntry {
         return shouldBeDecompressed;
     }
 
+    public Map<String, String> getReplacements() {
+        return replacements;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (obj == null) {
@@ -124,6 +133,9 @@ public class PathEntry {
             return false;
         }
         if ((this.library == null) ? (other.library != null) : !this.library.equals(other.library)) {
+            return false;
+        }
+        if ((this.replacements == null) ? (other.replacements != null) : !this.replacements.equals(other.replacements)) {
             return false;
         }
         return true;

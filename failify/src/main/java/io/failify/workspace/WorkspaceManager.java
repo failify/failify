@@ -327,60 +327,43 @@ public class WorkspaceManager {
 
     private List<NodeWorkspace.PathMappingEntry> copyOverNodePathsAndMakePathMappingList(Node node, Service nodeService,
                      Path nodeRootDirectory, Map<String, String> compressedToDecompressedMap) throws WorkspaceException {
-        List<NodeWorkspace.PathMappingEntry> pathMap = new ArrayList<>();
+        List<NodeWorkspace.PathMappingEntry> pathMapList = new ArrayList<>();
+        Map<String, NodeWorkspace.PathMappingEntry> pathMap = new HashMap<>();
+
+        NodeWorkspace.PathMappingEntry pathMappingEntry;
         try {
             // Copies over node's service paths based on their entry path order
             for (PathEntry pathEntry : nodeService.getApplicationPaths().values().stream()
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
-                Path sourcePath = Paths.get(pathEntry.shouldBeDecompressed()?
-                        compressedToDecompressedMap.get(pathEntry.getPath()):pathEntry.getPath());
+                String copiedPath = copyOverPathEntry(pathEntry, compressedToDecompressedMap, nodeRootDirectory, nodeService.getName());
 
-                if (pathEntry.shouldCopyOverToWorkspace()) {
-                    Path destPath = nodeRootDirectory.resolve(pathToStringWithoutSlashes(pathEntry.getPath()));
-                    if (sourcePath.toFile().isDirectory()) {
-                        FileUtil.copyDirectory(sourcePath, destPath);
-                    } else {
-                        Files.copy(sourcePath, destPath,
-                                StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                    pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), pathEntry.getTargetPath(),
-                            false));
-                } else {
-                    pathMap.add(new NodeWorkspace.PathMappingEntry(sourcePath.toString(), pathEntry.getTargetPath(),
-                            true));
-
-                }
+                pathMappingEntry = new NodeWorkspace.PathMappingEntry(copiedPath, pathEntry.getTargetPath(),
+                        !pathEntry.shouldCopyOverToWorkspace());
+                pathMapList.add(pathMappingEntry);
+                pathMap.put(pathEntry.getTargetPath(), pathMappingEntry);
             }
 
             // Copies over node's paths based on their entry path order
             for (PathEntry pathEntry : node.getApplicationPaths().values().stream()
                     .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
                     .collect(Collectors.toList())) {
-                if (pathEntry.shouldCopyOverToWorkspace()) {
-                    Path sourcePath = Paths.get(pathEntry.getPath());
-                    Path destPath = nodeRootDirectory.resolve(pathToStringWithoutSlashes(pathEntry.getPath()));
-                    if (sourcePath.toFile().isDirectory()) {
-                        FileUtil.copyDirectory(sourcePath, destPath);
-                    } else {
-                        Files.copy(sourcePath, destPath,
-                                StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
-                    }
-                    pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), pathEntry.getTargetPath(),
-                            false));
-                } else {
-                    pathMap.add(new NodeWorkspace.PathMappingEntry(pathEntry.getPath(), pathEntry.getTargetPath(),
-                            true));
-                }
+
+                String copiedPath = copyOverPathEntry(pathEntry, null, nodeRootDirectory, node.getName());
+
+                pathMappingEntry = new NodeWorkspace.PathMappingEntry(copiedPath, pathEntry.getTargetPath(),
+                        !pathEntry.shouldCopyOverToWorkspace());
+                pathMapList.add(pathMappingEntry);
+                pathMap.put(pathEntry.getTargetPath(), pathMappingEntry);
             }
 
             for (String instrumentablePath: nodeService.getInstrumentablePaths()) {
                 // Copies over instrumentable paths if it is not marked as willBeChanged and updates path mapping
-                String localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMap,
+                String localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMapList,
                         instrumentablePath, true);
 
                 if (localInstrumentablePath == null) {
-                    localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMap,
+                    localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMapList,
                             instrumentablePath, false);
 
                     if (localInstrumentablePath == null || !new File(localInstrumentablePath).exists()) {
@@ -398,15 +381,62 @@ public class WorkspaceManager {
                         Files.copy(localInstrumentablePathObj, destPath,
                                 StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
                     }
-                    pathMap.add(new NodeWorkspace.PathMappingEntry(destPath.toString(), instrumentablePath,
-                            false));
+                    pathMap.put(instrumentablePath,
+                            new NodeWorkspace.PathMappingEntry(destPath.toString(), instrumentablePath, false));
                 }
             }
 
-            return pathMap;
+            // after this stage these mappings will be used by docker and the order is not important
+            return new ArrayList<>(pathMap.values());
         } catch (IOException e) {
             throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!", e);
         }
+    }
+
+    private String copyOverPathEntry(PathEntry pathEntry, Map<String, String> compressedToDecompressedMap,
+                                                             Path nodeRootDirectory, String nodeOrServiceName) throws IOException {
+        Path sourcePath;
+        if (pathEntry.getReplacements() == null) {
+            if (compressedToDecompressedMap != null) {
+                sourcePath = Paths.get(pathEntry.shouldBeDecompressed() ?
+                        compressedToDecompressedMap.get(pathEntry.getPath()) : pathEntry.getPath());
+            } else {
+                sourcePath = Paths.get(pathEntry.getPath());
+            }
+        } else {
+            sourcePath = performFileReplacements(pathEntry.getPath(), pathEntry.getReplacements(), nodeOrServiceName);
+        }
+
+        if (pathEntry.shouldCopyOverToWorkspace()) {
+            Path destPath = nodeRootDirectory.resolve(pathToStringWithoutSlashes(pathEntry.getPath()));
+            if (sourcePath.toFile().isDirectory()) {
+                FileUtil.copyDirectory(sourcePath, destPath);
+            } else {
+                Files.copy(sourcePath, destPath,
+                        StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
+            }
+            return destPath.toString();
+        } else {
+            return sourcePath.toString();
+        }
+    }
+
+    private Path performFileReplacements(String source, Map<String, String> replacements, String nodeOrServiceName) throws IOException {
+        Path replacementDirectory = workingDirectory.resolve(Constants.REPLACEMENT_DIRECTORY_NAME).resolve(nodeOrServiceName);
+        Files.createDirectories(replacementDirectory);
+
+        Path replacementFile = replacementDirectory.resolve(pathToStringWithoutSlashes(source));
+        Files.copy(Paths.get(source), replacementFile,
+                StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
+
+        String content = new String(Files.readAllBytes(replacementFile));
+        for (String key: replacements.keySet()) {
+            content = content.replace("{{" + key + "}}", replacements.get(key));
+        }
+
+        Files.write(replacementFile, content.getBytes());
+
+        return replacementFile;
     }
 
     private Map<String, String> copyOverLibFakeTime(Path workingDirectory) throws WorkspaceException {

@@ -33,6 +33,7 @@ public class Constants {
 
     // Execution Engine
     public final static String DEFAULT_WORKING_DIRECTORY_NAME = ".FailifyWorkingDirectory";
+    public final static String REPLACEMENT_DIRECTORY_NAME = "replacements";
     public final static String NODE_ROOT_DIRECTORY_NAME = "root";
     public final static String NODE_LOG_DIRECTORY_NAME = "logs";
     public final static String SHAERD_DIRECTORIES_ROOT_NAME = "sharedDirectories";
