@@ -250,14 +250,19 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     private void buildDockerImages() throws RuntimeEngineException {
         for (Service service: deployment.getServices().values()) {
             try {
-                if (service.getDockerFileAddress() != null && (service.getDockerImageForceBuild() ||
+                if (service.getDockerFileAddress() != null) {
+                    if ((service.getDockerImageForceBuild() ||
                         dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImageName())).isEmpty())) {
-                    logger.info("Building docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
-                    Path dockerFile = Paths.get(service.getDockerFileAddress());
-                    dockerClient.build(dockerFile.getParent(), service.getDockerImageName(),
-                            new LoggingBuildHandler(),
-                            DockerClient.BuildParam.forceRm(),
-                            DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
+                        logger.info("Building docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
+                        Path dockerFile = Paths.get(service.getDockerFileAddress());
+                        dockerClient.build(dockerFile.getParent(), service.getDockerImageName(),
+                                new LoggingBuildHandler(),
+                                DockerClient.BuildParam.forceRm(),
+                                DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
+                    }
+                } else {
+                    logger.info("Pulling docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
+                    dockerClient.pull(service.getDockerImageName());
                 }
             } catch (InterruptedException | IOException | DockerException e) {
                 throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!", e);
