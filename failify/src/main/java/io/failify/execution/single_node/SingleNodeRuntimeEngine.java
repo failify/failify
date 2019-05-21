@@ -417,16 +417,13 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
                 clientContainerId, localLibFakeTimeFile), "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME, false));
 
-        // only use wrapper script if startcommand or initcommand are present
-        if (getNodeStartCommand(node.getName()) != null || getNodeInitCommand(node.getName()) != null) {
-            // Creates the wrapper script and adds a bind mount for it
-            String wrapperFile = createWrapperScriptForNode(node);
-            String wrapperScriptAddress = DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId, wrapperFile);
-            hostConfigBuilder.appendBinds(bindMountString(wrapperScriptAddress, "/" + Constants.WRAPPER_SCRIPT_NAME, true));
-            // Sets the wrapper script as the starting command
-            containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
-                    Constants.CONSOLE_OUTERR_FILE_NAME + " 2>&1");
-        }
+        // Creates the wrapper script and adds a bind mount for it
+        String wrapperFile = createWrapperScriptForNode(node);
+        String wrapperScriptAddress = DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId, wrapperFile);
+        hostConfigBuilder.appendBinds(bindMountString(wrapperScriptAddress, "/" + Constants.WRAPPER_SCRIPT_NAME, true));
+        // Sets the wrapper script as the starting command
+        containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
+                Constants.CONSOLE_OUTERR_FILE_NAME + " 2>&1");
         // Sets ulimits for the container
         List<HostConfig.Ulimit> ulimits = new ArrayList<>();
         for (ULimit ulimit: nodeService.ulimits().keySet()) {
@@ -453,6 +450,14 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                 .toAbsolutePath().toString();
     }
 
+    private String getDockerImageCmd(String dockerImageName) throws RuntimeEngineException {
+        try {
+            return String.join(" ", dockerClient.inspectImage(dockerImageName).config().cmd());
+        } catch (DockerException | InterruptedException e) {
+            throw new RuntimeEngineException("Error while inspecting docker image " + dockerImageName + " to get its cmd string", e);
+        }
+    }
+
     /**
      * This method creates a customized wrapper script for the node in its root directory
      * @return the address of wrapper script
@@ -467,11 +472,17 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
             String initCommand = getNodeInitCommand(node.getName());
             String startCommand = getNodeStartCommand(node.getName());
 
-            if (initCommand != null) {
-                wrapperScriptString = wrapperScriptString.replace("{{INIT_COMMAND}}", initCommand);
-            } else {
-                wrapperScriptString = wrapperScriptString.replace("{{INIT_COMMAND}}", ":");
+            if (initCommand == null) initCommand = ":";
+
+            if (startCommand == null) startCommand = getDockerImageCmd(deployment.getService(node.getServiceName()).getDockerImageName());
+
+            // if no defined start command and no image start command, throw exception
+            if (startCommand == null) {
+                throw new RuntimeEngineException("Start command for node " + node.getName() + " is null and its docker " +
+                        "image doesnt have a default cmd");
             }
+
+            wrapperScriptString = wrapperScriptString.replace("{{INIT_COMMAND}}", initCommand);
             wrapperScriptString = wrapperScriptString.replace("{{START_COMMAND}}", startCommand);
 
             FileOutputStream fileOutputStream = new FileOutputStream(wrapperScriptFile);
