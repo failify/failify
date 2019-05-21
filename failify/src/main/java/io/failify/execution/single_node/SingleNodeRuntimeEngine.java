@@ -606,8 +606,11 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         Map<ExposedPortDefinition, Integer> portMapping = new HashMap<>();
         ImmutableMap<String, List<PortBinding>> ports = containerInfo.networkSettings().ports();
         for (String containerPort: ports.keySet()) {
-            portMapping.put(ExposedPortDefinition.fromString(containerPort),
-                    Integer.parseInt(ports.get(containerPort).get(0).hostPort()));
+            List<PortBinding> portBindingList = ports.get(containerPort);
+            if (portBindingList != null && !portBindingList.isEmpty() && portBindingList.get(0) != null) {
+                portMapping.put(ExposedPortDefinition.fromString(containerPort),
+                        Integer.parseInt(ports.get(containerPort).get(0).hostPort()));
+            }
         }
         nodeToContainerInfoMap.get(nodeName).setPortMapping(portMapping);
     }
