@@ -261,8 +261,10 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
                                 DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
                     }
                 } else {
-                    logger.info("Pulling docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
-                    dockerClient.pull(service.getDockerImageName());
+                    if (dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImageName())).isEmpty()) {
+                        logger.info("Pulling docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
+                        dockerClient.pull(service.getDockerImageName());
+                    }
                 }
             } catch (InterruptedException | IOException | DockerException e) {
                 throw new RuntimeEngineException("Error while building docker image for service " + service.getName() + "!", e);
