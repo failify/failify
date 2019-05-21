@@ -340,11 +340,6 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         if (getNodeWorkDir(node.getName()) != null) {
             containerConfigBuilder.workingDir(getNodeWorkDir(node.getName()));
         }
-        // Creates the wrapper script and adds a bind mount for it
-        String wrapperFile = createWrapperScriptForNode(node);
-        String wrapperScriptAddress = DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId,
-                wrapperFile);
-        hostConfigBuilder.appendBinds(bindMountString(wrapperScriptAddress, "/" + Constants.WRAPPER_SCRIPT_NAME, true));
         // Adds net admin capability to containers for iptables uses and make them connect to the created network
         hostConfigBuilder.capAdd("NET_ADMIN").networkMode(dockerNetworkManager.dockerNetworkName());
         // Creates do init file in the workspace and adds a bind mount for it
@@ -415,9 +410,16 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         hostConfigBuilder.appendBinds(bindMountString(DockerUtil.mapDockerPathToHostPath(dockerClient,
                 clientContainerId, localLibFakeTimeFile), "/" + Constants.FAKETIME_CONTROLLER_FILE_NAME, false));
 
-        // Sets the wrapper script as the starting command
-        containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
-                Constants.CONSOLE_OUTERR_FILE_NAME + " 2>&1");
+        // only use wrapper script if startcommand or initcommand are present
+        if (getNodeStartCommand(node.getName()) != null || getNodeInitCommand(node.getName()) != null) {
+            // Creates the wrapper script and adds a bind mount for it
+            String wrapperFile = createWrapperScriptForNode(node);
+            String wrapperScriptAddress = DockerUtil.mapDockerPathToHostPath(dockerClient, clientContainerId, wrapperFile);
+            hostConfigBuilder.appendBinds(bindMountString(wrapperScriptAddress, "/" + Constants.WRAPPER_SCRIPT_NAME, true));
+            // Sets the wrapper script as the starting command
+            containerConfigBuilder.cmd("/bin/sh", "-c", "/" + Constants.WRAPPER_SCRIPT_NAME + " >> /" +
+                    Constants.CONSOLE_OUTERR_FILE_NAME + " 2>&1");
+        }
         // Sets ulimits for the container
         List<HostConfig.Ulimit> ulimits = new ArrayList<>();
         for (ULimit ulimit: nodeService.ulimits().keySet()) {
