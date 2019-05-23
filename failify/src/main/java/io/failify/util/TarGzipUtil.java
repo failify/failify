@@ -79,7 +79,11 @@ public class TarGzipUtil {
     private static File unGzip(String inputFileAddr, String outputDirAddr) throws IOException {
         final File inputFile = new File(inputFileAddr);
         final File outputDir = new File(outputDirAddr);
-        final File outputFile = new File(outputDir, inputFile.getName().substring(0, inputFile.getName().length() - 3));
+        String outputFileName = inputFile.getName().substring(0, inputFile.getName().length() - 3);
+        if (!outputFileName.endsWith(".tar")) {
+            outputFileName += ".tar";
+        }
+        final File outputFile = new File(outputDir, outputFileName);
 
         outputDir.mkdirs();
         final GZIPInputStream in = new GZIPInputStream(new FileInputStream(inputFile));

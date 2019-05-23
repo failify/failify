@@ -32,6 +32,7 @@ import io.failify.dsl.entities.Node;
 import io.failify.dsl.entities.PathEntry;
 import io.failify.dsl.entities.Service;
 import io.failify.exceptions.WorkspaceException;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,8 +48,10 @@ public class WorkspaceManager {
 
     private final Deployment deployment;
     private final Path workingDirectory;
+    private final Path nodesDirectory;
+    private final Path logsDirectory;
     private Map<String, String> fakeTimePathMap;
-    private Map<String, Map<String, String>> serviceToMapOfCompressedToDecompressedMap;
+    private Map<String, String> compressedToDecompressedMap;
     private Map<String, String> sharedDirectoriesMap;
 
     public WorkspaceManager(Deployment deployment) {
@@ -60,6 +63,8 @@ public class WorkspaceManager {
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MMM-dd_HH-mm-ss-SSS");
         this.workingDirectory = Paths.get(".", topLevelWorkingDirectory, deployment.getName() + "_" +
                 simpleDateFormat.format(new Date())).toAbsolutePath().normalize();
+        this.nodesDirectory = workingDirectory.resolve(Constants.NODES_DIRECTORY_NAME);
+        this.logsDirectory = workingDirectory.resolve(Constants.LOGS_DIRECTORY_NAME);
     }
 
     public Map<String, NodeWorkspace> createWorkspace() throws WorkspaceException {
@@ -73,11 +78,27 @@ public class WorkspaceManager {
             throw new WorkspaceException("Error in creating Failify working directory at " + workingDirectory.toString(), e);
         }
 
+        // Creates the nodes directory
+        try {
+            logger.info("Creating the nodes directory at {}", nodesDirectory.toString());
+            Files.createDirectories(nodesDirectory);
+        } catch (IOException e) {
+            throw new WorkspaceException("Error in creating Failify nodes directory at " + nodesDirectory.toString(), e);
+        }
+
+        // Creates the logs directory
+        try {
+            logger.info("Creating the logs directory at {}", logsDirectory.toString());
+            Files.createDirectories(logsDirectory);
+        } catch (IOException e) {
+            throw new WorkspaceException("Error in creating Failify logs directory at " + logsDirectory.toString(), e);
+        }
+
         // Creates the shared directories
         sharedDirectoriesMap = createSharedDirectories();
 
         // Decompress compressed application paths in services
-        serviceToMapOfCompressedToDecompressedMap = decompressCompressedApplicationPaths();
+        compressedToDecompressedMap = decompressCompressedApplicationPaths();
 
         // Copies over libfaketime binaries to the working directory
         fakeTimePathMap = copyOverLibFakeTime(workingDirectory);
@@ -125,8 +146,8 @@ public class WorkspaceManager {
         return sharedDirectoriesMap;
     }
 
-    private Map<String, Map<String, String>> decompressCompressedApplicationPaths() throws WorkspaceException {
-        Map<String, Map<String, String>> retMap = new HashMap<>();
+    private Map<String, String> decompressCompressedApplicationPaths() throws WorkspaceException {
+        Map<String, String> retMap = new HashMap<>();
         Path decompressedDirectory = workingDirectory.resolve(Constants.DECOMPRESSED_DIRECTORIES_ROOT_NAME);
 
         try {
@@ -136,11 +157,10 @@ public class WorkspaceManager {
         }
 
         for (Service service: deployment.getServices().values()) {
-            retMap.put(service.getName(), new HashMap<>());
             for (PathEntry pathEntry: service.getApplicationPaths().values()) {
-                if (pathEntry.shouldBeDecompressed()) {
-                    File targetDir = decompressedDirectory.resolve(service.getName())
-                            .resolve(pathToStringWithoutSlashes(pathEntry.getPath())).toFile();
+                if (pathEntry.shouldBeDecompressed() && !retMap.containsKey(pathEntry.getPath())) {
+                    logger.info("Decompressing {} ...", pathEntry.getPath());
+                    File targetDir = decompressedDirectory.resolve(pathToStringWithoutSlashes(pathEntry.getPath())).toFile();
                     targetDir.mkdirs();
                     if (pathEntry.getPath().endsWith(".zip")) {
                         try {
@@ -148,7 +168,7 @@ public class WorkspaceManager {
                         } catch (IOException e) {
                             throw new WorkspaceException("Error while unzipping " + pathEntry.getPath(), e);
                         }
-                    } else if (pathEntry.getPath().endsWith(".tar.gz")) {
+                    } else if (pathEntry.getPath().endsWith(".tar.gz") || pathEntry.getPath().endsWith(".tgz")) {
                         try {
                             TarGzipUtil.unTarGzip(pathEntry.getPath(), targetDir.toString());
                         } catch (IOException e) {
@@ -158,7 +178,7 @@ public class WorkspaceManager {
                         throw new WorkspaceException("Decompression is only supported for zip files!"
                                 + pathEntry.getPath() + " is not a zip file.");
                     }
-                    retMap.get(service.getName()).put(pathEntry.getPath(), targetDir.toString());
+                    retMap.put(pathEntry.getPath(), targetDir.toString());
                 }
             }
         }
@@ -170,10 +190,8 @@ public class WorkspaceManager {
             throws WorkspaceException {
         logger.info("Creating workspace for node {}", node.getName());
 
-        Map<String, String> compressedToDecompressedMap = serviceToMapOfCompressedToDecompressedMap.get(node.getServiceName());
-
         // Creates the node's working directory
-        Path nodeWorkingDirectory = workingDirectory.resolve(node.getName());
+        Path nodeWorkingDirectory = nodesDirectory.resolve(node.getName());
         try {
             Files.createDirectory(nodeWorkingDirectory);
         } catch (IOException e) {
@@ -191,7 +209,7 @@ public class WorkspaceManager {
         }
 
         // Creates the node's log directory
-        Path nodeLogDirectory = nodeWorkingDirectory.resolve(Constants.NODE_LOG_DIRECTORY_NAME);
+        Path nodeLogDirectory = logsDirectory.resolve(node.getName());
         try {
             Files.createDirectory(nodeLogDirectory);
         } catch (IOException e) {
@@ -465,5 +483,24 @@ public class WorkspaceManager {
         }
 
         return pathMap;
+    }
+
+    public void cleanUp() {
+        File decompressedDirectory = workingDirectory.resolve(Constants.DECOMPRESSED_DIRECTORIES_ROOT_NAME).toFile();
+        if (decompressedDirectory.exists()) {
+            try {
+                FileUtils.deleteDirectory(decompressedDirectory);
+            } catch (IOException e) {
+                logger.warn("Error while deleting the decompressed directory");
+            }
+        }
+        File fakeTimeDirectory = workingDirectory.resolve(Constants.FAKETIME_DIRECTORY_NAME).toFile();
+        if (fakeTimeDirectory.exists()) {
+            try {
+                FileUtils.deleteDirectory(fakeTimeDirectory);
+            } catch (IOException e) {
+                logger.warn("Error while deleting the fakeTime directory");
+            }
+        }
     }
 }

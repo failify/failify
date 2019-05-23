@@ -187,6 +187,8 @@ public class FailifyRunner {
         if (runtimeEngine != null) {
             runtimeEngine.stop(kill, secondsUntilForcedStop);
         }
+        logger.info("Cleaning up the working directory ...");
+        workspaceManager.cleanUp();
     }
 
     /**
