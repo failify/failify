@@ -484,6 +484,190 @@ public class Node extends ReferableDeploymentEntity {
         }
 
         /**
+         * Sets the init command for the node which will be executed only once
+         * @param initCommand the init command of the node
+         * @return the current builder instance
+         */
+        public Builder initCommand(String initCommand) {
+            this.initCommand = initCommand;
+            return this;
+        }
+
+        /**
+         * Sets the start command for the node which will be executed when starting or restarting a node
+         * @param startCommand the start command of the node
+         * @return the current builder instance
+         */
+        public Builder startCommand(String startCommand) {
+            this.startCommand = startCommand;
+            return this;
+        }
+
+        /**
+         * Sets the stop command for the node which will be executed when stopping or restarting a node
+         * @param stopCommand the stop command of the node
+         * @return the current builder instance
+         */
+        public Builder stopCommand(String stopCommand) {
+            this.stopCommand = stopCommand;
+            return this;
+        }
+
+        /**
+         * The clock drift capability is being supported through the libfaketime library. This library has limitations and
+         * may cause unexpected errors with some binaries. If you are seeing unexpected error messages that you normally
+         * don't see, you should try disabling clock drift capability by calling this method.
+         * @return the current builder instance
+         */
+        public Builder disableClockDrift() {
+            this.disableClockDrift = true;
+            return this;
+        }
+
+        /**
+         * Sets the working directory for the container. This can help minimize the start, stop and init commands. Also,
+         * it can help when running a command inside container.
+         * @param workDir the working directory
+         * @return the current builder instance
+         */
+        public Builder workDir(String workDir) {
+            this.workDir = workDir;
+            return this;
+        }
+
+        /**
+         * Enables clock drift capability (enabled by default. Only call this if you have disabled it somewhere else)
+         * @return the current builder instance
+         */
+        public Builder enableClockDrift() {
+            this.disableClockDrift = false;
+            return this;
+        }
+
+        /**
+         * Adds a not changing local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath) {
+            applicationPath(path, targetPath, null,false);
+            return this;
+        }
+
+        /**
+         * Adds a not changing local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @param replacements a map of string to string where all keys in the form of ``{{key}}`` will be replaced by the
+         *                     corresponding value in the local path. If not null, a new file will be generated with the
+         *                     replaced values. This option can only be used when the local path is file, is not a library
+         *                     and is not going to be decompressed.
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath, Map<String, String> replacements) {
+            applicationPath(path, targetPath, replacements, false);
+            return this;
+        }
+
+        /**
+         * Adds a local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
+         *                      each node
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath, Boolean willBeChanged) {
+            return applicationPath(path, targetPath, null, willBeChanged);
+        }
+
+        /**
+         * Adds a local path to the specified absolute target path in the node
+         * @param path a local path
+         * @param targetPath an absolute target path in the node's container
+         * @param replacements a map of string to string where all keys in the form of ``{{key}}`` will be replaced by the
+         *                     corresponding value in the local path. If not null, a new file will be generated with the
+         *                     replaced values. This option can only be used when the local path is file, is not a library
+         *                     and is not going to be decompressed.
+         * @param willBeChanged a flag to mark the path as changeable which results in a separate copy of the path for
+         *                      each node
+         * @return the current builder instance
+         */
+        public Builder applicationPath(String path, String targetPath, Map<String, String> replacements, Boolean willBeChanged) {
+            if (replacements != null && !new File(path).isFile()) {
+                throw new RuntimeException("Replacements map only works when the source path is a file");
+            }
+
+            targetPath = FilenameUtils.normalizeNoEndSeparator(targetPath, true);
+
+            this.applicationPaths.put(targetPath, new PathEntry(
+                    path, targetPath, replacements, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
+            return this;
+        }
+
+        /**
+         * Adds an environment variable to the node
+         * @param name the name of the variable
+         * @param value the value of the variable
+         * @return the current builder instance
+         */
+        public Builder environmentVariable(String name, String value) {
+            this.environmentVariables.put(name, value);
+            return this;
+        }
+
+        /**
+         * Adds a tcp port to be exposed by the node's container
+         * @param portNumber the tcp port number to be exposed by the node
+         * @return the current builder instance
+         */
+        public Builder tcpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.TCP));
+            }
+            return this;
+        }
+
+        /**
+         * Adds a udp port to be exposed by the node's container
+         * @param portNumber the udp port number to be exposed by the node
+         * @return the current builder instance
+         */
+        public Builder udpPort(Integer... portNumber) {
+            for (Integer port: portNumber) {
+                exposedPorts.add(new ExposedPortDefinition(port, PortType.UDP));
+            }
+            return this;
+        }
+
+        /**
+         * Adds an absolute target path in node's container to be collected as a log file into the node's local workspace
+         * @param path an absolute target log file path to be collected
+         * @return the current builder instance
+         */
+        public Builder logFile(String path) {
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log file `" + path + "` path is not absolute!");
+            }
+            logFiles.add(FilenameUtils.normalizeNoEndSeparator(path, true));
+            return this;
+        }
+
+        /**
+         * Adds an absolute target path in node's container to be collected as a log directory into the node's local workspace
+         * @param path an absolute target log directory path to be collected
+         * @return the current builder instance
+         */
+        public Builder logDirectory(String path) {
+            if (!FileUtil.isPathAbsoluteInUnix(path)) {
+                throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
+            }
+            this.logDirectories.add(FilenameUtils.normalizeNoEndSeparator(path, true));
+            return this;
+        }
+
+        /**
          * Returns a stack trace event builder to define a new stack trace event object in the node definition
          * @param name of the stack trace event
          * @return a new stack trace event builder object initialized with the given name
