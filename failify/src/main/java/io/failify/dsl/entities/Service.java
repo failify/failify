@@ -243,6 +243,33 @@ public class Service extends DeploymentEntity {
         }
 
         /**
+         * Constructor for creating a service builder out of an existing instance but with a new name
+         * @param parentBuilder the parent builder object for this builder
+         * @param instance a service object instance to be changed
+         */
+        public Builder(Deployment.Builder parentBuilder, String newName, Service instance) {
+            super(parentBuilder, newName);
+            dockerImageName = new String(instance.dockerImageName);
+            dockerFileAddress = new String(instance.dockerFileAddress);
+            dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
+            instrumentablePaths = new HashSet<>(instance.instrumentablePaths);
+            initCommand = new String(instance.initCommand);
+            startCommand = new String(instance.startCommand);
+            stopCommand = new String(instance.stopCommand);
+            serviceType = instance.serviceType;
+            applicationPaths = new HashMap<>(instance.applicationPaths);
+            libraryPaths = new HashSet<>(instance.libraryPaths);
+            logFiles = new HashSet<>(instance.logFiles);
+            logDirectories = new HashSet<>(instance.logDirectories);
+            exposedPorts = new HashSet<>(instance.exposedPorts);
+            environmentVariables = new HashMap<>(instance.environmentVariables);
+            pathOrderCounter = new Integer(instance.pathOrderCounter);
+            disableClockDrift = new Boolean(instance.disableClockDrift);
+            workDir = new String(instance.workDir);
+            ulimits = new HashMap<>(instance.ulimits);
+        }
+
+        /**
          * Constructor
          * @param instance a service object instance to be changed
          */
@@ -256,7 +283,7 @@ public class Service extends DeploymentEntity {
          * @param dockerImage the docker image name and tag
          * @return the current builder instance
          */
-        public Builder dockerImageName(String dockerImage) {
+        public Builder dockerImgName(String dockerImage) {
             this.dockerImageName = dockerImage;
             return this;
         }
@@ -267,7 +294,7 @@ public class Service extends DeploymentEntity {
          * @param forceBuild
          * @return
          */
-        public Builder dockerFileAddress(String dockerFileAddress, Boolean forceBuild) {
+        public Builder dockerFileAddr(String dockerFileAddress, Boolean forceBuild) {
             this.dockerFileAddress = Paths.get(dockerFileAddress).toAbsolutePath().normalize().toString();
             this.dockerImageForceBuild = forceBuild;
             return this;
@@ -296,7 +323,7 @@ public class Service extends DeploymentEntity {
          * @param startCommand the start command of the service
          * @return the current builder instance
          */
-        public Builder startCommand(String startCommand) {
+        public Builder startCmd(String startCommand) {
             this.startCommand = startCommand;
             return this;
         }
@@ -306,7 +333,7 @@ public class Service extends DeploymentEntity {
          * @param initCommand the init command of the service
          * @return the current builder instance
          */
-        public Builder initCommand(String initCommand) {
+        public Builder initCmd(String initCommand) {
             this.initCommand = initCommand;
             return this;
         }
@@ -316,7 +343,7 @@ public class Service extends DeploymentEntity {
          * @param stopCommand the stop command of the service
          * @return the current builder instance
          */
-        public Builder stopCommand(String stopCommand) {
+        public Builder stopCmd(String stopCommand) {
             this.stopCommand = stopCommand;
             return this;
         }
@@ -341,8 +368,8 @@ public class Service extends DeploymentEntity {
          *                  as changeable which results in a separate copy of the path for each node.
          * @return the current builder instance
          */
-        public Builder applicationPath(String path, String targetPath, PathAttr... pathAttrs) {
-            return applicationPath(path, targetPath, null, pathAttrs);
+        public Builder appPath(String path, String targetPath, PathAttr... pathAttrs) {
+            return appPath(path, targetPath, null, pathAttrs);
         }
 
         /**
@@ -359,7 +386,7 @@ public class Service extends DeploymentEntity {
          *                     and is not going to be decompressed.
          * @return the current builder instance
          */
-        public Builder applicationPath(String path, String targetPath, Map<String, String> replacements, PathAttr... pathAttrs) {
+        public Builder appPath(String path, String targetPath, Map<String, String> replacements, PathAttr... pathAttrs) {
             boolean isLibrary = false, willBeChanged = false, shouldBeDecompressed = false;
 
             for (PathAttr pathAttr: pathAttrs) {
@@ -392,7 +419,7 @@ public class Service extends DeploymentEntity {
          * @param path an absolute or wildcard target path to be marked as a library path
          * @return
          */
-        public Builder libraryPath(String path) {
+        public Builder libPath(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The library path `" + path + "` is not absolute!");
             }
@@ -420,7 +447,7 @@ public class Service extends DeploymentEntity {
          * @param path an absolute target log file path to be collected
          * @return the current builder instance
          */
-        public Builder logDirectory(String path) {
+        public Builder logDir(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
             }
@@ -434,7 +461,7 @@ public class Service extends DeploymentEntity {
          * @param value the value of the variable
          * @return the current builder instance
          */
-        public Builder environmentVariable(String name, String value) {
+        public Builder env(String name, String value) {
             this.environmentVariables.put(name, value);
             return this;
         }

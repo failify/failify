@@ -42,11 +42,11 @@ class MainTest {
   def simpleDefinition(): Unit = {
     val deployment = Deployment.builder("sample-multithread")
       .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
-        .startCommand("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.Main")
-        .dockerImageName("failify/scala")
-        .dockerFileAddress("docker/Dockerfile", false)
+        .startCmd("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.Main")
+        .dockerImgName("failify/scala")
+        .dockerFileAddr("docker/Dockerfile", false)
         .logFile("/var/log/sample1")
-        .logDirectory("/var/log/samples")
+        .logDir("/var/log/samples")
         .serviceType(ServiceType.SCALA).and
       .withNode("n1", "s1")
         .stackTrace("e1", "io.failify.samples.Main$.helloWorld1,io.failify.samples.Main$.hello")
@@ -58,8 +58,8 @@ class MainTest {
         .garbageCollection("g1").and.withNode("n2", "s1")
         .offOnStartup.and
       .testCaseEvents("x1", "x2")
-      .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * x2 * e4")
-      .sharedDirectory("/failify")
+      .runSeq("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * x2 * e4")
+      .sharedDir("/failify")
       .build
 
     val runner = FailifyRunner.run(deployment)

@@ -357,6 +357,23 @@ public class Deployment extends DeploymentEntity {
         }
 
         /**
+         * Defines a number of nodes based on the given service name and node name prefix. For example for 3, node, service1,
+         * nodes node1, node2, node3 will be defined out of service1. Note that the node number start from 1.
+         * @param numOfNodes the number of nodes to be defined
+         * @param nodeNamePrefix the prefix to be used for node names
+         * @param serviceName the service name for the defined nodes
+         * @return
+         */
+        public Builder nodeInstances(int numOfNodes, String nodeNamePrefix, String serviceName, boolean offOnStartup) {
+            for (int i=1; i<=numOfNodes; i++) {
+                Node.Builder builder = withNode(nodeNamePrefix + i, serviceName);
+                if (offOnStartup) builder.offOnStartup();
+                builder.and();
+            }
+            return this;
+        }
+
+        /**
          * Adds a service or changes an existing definition of a service with the same name in the deployment definition
          * @param service definition to be added to the deployment
          * @return the current builder instance
@@ -390,6 +407,17 @@ public class Deployment extends DeploymentEntity {
          */
         public Service.Builder withService(String name) {
             return new Service.Builder(this, name);
+        }
+
+        /**
+         * Returns a service builder to define a new service object in the deployment definition based on an existing service
+         * definition
+         * @param name of the service
+         * @param baseService the name of the base service to build upon
+         * @return a new service builder object initialized with the given arguments
+         */
+        public Service.Builder withService(String name, String baseService) {
+            return new Service.Builder(this, name, services.get(baseService));
         }
 
         /**
@@ -435,14 +463,14 @@ public class Deployment extends DeploymentEntity {
                 }
 
                 if (instrumentablePathSet.contains(Paths.get(path).toAbsolutePath().normalize().toString())) {
-                    serviceBuilder.applicationPath(path, newTargetPath, PathAttr.CHANGEABLE);
+                    serviceBuilder.appPath(path, newTargetPath, PathAttr.CHANGEABLE);
                     serviceBuilder.instrumentablePath(newTargetPath);
                 } else {
-                    serviceBuilder.applicationPath(path, newTargetPath, PathAttr.LIBRARY);
+                    serviceBuilder.appPath(path, newTargetPath, PathAttr.LIBRARY);
                 }
                 newClassPath.add(newTargetPath);
             }
-            serviceBuilder.environmentVariable(Constants.JVM_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
+            serviceBuilder.env(Constants.JVM_CLASSPATH_ENVVAR_NAME, newClassPath.toString());
             return serviceBuilder;
         }
 
@@ -451,7 +479,7 @@ public class Deployment extends DeploymentEntity {
          * @param path the absolute target path of the shared directory inside the nodes
          * @return the current builder instance
          */
-        public Builder sharedDirectory(String path) {
+        public Builder sharedDir(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The shared directory `" + path + "` path is not absolute!");
             }
@@ -478,7 +506,7 @@ public class Deployment extends DeploymentEntity {
          *                 "and" and "or" mean sequential and concurrent run respectively.
          * @return the current builder instance
          */
-        public Builder runSequence(String sequence) {
+        public Builder runSeq(String sequence) {
             runSequence = sequence;
             return this;
         }

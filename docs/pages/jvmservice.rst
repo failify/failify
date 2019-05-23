@@ -10,7 +10,7 @@ current JVM classpath to create a service.
 
     Deployment.builder("sample")
         .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
-            .startCommand("java -cp ${FAILIFY_JVM_CLASSPATH} my.package.Main")
+            .startCmd("java -cp ${FAILIFY_JVM_CLASSPATH} my.package.Main")
         .and()
 
 This method will create a new service by adding all the paths included in the JVM classpath as library paths to your

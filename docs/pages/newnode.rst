@@ -21,10 +21,10 @@ are available.
             FailifyRunner runner = Deployment.builder("sampleTest")
                 // Service Definition
                 .withService("service1")
-                    .applicationPath("target/project.zip", "/project", PathAttr.COMPRESSED)
-                    .startCommand("/project/bin/start.sh")
-                    .dockerImage("project/sampleTest:" + projectVersion)
-                    .dockerFileAddress("docker/Dockerfile", false)
+                    .appPath("target/project.zip", "/project", PathAttr.COMPRESSED)
+                    .startCmd("/project/bin/start.sh")
+                    .dockerImg("project/sampleTest:" + projectVersion)
+                    .dockerFileAddr("docker/Dockerfile", false)
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
                 .withNode("n1", "service1").and()

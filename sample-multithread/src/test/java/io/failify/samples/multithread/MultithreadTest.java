@@ -47,11 +47,11 @@ public class MultithreadTest {
         Deployment deployment = Deployment.builder("sample-multithread")
                 // Service Definitions
                 .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
-                    .startCommand("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.multithread.Main")
-                    .dockerImageName("failify/sample-multithread")
-                    .dockerFileAddress("../sample-multithread/docker/Dockerfile", false)
+                    .startCmd("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.multithread.Main")
+                    .dockerImgName("failify/sample-multithread")
+                    .dockerFileAddr("../sample-multithread/docker/Dockerfile", false)
                     .logFile("/var/log/sample1")
-                    .logDirectory("/var/log/samples")
+                    .logDir("/var/log/samples")
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
                 .withNode("n1", "s1")
@@ -72,8 +72,8 @@ public class MultithreadTest {
                 // Test Case Events
                 .testCaseEvents("x1", "x2")
                 // Run Sequence Definition
-                .runSequence("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * x2 * e4")
-                .sharedDirectory("/failify")
+                .runSeq("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * x2 * e4")
+                .sharedDir("/failify")
                 .build();
 
         FailifyRunner runner = FailifyRunner.run(deployment);

@@ -90,7 +90,7 @@ respectively.
 .. code-block:: java
 
     new Deployment.Builder("sample")
-        .runSequence("bast1 * tc1 * ubast1 * (gc1 | x1)")
+        .runSeq("bast1 * tc1 * ubast1 * (gc1 | x1)")
 
 This run sequence blocks all the threads in node ``n1`` with the stack trace of event ``st1`` (``bast1``), waits for the
 test case to enforce ``tc1``, unblcoks the blocked threads in node ``n1`` (``ubast1``), and finally, in parallel, performs

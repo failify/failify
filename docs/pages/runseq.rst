@@ -44,11 +44,11 @@ Finally, you need to mark:
 .. code-block:: java
 
     .withService("service1")
-        .applicationPath("./projectFiles", "/project")
+        .appPath("./projectFiles", "/project")
         // It is possible to use wildcard paths for marking library paths
-        .libraryPath("/project/libs/*.jar") // This is a target path in the node.
-        .applicationPath("target/classes", "/project/libs/classes", PathAttr.LIBRARY)
-        .applicationPath("./extraLib.jar", "/project/libs/extraLib.jar", PathAttr.LIBRARY)
+        .libPath("/project/libs/*.jar") // This is a target path in the node.
+        .appPath("target/classes", "/project/libs/classes", PathAttr.LIBRARY)
+        .appPath("./extraLib.jar", "/project/libs/extraLib.jar", PathAttr.LIBRARY)
         .instrumentablePath("/project/libs/main.jar") // This is a target path in the node
         .instrumentablePath("/project/libs/classes")
     .and()

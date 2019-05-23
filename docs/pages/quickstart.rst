@@ -105,11 +105,10 @@ directory which contains a ``start.sh`` file to start the application.
             FailifyRunner runner = Deployment.builder("sampleTest")
                 // Service Definition
                 .withService("service1")
-                    .applicationPath("target/project.zip", "/project", PathAttr.COMPRESSED)
-                    .startCommand("/project/project-" + projectVersion +
-                         "/bin/start.sh -conf /config.cfg")
-                    .dockerImage("project/sampleTest:" + projectVersion)
-                    .dockerFileAddress("docker/Dockerfile", false)
+                    .appPath("target/project.zip", "/project", PathAttr.COMPRESSED)
+                    .startCmd("/project/project-" + projectVersion + "/bin/start.sh -conf /config.cfg")
+                    .dockerImg("project/sampleTest:" + projectVersion)
+                    .dockerFileAddr("docker/Dockerfile", false)
                     .tcpPort(8765)
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions

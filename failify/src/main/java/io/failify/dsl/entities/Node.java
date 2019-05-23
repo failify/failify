@@ -247,7 +247,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param initCommand the init command of the node
          * @return the current builder instance
          */
-        public LimitedBuilder initCommand(String initCommand) {
+        public LimitedBuilder initCmd(String initCommand) {
             this.initCommand = initCommand;
             return this;
         }
@@ -257,7 +257,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param startCommand the start command of the node
          * @return the current builder instance
          */
-        public LimitedBuilder startCommand(String startCommand) {
+        public LimitedBuilder startCmd(String startCommand) {
             this.startCommand = startCommand;
             return this;
         }
@@ -267,7 +267,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param stopCommand the stop command of the node
          * @return the current builder instance
          */
-        public LimitedBuilder stopCommand(String stopCommand) {
+        public LimitedBuilder stopCmd(String stopCommand) {
             this.stopCommand = stopCommand;
             return this;
         }
@@ -309,8 +309,8 @@ public class Node extends ReferableDeploymentEntity {
          * @param targetPath an absolute target path in the node's container
          * @return the current builder instance
          */
-        public LimitedBuilder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, null,false);
+        public LimitedBuilder appPath(String path, String targetPath) {
+            appPath(path, targetPath, null,false);
             return this;
         }
 
@@ -324,8 +324,8 @@ public class Node extends ReferableDeploymentEntity {
          *                     and is not going to be decompressed.
          * @return the current builder instance
          */
-        public LimitedBuilder applicationPath(String path, String targetPath, Map<String, String> replacements) {
-            applicationPath(path, targetPath, replacements, false);
+        public LimitedBuilder appPath(String path, String targetPath, Map<String, String> replacements) {
+            appPath(path, targetPath, replacements, false);
             return this;
         }
 
@@ -337,8 +337,8 @@ public class Node extends ReferableDeploymentEntity {
          *                      each node
          * @return the current builder instance
          */
-        public LimitedBuilder applicationPath(String path, String targetPath, Boolean willBeChanged) {
-            return applicationPath(path, targetPath, null, willBeChanged);
+        public LimitedBuilder appPath(String path, String targetPath, Boolean willBeChanged) {
+            return appPath(path, targetPath, null, willBeChanged);
         }
 
         /**
@@ -353,7 +353,7 @@ public class Node extends ReferableDeploymentEntity {
          *                      each node
          * @return the current builder instance
          */
-        public LimitedBuilder applicationPath(String path, String targetPath, Map<String, String> replacements, Boolean willBeChanged) {
+        public LimitedBuilder appPath(String path, String targetPath, Map<String, String> replacements, Boolean willBeChanged) {
             if (replacements != null && !new File(path).isFile()) {
                 throw new RuntimeException("Replacements map only works when the source path is a file");
             }
@@ -371,7 +371,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param value the value of the variable
          * @return the current builder instance
          */
-        public LimitedBuilder environmentVariable(String name, String value) {
+        public LimitedBuilder env(String name, String value) {
             this.environmentVariables.put(name, value);
             return this;
         }
@@ -418,7 +418,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param path an absolute target log directory path to be collected
          * @return the current builder instance
          */
-        public LimitedBuilder logDirectory(String path) {
+        public LimitedBuilder logDir(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
             }
@@ -488,7 +488,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param initCommand the init command of the node
          * @return the current builder instance
          */
-        public Builder initCommand(String initCommand) {
+        public Builder initCmd(String initCommand) {
             this.initCommand = initCommand;
             return this;
         }
@@ -498,7 +498,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param startCommand the start command of the node
          * @return the current builder instance
          */
-        public Builder startCommand(String startCommand) {
+        public Builder startCmd(String startCommand) {
             this.startCommand = startCommand;
             return this;
         }
@@ -508,7 +508,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param stopCommand the stop command of the node
          * @return the current builder instance
          */
-        public Builder stopCommand(String stopCommand) {
+        public Builder stopCmd(String stopCommand) {
             this.stopCommand = stopCommand;
             return this;
         }
@@ -550,8 +550,8 @@ public class Node extends ReferableDeploymentEntity {
          * @param targetPath an absolute target path in the node's container
          * @return the current builder instance
          */
-        public Builder applicationPath(String path, String targetPath) {
-            applicationPath(path, targetPath, null,false);
+        public Builder appPath(String path, String targetPath) {
+            appPath(path, targetPath, null,false);
             return this;
         }
 
@@ -565,8 +565,8 @@ public class Node extends ReferableDeploymentEntity {
          *                     and is not going to be decompressed.
          * @return the current builder instance
          */
-        public Builder applicationPath(String path, String targetPath, Map<String, String> replacements) {
-            applicationPath(path, targetPath, replacements, false);
+        public Builder appPath(String path, String targetPath, Map<String, String> replacements) {
+            appPath(path, targetPath, replacements, false);
             return this;
         }
 
@@ -578,8 +578,8 @@ public class Node extends ReferableDeploymentEntity {
          *                      each node
          * @return the current builder instance
          */
-        public Builder applicationPath(String path, String targetPath, Boolean willBeChanged) {
-            return applicationPath(path, targetPath, null, willBeChanged);
+        public Builder appPath(String path, String targetPath, Boolean willBeChanged) {
+            return appPath(path, targetPath, null, willBeChanged);
         }
 
         /**
@@ -594,7 +594,7 @@ public class Node extends ReferableDeploymentEntity {
          *                      each node
          * @return the current builder instance
          */
-        public Builder applicationPath(String path, String targetPath, Map<String, String> replacements, Boolean willBeChanged) {
+        public Builder appPath(String path, String targetPath, Map<String, String> replacements, Boolean willBeChanged) {
             if (replacements != null && !new File(path).isFile()) {
                 throw new RuntimeException("Replacements map only works when the source path is a file");
             }
@@ -612,7 +612,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param value the value of the variable
          * @return the current builder instance
          */
-        public Builder environmentVariable(String name, String value) {
+        public Builder env(String name, String value) {
             this.environmentVariables.put(name, value);
             return this;
         }
@@ -659,7 +659,7 @@ public class Node extends ReferableDeploymentEntity {
          * @param path an absolute target log directory path to be collected
          * @return the current builder instance
          */
-        public Builder logDirectory(String path) {
+        public Builder logDir(String path) {
             if (!FileUtil.isPathAbsoluteInUnix(path)) {
                 throw new RuntimeException("The log directory `" + path + "` path is not absolute!");
             }
