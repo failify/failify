@@ -901,6 +901,15 @@ public class Node extends ReferableDeploymentEntity {
             return this;
         }
 
+        /**
+         * Mark the node to be started in the startup
+         * @return the current builder instance
+         */
+        public Builder onOnStartup() {
+            this.offOnStartup = false;
+            return this;
+        }
+
         @Override
         public Node build() {
             return new Node(this);
