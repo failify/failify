@@ -80,7 +80,6 @@ public class WorkspaceManager {
 
         // Creates the nodes directory
         try {
-            logger.info("Creating the nodes directory at {}", nodesDirectory.toString());
             Files.createDirectories(nodesDirectory);
         } catch (IOException e) {
             throw new WorkspaceException("Error in creating Failify nodes directory at " + nodesDirectory.toString(), e);
@@ -88,7 +87,6 @@ public class WorkspaceManager {
 
         // Creates the logs directory
         try {
-            logger.info("Creating the logs directory at {}", logsDirectory.toString());
             Files.createDirectories(logsDirectory);
         } catch (IOException e) {
             throw new WorkspaceException("Error in creating Failify logs directory at " + logsDirectory.toString(), e);

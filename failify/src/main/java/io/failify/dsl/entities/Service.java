@@ -226,9 +226,9 @@ public class Service extends DeploymentEntity {
             dockerFileAddress = new String(instance.dockerFileAddress);
             dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
             instrumentablePaths = new HashSet<>(instance.instrumentablePaths);
-            initCommand = new String(instance.initCommand);
-            startCommand = new String(instance.startCommand);
-            stopCommand = new String(instance.stopCommand);
+            initCommand = instance.initCommand == null ? null : new String(instance.initCommand);
+            startCommand = instance.startCommand == null ? null : new String(instance.startCommand);
+            stopCommand = instance.stopCommand == null ? null : new String(instance.stopCommand);
             serviceType = instance.serviceType;
             applicationPaths = new HashMap<>(instance.applicationPaths);
             libraryPaths = new HashSet<>(instance.libraryPaths);
@@ -238,7 +238,7 @@ public class Service extends DeploymentEntity {
             environmentVariables = new HashMap<>(instance.environmentVariables);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
             disableClockDrift = new Boolean(instance.disableClockDrift);
-            workDir = new String(instance.workDir);
+            workDir = instance.workDir == null ? null : new String(instance.workDir);
             ulimits = new HashMap<>(instance.ulimits);
         }
 
@@ -253,9 +253,9 @@ public class Service extends DeploymentEntity {
             dockerFileAddress = new String(instance.dockerFileAddress);
             dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
             instrumentablePaths = new HashSet<>(instance.instrumentablePaths);
-            initCommand = new String(instance.initCommand);
-            startCommand = new String(instance.startCommand);
-            stopCommand = new String(instance.stopCommand);
+            initCommand = instance.initCommand == null ? null : new String(instance.initCommand);
+            startCommand = instance.startCommand == null ? null : new String(instance.startCommand);
+            stopCommand = instance.stopCommand == null ? null : new String(instance.stopCommand);
             serviceType = instance.serviceType;
             applicationPaths = new HashMap<>(instance.applicationPaths);
             libraryPaths = new HashSet<>(instance.libraryPaths);
@@ -265,7 +265,7 @@ public class Service extends DeploymentEntity {
             environmentVariables = new HashMap<>(instance.environmentVariables);
             pathOrderCounter = new Integer(instance.pathOrderCounter);
             disableClockDrift = new Boolean(instance.disableClockDrift);
-            workDir = new String(instance.workDir);
+            workDir = instance.workDir == null ? null : new String(instance.workDir);
             ulimits = new HashMap<>(instance.ulimits);
         }
 

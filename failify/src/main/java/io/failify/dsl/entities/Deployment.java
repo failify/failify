@@ -417,6 +417,9 @@ public class Deployment extends DeploymentEntity {
          * @return a new service builder object initialized with the given arguments
          */
         public Service.Builder withService(String name, String baseService) {
+            if (!services.containsKey(baseService)) {
+                throw new DeploymentEntityNotFound(baseService, "Service");
+            }
             return new Service.Builder(this, name, services.get(baseService));
         }
 
