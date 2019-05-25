@@ -84,10 +84,6 @@ public class JavaInstrumentor implements Instrumentor {
 
         classPathString = classPathStringJoiner.toString();
 
-        if (!classPathString.isEmpty()) {
-            classPathString = "\"" + classPathString + "\"";
-        }
-
         String aspectJHome = System.getenv("ASPECTJ_HOME");
 
         if (aspectJHome == null) {
