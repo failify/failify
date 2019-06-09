@@ -108,7 +108,7 @@ directory which contains a ``start.sh`` file to start the application.
                     .appPath("target/project.zip", "/project", PathAttr.COMPRESSED)
                     .startCmd("/project/project-" + projectVersion + "/bin/start.sh -conf /config.cfg")
                     .dockerImg("project/sampleTest:" + projectVersion)
-                    .dockerFileAddr("docker/Dockerfile", false)
+                    .dockerFile("docker/Dockerfile", false)
                     .tcpPort(8765)
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions

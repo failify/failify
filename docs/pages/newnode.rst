@@ -24,7 +24,7 @@ are available.
                     .appPath("target/project.zip", "/project", PathAttr.COMPRESSED)
                     .startCmd("/project/bin/start.sh")
                     .dockerImg("project/sampleTest:" + projectVersion)
-                    .dockerFileAddr("docker/Dockerfile", false)
+                    .dockerFile("docker/Dockerfile", false)
                     .serviceType(ServiceType.JAVA).and()
                 // Node Definitions
                 .withNode("n1", "service1").and()

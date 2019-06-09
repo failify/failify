@@ -43,8 +43,8 @@ class MainTest {
     val deployment = Deployment.builder("sample-multithread")
       .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
         .startCmd("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.Main")
-        .dockerImgName("failify/scala")
-        .dockerFileAddr("docker/Dockerfile", false)
+        .dockerImg("failify/scala")
+        .dockerFile("docker/Dockerfile", false)
         .logFile("/var/log/sample1")
         .logDir("/var/log/samples")
         .serviceType(ServiceType.SCALA).and

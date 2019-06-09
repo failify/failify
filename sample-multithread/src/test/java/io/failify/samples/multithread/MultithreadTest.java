@@ -48,8 +48,8 @@ public class MultithreadTest {
                 // Service Definitions
                 .withServiceFromJvmClasspath("s1", "target/classes", "**commons-io*.jar")
                     .startCmd("java -cp ${FAILIFY_JVM_CLASSPATH} io.failify.samples.multithread.Main")
-                    .dockerImgName("failify/sample-multithread")
-                    .dockerFileAddr("../sample-multithread/docker/Dockerfile", false)
+                    .dockerImg("failify/sample-multithread")
+                    .dockerFile("../sample-multithread/docker/Dockerfile", false)
                     .logFile("/var/log/sample1")
                     .logDir("/var/log/samples")
                     .serviceType(ServiceType.JAVA).and()

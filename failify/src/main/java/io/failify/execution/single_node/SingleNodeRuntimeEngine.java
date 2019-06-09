@@ -250,20 +250,20 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
     private void buildDockerImages() throws RuntimeEngineException {
         for (Service service: deployment.getServices().values()) {
             try {
-                if (service.getDockerFileAddress() != null) {
+                if (service.getDockerFile() != null) {
                     if ((service.getDockerImageForceBuild() ||
-                        dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImageName())).isEmpty())) {
-                        logger.info("Building docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
-                        Path dockerFile = Paths.get(service.getDockerFileAddress());
-                        dockerClient.build(dockerFile.getParent(), service.getDockerImageName(),
+                        dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImage())).isEmpty())) {
+                        logger.info("Building docker image `{}` for service {} ...", service.getDockerImage(), service.getName());
+                        Path dockerFile = Paths.get(service.getDockerFile());
+                        dockerClient.build(dockerFile.getParent(), service.getDockerImage(),
                                 new LoggingBuildHandler(),
                                 DockerClient.BuildParam.forceRm(),
                                 DockerClient.BuildParam.dockerfile(dockerFile.getFileName()));
                     }
                 } else {
-                    if (dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImageName())).isEmpty()) {
-                        logger.info("Pulling docker image `{}` for service {} ...", service.getDockerImageName(), service.getName());
-                        dockerClient.pull(service.getDockerImageName());
+                    if (dockerClient.listImages(DockerClient.ListImagesParam.byName(service.getDockerImage())).isEmpty()) {
+                        logger.info("Pulling docker image `{}` for service {} ...", service.getDockerImage(), service.getName());
+                        dockerClient.pull(service.getDockerImage());
                     }
                 }
             } catch (InterruptedException | IOException | DockerException e) {
@@ -336,7 +336,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         ContainerConfig.Builder containerConfigBuilder = ContainerConfig.builder();
         HostConfig.Builder hostConfigBuilder = HostConfig.builder();
         // Sets the docker image for the container
-        containerConfigBuilder.image(nodeService.getDockerImageName());
+        containerConfigBuilder.image(nodeService.getDockerImage());
         // Sets env vars for the container
         List<String> envList = new ArrayList<>();
         for (Map.Entry<String, String> envEntry: getNodeEnvironmentVariablesMap(node.getName()).entrySet()) {
@@ -474,7 +474,7 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
 
             if (initCommand == null) initCommand = ":";
 
-            if (startCommand == null) startCommand = getDockerImageCmd(deployment.getService(node.getServiceName()).getDockerImageName());
+            if (startCommand == null) startCommand = getDockerImageCmd(deployment.getService(node.getServiceName()).getDockerImage());
 
             // if no defined start command and no image start command, throw exception
             if (startCommand == null) {

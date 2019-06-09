@@ -51,8 +51,8 @@ public class Service extends DeploymentEntity {
     private final Set<String> logDirectories; // set of target log directories to be collected
     private final Set<ExposedPortDefinition> exposedPorts; // set of exposed TCP or UDP ports for the node
     private final Map<String, String> environmentVariables; // map of env vars name to value
-    private final String dockerImageName; // the docker image name and tag to be used for this service
-    private final String dockerFileAddress; // the dockerfile address to be used to create the docker image for this service
+    private final String dockerImage; // the docker image name and tag to be used for this service
+    private final String dockerFile; // the dockerfile address to be used to create the docker image for this service
     private final Boolean dockerImageForceBuild; // the flag to force the build of the dockerfile
     private final Set<String> instrumentablePaths; // the paths that can be changed by the service instrumentors
     private final String initCommand; // the init command of the node which will executed only once
@@ -70,8 +70,8 @@ public class Service extends DeploymentEntity {
      */
     private Service(Builder builder) {
         super(builder.getName());
-        dockerImageName = builder.dockerImageName;
-        dockerFileAddress = builder.dockerFileAddress;
+        dockerImage = builder.dockerImage;
+        dockerFile = builder.dockerFile;
         dockerImageForceBuild = builder.dockerImageForceBuild;
         instrumentablePaths = builder.instrumentablePaths;
         initCommand = builder.initCommand;
@@ -90,16 +90,16 @@ public class Service extends DeploymentEntity {
         ulimits = Collections.unmodifiableMap(builder.ulimits);
     }
 
-    public String getDockerImageName() {
-        return dockerImageName;
+    public String getDockerImage() {
+        return dockerImage;
     }
 
     public Boolean getDockerImageForceBuild() {
         return dockerImageForceBuild;
     }
 
-    public String getDockerFileAddress() {
-        return dockerFileAddress;
+    public String getDockerFile() {
+        return dockerFile;
     }
 
     public Set<String> getInstrumentablePaths() {
@@ -170,8 +170,8 @@ public class Service extends DeploymentEntity {
         private Set<String> logDirectories;
         private Set<ExposedPortDefinition> exposedPorts;
         private Map<String, String> environmentVariables;
-        private String dockerImageName;
-        private String dockerFileAddress;
+        private String dockerImage;
+        private String dockerFile;
         private Boolean dockerImageForceBuild;
         private Set<String> instrumentablePaths;
         private String initCommand;
@@ -197,9 +197,9 @@ public class Service extends DeploymentEntity {
             logDirectories = new HashSet<>();
             exposedPorts = new HashSet<>();
             environmentVariables = new HashMap<>();
-            dockerImageName = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
+            dockerImage = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
             dockerImageForceBuild = false;
-            dockerFileAddress = null;
+            dockerFile = null;
             pathOrderCounter = 0;
             serviceType = ServiceType.OTHER;
             disableClockDrift = false;
@@ -222,8 +222,8 @@ public class Service extends DeploymentEntity {
          */
         public Builder(Deployment.Builder parentBuilder, Service instance) {
             super(parentBuilder, instance);
-            dockerImageName = new String(instance.dockerImageName);
-            dockerFileAddress = new String(instance.dockerFileAddress);
+            dockerImage = new String(instance.dockerImage);
+            dockerFile = new String(instance.dockerFile);
             dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
             instrumentablePaths = new HashSet<>(instance.instrumentablePaths);
             initCommand = instance.initCommand == null ? null : new String(instance.initCommand);
@@ -249,8 +249,8 @@ public class Service extends DeploymentEntity {
          */
         public Builder(Deployment.Builder parentBuilder, String newName, Service instance) {
             super(parentBuilder, newName);
-            dockerImageName = new String(instance.dockerImageName);
-            dockerFileAddress = new String(instance.dockerFileAddress);
+            dockerImage = new String(instance.dockerImage);
+            dockerFile = new String(instance.dockerFile);
             dockerImageForceBuild = new Boolean(instance.dockerImageForceBuild);
             instrumentablePaths = new HashSet<>(instance.instrumentablePaths);
             initCommand = instance.initCommand == null ? null : new String(instance.initCommand);
@@ -283,8 +283,8 @@ public class Service extends DeploymentEntity {
          * @param dockerImage the docker image name and tag
          * @return the current builder instance
          */
-        public Builder dockerImgName(String dockerImage) {
-            this.dockerImageName = dockerImage;
+        public Builder dockerImg(String dockerImage) {
+            this.dockerImage = dockerImage;
             return this;
         }
 
@@ -294,8 +294,8 @@ public class Service extends DeploymentEntity {
          * @param forceBuild
          * @return
          */
-        public Builder dockerFileAddr(String dockerFileAddress, Boolean forceBuild) {
-            this.dockerFileAddress = Paths.get(dockerFileAddress).toAbsolutePath().normalize().toString();
+        public Builder dockerFile(String dockerFileAddress, Boolean forceBuild) {
+            this.dockerFile = Paths.get(dockerFileAddress).toAbsolutePath().normalize().toString();
             this.dockerImageForceBuild = forceBuild;
             return this;
         }
