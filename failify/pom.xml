@@ -100,4 +100,73 @@
 
     </dependencies>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.1.1</version>
+                <configuration>
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                    <createSourcesJar>true</createSourcesJar>
+                    <artifactSet>
+                        <excludes>
+                            <exclude>io.failify:failifyrt</exclude>
+                        </excludes>
+                    </artifactSet>
+                    <relocations>
+                        <relocation>
+                            <pattern>javax.annotation</pattern>
+                            <shadedPattern>io.failify.shaded.javax.annotation</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>javax.inject</pattern>
+                            <shadedPattern>io.failify.shaded.javax.inject</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>javax.ws.rs</pattern>
+                            <shadedPattern>io.failify.shaded.javax.ws.rs</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.eclipse</pattern>
+                            <shadedPattern>io.failify.shaded.org.eclipse</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.fasterxml.jackson</pattern>
+                            <shadedPattern>io.failify.shaded.com.fasterxml.jackson</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.glassfish</pattern>
+                            <shadedPattern>io.failify.shaded.org.glassfish</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.jvnet</pattern>
+                            <shadedPattern>io.failify.shaded.org.jvnet</shadedPattern>
+                        </relocation>
+                    </relocations>
+                    <transformers>
+                        <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                    </transformers>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
