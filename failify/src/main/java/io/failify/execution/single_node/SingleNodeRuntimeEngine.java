@@ -193,8 +193,28 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         }
 
         ExecState execState;
+        PipedOutputStream out_pipe, err_pipe;
+        PipedInputStream out, err;
+        AtomicReference<IOException> threadException;
+        Thread readThread;
 
         try {
+            // TODO this need to be fixed by putting the reader in aother thread to read simultaneously
+            out = new PipedInputStream(1024*20);
+            err = new PipedInputStream(1024*20);
+            out_pipe = new PipedOutputStream(out);
+            err_pipe = new PipedOutputStream(err);
+
+            threadException = new AtomicReference<>();
+            readThread = new Thread(() -> {
+                try {
+                    logStream.attach(out_pipe, err_pipe);
+                } catch (IOException e) {
+                    threadException.set(e);
+                }
+            });
+            readThread.start();
+
             do {
                 Thread.sleep(10);
                 execState = dockerClient.execInspect(execCreation.id());
@@ -208,26 +228,14 @@ public class SingleNodeRuntimeEngine extends RuntimeEngine {
         } catch (DockerException e) {
             throw new RuntimeEngineException("Error while trying to inspect the status of command " + command
                     + " in node " + nodeName + "!", e);
+        } catch (IOException e) {
+            throw new RuntimeEngineException("Error while reading the stdout and stderr for command " + command
+                    + " on node " + nodeName);
         }
 
-        PipedOutputStream out_pipe, err_pipe;
-        PipedInputStream out, err;
+
         try {
-            out = new PipedInputStream();
-            err = new PipedInputStream();
-            out_pipe = new PipedOutputStream(out);
-            err_pipe = new PipedOutputStream(err);
 
-            AtomicReference<IOException> threadException = new AtomicReference<>();
-            Thread readThread = new Thread(() -> {
-                try {
-                    logStream.attach(out_pipe, err_pipe);
-                } catch (IOException e) {
-                    threadException.set(e);
-                }
-            });
-
-            readThread.start();
             try {
                 readThread.join();
             } catch (InterruptedException e) {
