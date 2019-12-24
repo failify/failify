@@ -26,6 +26,7 @@ package io.failify.workspace;
 
 import io.failify.Constants;
 import io.failify.util.FileUtil;
+import io.failify.util.HashingUtil;
 import io.failify.util.TarGzipUtil;
 import io.failify.dsl.entities.Deployment;
 import io.failify.dsl.entities.Node;
@@ -223,23 +224,18 @@ public class WorkspaceManager {
 
         Service nodeService = deployment.getService(node.getServiceName());
 
+        Set<String> instrumentablesPathSet = new HashSet<>();
         // Copies over the node paths to the node root directory
         List<NodeWorkspace.PathMappingEntry> pathMappingList = copyOverNodePathsAndMakePathMappingList(node, nodeService,
-                nodeRootDirectory, compressedToDecompressedMap);
+                nodeRootDirectory, compressedToDecompressedMap, instrumentablesPathSet);
 
         // Adds fakeTimeLib paths to the path mapping
         fakeTimePathMap.entrySet().stream().forEach(e -> pathMappingList.add(
                 new NodeWorkspace.PathMappingEntry(e.getKey(), e.getValue(), true)));
 
-        // Determines the instrumentable paths
-        Set<String> instrumentablePaths = new HashSet<>();
-        for (String instrumentablePath: nodeService.getInstrumentablePaths()) {
-            instrumentablePaths.add(getLocalPathFromNodeTargetPath(pathMappingList, instrumentablePath, true));
-        }
-
         // Creates the node workspace object
         return new NodeWorkspace(
-                instrumentablePaths,
+                instrumentablesPathSet,
                 getNodeLibPaths(nodeService, pathMappingList),
                 nodeWorkingDirectory.toString(),
                 nodeRootDirectory.toString(),
@@ -334,6 +330,24 @@ public class WorkspaceManager {
             if (path.startsWith(entry.getDestination())) {
                 if (!mustBeWritable || !entry.isReadOnly()) {
                     return path.replaceFirst(entry.getDestination(), entry.getSource());
+                } else {
+                    return null;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private String[] getLocalPathAndMatchedPathFromNodeTargetPath(List<NodeWorkspace.PathMappingEntry> pathMappingList, String path,
+            Boolean mustBeWritable) {
+        for (int i=pathMappingList.size()-1; i>=0; i--) {
+            NodeWorkspace.PathMappingEntry entry = pathMappingList.get(i);
+            if (path.startsWith(entry.getDestination())) {
+                if (!mustBeWritable || !entry.isReadOnly()) {
+                    return new String[] {path.replaceFirst(entry.getDestination(), entry.getSource()), entry.getSource(), entry.getDestination()};
+                } else {
+                    return null;
                 }
             }
         }
@@ -342,16 +356,18 @@ public class WorkspaceManager {
     }
 
     private List<NodeWorkspace.PathMappingEntry> copyOverNodePathsAndMakePathMappingList(Node node, Service nodeService,
-                     Path nodeRootDirectory, Map<String, String> compressedToDecompressedMap) throws WorkspaceException {
+            Path nodeRootDirectory, Map<String, String> compressedToDecompressedMap, Set<String> localInstrumentablePathSet)
+            throws WorkspaceException {
         List<NodeWorkspace.PathMappingEntry> pathMapList = new ArrayList<>();
         Map<String, NodeWorkspace.PathMappingEntry> pathMap = new HashMap<>();
 
         NodeWorkspace.PathMappingEntry pathMappingEntry;
         try {
             // Copies over node's service paths based on their entry path order
-            for (PathEntry pathEntry : nodeService.getApplicationPaths().values().stream()
-                    .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
-                    .collect(Collectors.toList())) {
+            Iterator<Map.Entry<String, PathEntry>> servicePathsIterator =  nodeService.getApplicationPaths().entrySet().iterator();
+            while (servicePathsIterator.hasNext()) {
+                PathEntry pathEntry = servicePathsIterator.next().getValue();
+                // TODO if parent path exists in the path mappings, first subpath should be removed from the node workspace and then the new should be copied over
                 String copiedPath = copyOverPathEntry(pathEntry, compressedToDecompressedMap, nodeRootDirectory, nodeService.getName());
 
                 pathMappingEntry = new NodeWorkspace.PathMappingEntry(copiedPath, pathEntry.getTargetPath(),
@@ -361,10 +377,9 @@ public class WorkspaceManager {
             }
 
             // Copies over node's paths based on their entry path order
-            for (PathEntry pathEntry : node.getApplicationPaths().values().stream()
-                    .sorted((p1, p2) -> p1.getOrder().compareTo(p2.getOrder()))
-                    .collect(Collectors.toList())) {
-
+            Iterator<Map.Entry<String, PathEntry>> nodePathsIterator =  node.getApplicationPaths().entrySet().iterator();
+            while (nodePathsIterator.hasNext()) {
+                PathEntry pathEntry = nodePathsIterator.next().getValue();
                 String copiedPath = copyOverPathEntry(pathEntry, null, nodeRootDirectory, node.getName());
 
                 pathMappingEntry = new NodeWorkspace.PathMappingEntry(copiedPath, pathEntry.getTargetPath(),
@@ -373,37 +388,51 @@ public class WorkspaceManager {
                 pathMap.put(pathEntry.getTargetPath(), pathMappingEntry);
             }
 
-            for (String instrumentablePath: nodeService.getInstrumentablePaths()) {
-                // Copies over instrumentable paths if it is not marked as willBeChanged and updates path mapping
-                String localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMapList,
-                        instrumentablePath, true);
+            if (deployment.isNodeInRunSequence(node)) {
+                for (String instrumentablePath: nodeService.getInstrumentablePaths()) {
+                    // Copies over instrumentable paths if it is not marked as willBeChanged and updates path mapping
+                    String localInstrumentablePath =
+                            getLocalPathFromNodeTargetPath(pathMapList, instrumentablePath, true);
 
-                if (localInstrumentablePath == null) {
-                    localInstrumentablePath = getLocalPathFromNodeTargetPath(pathMapList,
-                            instrumentablePath, false);
+                    if (localInstrumentablePath == null) {
+                        String[] localPathAndMatchedPath = getLocalPathAndMatchedPathFromNodeTargetPath(pathMapList, instrumentablePath, false);
 
-                    if (localInstrumentablePath == null || !new File(localInstrumentablePath).exists()) {
-                        throw new WorkspaceException("The marked instrumentable path `" + nodeService.getInstrumentablePaths() +
-                                "` is not marked as willBeChanged or does not exist!");
-                    }
+                        if (localPathAndMatchedPath == null) {
+                            throw new WorkspaceException("The marked instrumentable path `" + instrumentablePath +
+                                    "` does not exist!");
+                        }
 
-                    Path localInstrumentablePathObj = Paths.get(localInstrumentablePath);
+                        localInstrumentablePath = localPathAndMatchedPath[0];
+                        String matchedLocal = localPathAndMatchedPath[1];
+                        String matchedTarget = localPathAndMatchedPath[2];
 
-                    Path destPath = nodeRootDirectory.resolve("Instrumentable_" + pathToStringWithoutSlashes(
-                            instrumentablePath));
-                    if (new File(localInstrumentablePath).isDirectory()) {
-                        FileUtil.copyDirectory(localInstrumentablePathObj, destPath);
+                        for (String exPath: FileUtil.findAllMatchingPaths(localInstrumentablePath)) {
+                            Path exPathObj = Paths.get(exPath);
+
+                            Path destPath = nodeRootDirectory.resolve("Instrumentable_" + HashingUtil.md5(exPath) + exPathObj.toFile().getName());
+                            if (new File(exPath).isDirectory()) {
+                                FileUtil.copyDirectory(exPathObj, destPath);
+                            } else {
+                                Files.copy(exPathObj, destPath, StandardCopyOption.COPY_ATTRIBUTES,
+                                        StandardCopyOption.REPLACE_EXISTING);
+                            }
+
+                            String newInstrumentablePath = exPath.replaceFirst(matchedLocal, matchedTarget);
+
+                            pathMappingEntry = new NodeWorkspace.PathMappingEntry(destPath.toString(), newInstrumentablePath, false);
+                            pathMap.put(newInstrumentablePath, pathMappingEntry);
+                            pathMapList.add(pathMappingEntry);
+                            localInstrumentablePathSet.add(destPath.toString());
+                        }
                     } else {
-                        Files.copy(localInstrumentablePathObj, destPath,
-                                StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING);
+                        // A willBeChanged path is found, so extend the path and add all of them to the instrumentablePaths
+                        localInstrumentablePathSet.addAll(FileUtil.findAllMatchingPaths(localInstrumentablePath));
                     }
-                    pathMap.put(instrumentablePath,
-                            new NodeWorkspace.PathMappingEntry(destPath.toString(), instrumentablePath, false));
                 }
             }
 
             // after this stage these mappings will be used by docker and the order is not important
-            return new ArrayList<>(pathMap.values());
+            return pathMapList;
         } catch (IOException e) {
             throw new WorkspaceException("Error in copying over node " + node.getName() + " binaries to its workspace!", e);
         }

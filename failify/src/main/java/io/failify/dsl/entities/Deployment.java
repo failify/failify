@@ -274,13 +274,31 @@ public class Deployment extends DeploymentEntity {
      * @param eventName to be checked
      * @return true if the event is in the run sequence, otherwise false
      */
-    public Boolean isInRunSequence(String eventName) {
+    public boolean isInRunSequence(String eventName) {
         String[] eventNames = runSequence.split("\\W+");
         for (String event: eventNames) {
             if (event.equals(eventName)) {
                 return true;
             }
         }
+        return false;
+    }
+
+    /**
+     * Checks if at least one of the node defined internal events is present in the run sequence
+     * @param node the node to check for
+     * @return true if at least one of the events is present otherwise false
+     */
+    public boolean isNodeInRunSequence(Node node) {
+        if (node.getInternalEvents() == null || node.getInternalEvents().isEmpty())
+            return false;
+
+        for (InternalEvent event: node.getInternalEvents().values()) {
+            if (this.isInRunSequence(event.getName())) {
+                return true;
+            }
+        }
+
         return false;
     }
 

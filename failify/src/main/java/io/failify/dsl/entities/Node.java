@@ -46,7 +46,7 @@ import java.util.*;
  * to be exposed in the node's container (if necessary).
  */
 public class Node extends ReferableDeploymentEntity {
-    private final Map<String, PathEntry> applicationPaths; // map of target paths to path entries for the node
+    private final NavigableMap<String, PathEntry> applicationPaths; // map of target paths to path entries for the node
     private final Set<ExposedPortDefinition> exposedPorts; // set of exposed TCP or UDP ports for the node
     private final Map<String, String> environmentVariables; // map of env vars name to value
     private final Set<String> logFiles; // set of target log files to be collected
@@ -58,7 +58,6 @@ public class Node extends ReferableDeploymentEntity {
     private final Map<String, InternalEvent> internalEvents; // the map of internal event names to their objects
     private final Boolean offOnStartup; // the flag to start the node on start up or not
     private final Boolean disableClockDrift; // the flag to disable clock drift capability
-    private final Integer pathOrderCounter; // the counter to use for applying order to application paths
     private final String workDir; // the working directory in the container
 
     public static Node.LimitedBuilder limitedBuilder(String nodeName, String serviceName) {
@@ -77,13 +76,12 @@ public class Node extends ReferableDeploymentEntity {
         stopCommand = builder.stopCommand;
         internalEvents = Collections.unmodifiableMap(builder.internalEvents);
         offOnStartup = builder.offOnStartup;
-        applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
+        applicationPaths = Collections.unmodifiableNavigableMap(builder.applicationPaths);
         exposedPorts = builder.exposedPorts;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
         disableClockDrift = builder.disableClockDrift;
-        pathOrderCounter = builder.pathOrderCounter;
         workDir = builder.workDir;
     }
 
@@ -99,13 +97,12 @@ public class Node extends ReferableDeploymentEntity {
         stopCommand = builder.stopCommand;
         internalEvents = Collections.unmodifiableMap(new HashMap<>());
         offOnStartup = false;
-        applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
+        applicationPaths = Collections.unmodifiableNavigableMap(builder.applicationPaths);
         exposedPorts = builder.exposedPorts;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
         disableClockDrift = builder.disableClockDrift;
-        pathOrderCounter = builder.pathOrderCounter;
         workDir = builder.workDir;
     }
 
@@ -153,7 +150,7 @@ public class Node extends ReferableDeploymentEntity {
         return logDirectories;
     }
 
-    public Map<String, PathEntry> getApplicationPaths() {
+    public NavigableMap<String, PathEntry> getApplicationPaths() {
         return applicationPaths;
     }
 
@@ -175,7 +172,7 @@ public class Node extends ReferableDeploymentEntity {
     public static class LimitedBuilder extends BuilderBase<Node, Deployment.Builder> {
         private static Logger logger = LoggerFactory.getLogger(LimitedBuilder.class);
 
-        protected Map<String, PathEntry> applicationPaths;
+        protected NavigableMap<String, PathEntry> applicationPaths;
         protected Set<ExposedPortDefinition> exposedPorts;
         protected Map<String, String> environmentVariables;
         protected Set<String> logFiles;
@@ -185,7 +182,6 @@ public class Node extends ReferableDeploymentEntity {
         protected String startCommand;
         protected String stopCommand;
         protected Boolean disableClockDrift; // the flag to disable clock drift capability
-        protected Integer pathOrderCounter;
         protected String workDir;
 
         /**
@@ -202,13 +198,12 @@ public class Node extends ReferableDeploymentEntity {
             }
 
             this.serviceName = serviceName;
-            applicationPaths = new HashMap<>();
+            applicationPaths = new TreeMap<>();
             exposedPorts = new HashSet<>();
             environmentVariables = new HashMap<>();
             logFiles = new HashSet<>();
             logDirectories = new HashSet<>();
             disableClockDrift = false;
-            pathOrderCounter = 0;
             workDir = null;
         }
 
@@ -232,13 +227,12 @@ public class Node extends ReferableDeploymentEntity {
             initCommand = instance.initCommand == null ? null : new String(instance.initCommand);
             startCommand = instance.startCommand == null ? null : new String(instance.startCommand);
             stopCommand = instance.stopCommand == null ? null : new String(instance.stopCommand);
-            applicationPaths = new HashMap<>(instance.applicationPaths);
+            applicationPaths = new TreeMap<>(instance.applicationPaths);
             exposedPorts = new HashSet<>(instance.exposedPorts);
             environmentVariables = new HashMap<>(instance.environmentVariables);
             logFiles = new HashSet<>(instance.logFiles);
             logDirectories = new HashSet<>(instance.logDirectories);
             disableClockDrift = new Boolean(instance.disableClockDrift);
-            pathOrderCounter = new Integer(instance.pathOrderCounter);
             workDir = instance.workDir == null ? null : new String(instance.workDir);
         }
 
@@ -361,7 +355,7 @@ public class Node extends ReferableDeploymentEntity {
             targetPath = FilenameUtils.normalizeNoEndSeparator(targetPath, true);
 
             this.applicationPaths.put(targetPath, new PathEntry(
-                    path, targetPath, replacements, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
+                    path, targetPath, replacements, false, willBeChanged, false)); // TODO Make this thread-safe
             return this;
         }
 
@@ -602,7 +596,7 @@ public class Node extends ReferableDeploymentEntity {
             targetPath = FilenameUtils.normalizeNoEndSeparator(targetPath, true);
 
             this.applicationPaths.put(targetPath, new PathEntry(
-                    path, targetPath, replacements, false, willBeChanged, false, pathOrderCounter++)); // TODO Make this thread-safe
+                    path, targetPath, replacements, false, willBeChanged, false)); // TODO Make this thread-safe
             return this;
         }
 

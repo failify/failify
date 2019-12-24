@@ -71,11 +71,6 @@ public class JavaInstrumentor implements Instrumentor {
         // Constructs classpath for instrumentation
         String classPathString = "";
         StringJoiner classPathStringJoiner = new StringJoiner(":");
-        if (nodeWorkspace.getInstrumentablePaths() != null) {
-            for (String instrumentablePath : nodeWorkspace.getInstrumentablePaths()) {
-                classPathStringJoiner.add(instrumentablePath);
-            }
-        }
         if (nodeWorkspace.getLibraryPaths() != null) {
             for (String libPath : nodeWorkspace.getLibraryPaths()) {
                 classPathStringJoiner.add(libPath);

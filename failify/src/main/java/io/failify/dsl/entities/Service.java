@@ -43,7 +43,7 @@ import java.util.*;
  * created out of this service (if necessary).
  */
 public class Service extends DeploymentEntity {
-    private final Map<String, PathEntry> applicationPaths; // map of target paths to path entries for the service
+    private final NavigableMap<String, PathEntry> applicationPaths; // map of target paths to path entries for the service
     // Library target paths in the node's container. This is useful when a directory is added as an application path which
     // is not a library but contains sub-paths that are a library
     private final Set<String> libraryPaths;
@@ -60,7 +60,6 @@ public class Service extends DeploymentEntity {
     private final String stopCommand; // the stop command of the node which will executed when the node is stopped or restarted
     private final ServiceType serviceType; // the service programming language
     private final Boolean disableClockDrift; // the flag to disable clock drift capability
-    private Integer pathOrderCounter; // the counter to use for applying order to application paths
     private final String workDir; // the working directory in the container
     private final Map<ULimit, ULimit.Values> ulimits; // the ulimits map for the container
 
@@ -78,13 +77,12 @@ public class Service extends DeploymentEntity {
         startCommand = builder.startCommand;
         stopCommand = builder.stopCommand;
         serviceType = builder.serviceType;
-        applicationPaths = Collections.unmodifiableMap(builder.applicationPaths);
+        applicationPaths = Collections.unmodifiableNavigableMap(builder.applicationPaths);
         libraryPaths = Collections.unmodifiableSet(builder.libraryPaths);
         logFiles = Collections.unmodifiableSet(builder.logFiles);
         logDirectories = builder.logDirectories;
         exposedPorts = builder.exposedPorts;
         environmentVariables = Collections.unmodifiableMap(builder.environmentVariables);
-        pathOrderCounter = builder.pathOrderCounter;
         disableClockDrift = builder.disableClockDrift;
         workDir = builder.workDir;
         ulimits = Collections.unmodifiableMap(builder.ulimits);
@@ -122,7 +120,7 @@ public class Service extends DeploymentEntity {
         return serviceType;
     }
 
-    public Map<String, PathEntry> getApplicationPaths() {
+    public NavigableMap<String, PathEntry> getApplicationPaths() {
         return applicationPaths;
     }
 
@@ -164,7 +162,7 @@ public class Service extends DeploymentEntity {
     public static class Builder extends BuilderBase<Service, Deployment.Builder> {
         private static Logger logger = LoggerFactory.getLogger(Builder.class);
 
-        private Map<String, PathEntry> applicationPaths;
+        private NavigableMap<String, PathEntry> applicationPaths;
         private Set<String> libraryPaths;
         private Set<String> logFiles;
         private Set<String> logDirectories;
@@ -179,7 +177,6 @@ public class Service extends DeploymentEntity {
         private String stopCommand;
         private Boolean disableClockDrift;
         private ServiceType serviceType;
-        private Integer pathOrderCounter;
         private String workDir;
         private Map<ULimit, ULimit.Values> ulimits;
 
@@ -190,7 +187,7 @@ public class Service extends DeploymentEntity {
          */
         public Builder(Deployment.Builder parentBuilder, String name) {
             super(parentBuilder, name);
-            applicationPaths = new HashMap<>();
+            applicationPaths = new TreeMap<>();
             instrumentablePaths = new HashSet<>();
             libraryPaths = new HashSet<>();
             logFiles = new HashSet<>();
@@ -200,7 +197,6 @@ public class Service extends DeploymentEntity {
             dockerImage = Constants.DEFAULT_BASE_DOCKER_IMAGE_NAME;
             dockerImageForceBuild = false;
             dockerFile = null;
-            pathOrderCounter = 0;
             serviceType = ServiceType.OTHER;
             disableClockDrift = false;
             workDir = null;
@@ -230,13 +226,12 @@ public class Service extends DeploymentEntity {
             startCommand = instance.startCommand == null ? null : new String(instance.startCommand);
             stopCommand = instance.stopCommand == null ? null : new String(instance.stopCommand);
             serviceType = instance.serviceType;
-            applicationPaths = new HashMap<>(instance.applicationPaths);
+            applicationPaths = new TreeMap<>(instance.applicationPaths);
             libraryPaths = new HashSet<>(instance.libraryPaths);
             logFiles = new HashSet<>(instance.logFiles);
             logDirectories = new HashSet<>(instance.logDirectories);
             exposedPorts = new HashSet<>(instance.exposedPorts);
             environmentVariables = new HashMap<>(instance.environmentVariables);
-            pathOrderCounter = new Integer(instance.pathOrderCounter);
             disableClockDrift = new Boolean(instance.disableClockDrift);
             workDir = instance.workDir == null ? null : new String(instance.workDir);
             ulimits = new HashMap<>(instance.ulimits);
@@ -257,13 +252,12 @@ public class Service extends DeploymentEntity {
             startCommand = instance.startCommand == null ? null : new String(instance.startCommand);
             stopCommand = instance.stopCommand == null ? null : new String(instance.stopCommand);
             serviceType = instance.serviceType;
-            applicationPaths = new HashMap<>(instance.applicationPaths);
+            applicationPaths = new TreeMap<>(instance.applicationPaths);
             libraryPaths = new HashSet<>(instance.libraryPaths);
             logFiles = new HashSet<>(instance.logFiles);
             logDirectories = new HashSet<>(instance.logDirectories);
             exposedPorts = new HashSet<>(instance.exposedPorts);
             environmentVariables = new HashMap<>(instance.environmentVariables);
-            pathOrderCounter = new Integer(instance.pathOrderCounter);
             disableClockDrift = new Boolean(instance.disableClockDrift);
             workDir = instance.workDir == null ? null : new String(instance.workDir);
             ulimits = new HashMap<>(instance.ulimits);
@@ -408,7 +402,7 @@ public class Service extends DeploymentEntity {
             targetPath = FilenameUtils.normalizeNoEndSeparator(targetPath, true);
 
             this.applicationPaths.put(targetPath, new PathEntry(
-                    path, targetPath, replacements, isLibrary, willBeChanged, shouldBeDecompressed, pathOrderCounter++)); // TODO Make this thread-safe
+                    path, targetPath, replacements, isLibrary, willBeChanged, shouldBeDecompressed)); // TODO Make this thread-safe
             return this;
         }
 

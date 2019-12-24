@@ -7,7 +7,7 @@
         </layout>
     </appender>
 
-    <logger name="io.failify" level="DEBUG"/>
+    <logger name="io.failify" level="INFO"/>
     <!--<logger name="com.spotify.docker.client" level="DEBUG"/>-->
 
     <root level="ERROR">
