@@ -119,9 +119,15 @@
                     </filters>
                     <createSourcesJar>true</createSourcesJar>
                     <artifactSet>
-                        <excludes>
-                            <exclude>io.failify:failifyrt</exclude>
-                        </excludes>
+                        <includes>
+                            <include>com.fasterxml.jackson.**</include>
+                            <include>javax.annotation:*</include>
+                            <include>javax.inject:*</include>
+                            <include>javax.ws.rs:*</include>
+                            <include>org.glassfish.**</include>
+                            <include>org.jvnet.hk2.**</include>
+                            <include>org.eclipse.**</include>
+                        </includes>
                     </artifactSet>
                     <relocations>
                         <relocation>
@@ -151,6 +157,14 @@
                         <relocation>
                             <pattern>org.jvnet</pattern>
                             <shadedPattern>io.failify.shaded.org.jvnet</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>org.aopalliance</pattern>
+                            <shadedPattern>io.failify.shaded.org.aopalliance</shadedPattern>
+                        </relocation>
+                        <relocation>
+                            <pattern>com.sun.research</pattern>
+                            <shadedPattern>io.failify.shaded.com.sun.research</shadedPattern>
                         </relocation>
                     </relocations>
                     <transformers>
