@@ -135,7 +135,7 @@ public class RunSequenceInstrumentationEngine implements InstrumentationEngine {
                     instrumentationPointMap.get(definition.getInstrumentationPoint()).isEmpty()) {
                 instrumentationPointMap.get(definition.getInstrumentationPoint()).add(
                         new InstrumentationOperation.InstrumentationOperationBuilder(RunSeqRuntimeOperation.ALLOW_BLOCKING,
-                                null).build()
+                                null).parameter(definition.getInstrumentationPoint().getMethodName()).build()
                 );
             }
 

@@ -73,6 +73,11 @@ public class SchedulingEvent extends BlockingEvent {
     }
 
     @Override
+    public boolean needsBlockingCondition() {
+        return operation == SchedulingOperation.UNBLOCK;
+    }
+
+    @Override
     public List<InstrumentationDefinition> generateInstrumentationDefinitions(Deployment deployment) {
         List<InstrumentationDefinition> retList = new ArrayList<>();
 
@@ -82,11 +87,13 @@ public class SchedulingEvent extends BlockingEvent {
                 InstrumentationPoint.Position.BEFORE : InstrumentationPoint.Position.AFTER;
 
         if (operation == SchedulingOperation.UNBLOCK) {
+            String methodName = stack.trim().split(",")[stack.trim().split(",").length - 1];
             retList.add(InstrumentationDefinition.builder()
-                    .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], instrumentationPosition)
+                    .instrumentationPoint(methodName, instrumentationPosition)
                     .withInstrumentationOperation(RunSeqRuntimeOperation.ENFORCE_ORDER)
                         .parameter(name)
-                        .parameter(stack).and()
+                        .parameter(stack)
+                        .parameter(methodName).and()
                     .build()
             );
         }

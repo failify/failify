@@ -72,13 +72,17 @@ public class MultithreadTest {
                 // Test Case Events
                 .testCaseEvents("x1", "x2")
                 // Run Sequence Definition
-                .runSeq("bbe2 * e1 * ubbe2 * x1 * e2 * e3 * x2 * e4")
+                .runSeq("e1 * x1 * e2 * bbe2 * e3 * x2 * e4 * ubbe2")
                 .sharedDir("/failify")
                 .build();
 
         FailifyRunner runner = FailifyRunner.run(deployment);
         // Starting node n2
-        runner.runtime().enforceOrder("x1",15, () -> runner.runtime().startNode("n2"));
+        runner.runtime().enforceOrder("x1",15, () -> {
+            runner.runtime().startNode("n2");
+            // Imposing 10 secs of clock drift in node n1
+            runner.runtime().clockDrift("n1", -10000);
+        });
         // Adding new nodes to the deployed environment
         runner.addNode(Node.limitedBuilder("n5", "s1"));
         // Imposing overlapping network partitions
@@ -86,8 +90,6 @@ public class MultithreadTest {
         NetPart netPart2 = NetPart.partitions("n1","n2,n3").connect(1, NetPart.REST).build();
         runner.runtime().networkPartition(netPart1);
         runner.runtime().networkPartition(netPart2);
-        // Imposing 10 secs of clock drift in node n1
-        runner.runtime().clockDrift("n1", -10000);
         // Applying network delay and loss on node n2 before restarting it
         runner.runtime().networkOperation("n2", NetOp.delay(50).jitter(10), NetOp.loss(30));
         // removing the first network partition and restarting node n2

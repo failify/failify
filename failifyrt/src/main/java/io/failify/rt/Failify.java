@@ -30,6 +30,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.concurrent.TimeoutException;
 
 // TODO should some methods be synchronized ?
@@ -44,12 +45,12 @@ public class Failify {
     private final String port;
     private final StackMatcher stackMatcher;
     // this is needed because each pass of a method can only be blocked once per thread
-    private ThreadLocal<Boolean> allowBlocking;
+    private ThreadLocal<HashMap<String, Boolean>> allowBlocking;
 
     /**
      * This method returns an instance of Failify class initialized with ip and port from the env
      */
-    public static Failify getInstance() {
+    public synchronized static Failify getInstance() {
         if (instance == null) {
             // the event server ip an port should come from the env vars if not given as args
             instance = new Failify(System.getenv("FAILIFY_EVENT_SERVER_IP_ADDRESS"),
@@ -68,14 +69,14 @@ public class Failify {
         this.hostname = hostname;
         this.port = port;
         this.stackMatcher = new StackMatcher();
-        this.allowBlocking = ThreadLocal.withInitial(() -> true);
+        this.allowBlocking = ThreadLocal.withInitial(() -> new HashMap<>());
     }
 
     /**
      * Sets allow blocking to true and should be called in the beginning of each instrumented method
      */
-    public void allowBlocking() {
-        allowBlocking.set(true);
+    public void allowBlocking(String methodName) {
+        allowBlocking.get().put(methodName, true);
     }
 
     /**
@@ -86,17 +87,17 @@ public class Failify {
      * @param eventName that needs to be enforced
      * @param stack the stack trace to match in order to allow blocking
      */
-    public void enforceOrder(String eventName, String stack) {
+    public void enforceOrder(String eventName, String stack, String methodName) {
         // check if event is not already sent - useful when resetting a node
         if (!isEventAlreadySent(eventName)) {
             if (stack == null || stackMatcher.match(stack)) {
                 // check if blocking is allowed in the current pass
-                if (allowBlocking.get()) {
+                if (allowBlocking.get().getOrDefault(methodName, false)) {
                     // check if blocking condition is satisfied
                     if (isBlockingConditionSatisfied(eventName)) {
                         blockAndPoll(eventName);
                         sendEvent(eventName);
-                        allowBlocking.set(false);
+                        allowBlocking.get().put(methodName, false);
                     }
                 }
             }

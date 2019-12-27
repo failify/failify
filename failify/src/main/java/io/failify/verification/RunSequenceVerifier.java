@@ -220,9 +220,11 @@ public class RunSequenceVerifier extends DeploymentVerifier {
 
         // check if event is a blocking event
         if (blockingEvent != null) {
-            // set blocking condition to the last seen blocking event for the event stack trace
-            String stackTraceMapKey = blockingEvent.getSchedulingPoint() + "-" + blockingEvent.getStack(deployment);
-            blockingEvent.setBlockingCondition(stackTraceToLastBlockingEvent.get(stackTraceMapKey));
+            String stackTraceMapKey = blockingEvent.getStack(deployment);
+            if (blockingEvent.needsBlockingCondition()) {
+                // set blocking condition to the last seen blocking event for the event stack trace
+                blockingEvent.setBlockingCondition(stackTraceToLastBlockingEvent.get(stackTraceMapKey));
+            }
             // update the the last seen blocking event for the event stack trace
             // TODO a stack trace can be a subset of another stack trace
             stackTraceToLastBlockingEvent.put(stackTraceMapKey, eventName);

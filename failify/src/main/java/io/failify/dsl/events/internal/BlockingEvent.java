@@ -47,6 +47,10 @@ public abstract class BlockingEvent extends InternalEvent {
         this.blockingCondition = this.blockingCondition == null ? blockingCondition : throwBlockingConditionIsSet_();
     }
 
+    public boolean needsBlockingCondition() {
+        return true;
+    }
+
     private String throwBlockingConditionIsSet_() {
         throw new RuntimeException("blockingCondition is already set");
     }

@@ -266,8 +266,8 @@ public abstract class RuntimeEngine implements LimitedRuntimeEngine {
     private void sendEvent(String eventName) throws RuntimeEngineException {
         if (deployment.isInRunSequence(eventName)) {
             logger.info("Sending test case event {} ...", eventName);
-            failifyClient.allowBlocking();
-            failifyClient.enforceOrder(eventName, null);
+            failifyClient.allowBlocking(null);
+            failifyClient.enforceOrder(eventName, null, null);
         } else {
             throw new RuntimeEngineException("Event " + eventName + " is not referred to" +
                     " in the run sequence. Thus, its order cannot be sent from the test case!");

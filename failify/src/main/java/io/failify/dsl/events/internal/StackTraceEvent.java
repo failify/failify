@@ -61,11 +61,15 @@ public class StackTraceEvent extends BlockingEvent {
         List<InstrumentationDefinition> retList = new ArrayList<>();
         InstrumentationPoint.Position instrumentationPoint = schedulingPoint == SchedulingPoint.BEFORE ?
                 InstrumentationPoint.Position.BEFORE : InstrumentationPoint.Position.AFTER;
+
+        String methodName = stack.trim().split(",")[stack.trim().split(",").length - 1];
+
         retList.add(InstrumentationDefinition.builder()
-                .instrumentationPoint(stack.trim().split(",")[stack.trim().split(",").length - 1], instrumentationPoint)
+                .instrumentationPoint(methodName, instrumentationPoint)
                 .withInstrumentationOperation(RunSeqRuntimeOperation.ENFORCE_ORDER)
                     .parameter(getName())
-                    .parameter(stack).and()
+                    .parameter(stack)
+                    .parameter(methodName).and()
                 .build()
         );
         return retList;
