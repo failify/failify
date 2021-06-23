@@ -41,7 +41,7 @@
     <url>https://github.com/failify/failify</url>
 
     <properties>
-        <jetty.version>9.4.12.v20180830</jetty.version>
+        <jetty.version>9.4.41.v20210516</jetty.version>
         <jersey.version>2.22.2</jersey.version>
     </properties>
 
