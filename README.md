@@ -6,7 +6,7 @@ Failify is a test framework for end-to-end testing of distributed systems. It ca
 
 # Questions
 
-To get started using Failify, look at the Failify's [User Guide](https://docs.failify.io) for your desired version. For detailed information about Failify's API take a look at its [Javadoc](https://www.javadoc.io/doc/io.failify/failify). If you still have questions, try asking in StackOverflow using failify tag or create a github issue with question label.
+To get started using Failify, look at the Failify's [User Guide](https://failify.readthedocs.io) for your desired version. For detailed information about Failify's API take a look at its [Javadoc](https://www.javadoc.io/doc/io.failify/failify). If you still have questions, try asking in StackOverflow using failify tag or create a github issue with question label.
 
 # Contributing
 
